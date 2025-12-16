@@ -1,40 +1,31 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:e_fuel/configs/app_colors.dart';
-import 'package:e_fuel/datas/constant/url_api_static.dart';
-import 'package:e_fuel/datas/constant/value_key_static.dart';
 import 'package:e_fuel/helpers/lotties_helper.dart';
-import 'package:e_fuel/helpers/string_helper.dart';
-import 'package:e_fuel/modules/penerimaan/controllers/penerimaan_controller.dart';
+import 'package:e_fuel/helpers/text_convert_helper.dart';
 import 'package:e_fuel/widgets/dialog/dialog_flexible.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart' hide MultipartFile, FormData;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-import '../../../configs/app_fonts.dart';
 import '../../../datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan_sebelum_model.dart';
-import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
+import '../../../datas/models/unit_to_storage/unit_to_storage_model.dart';
 import '../../../datas/models/widgets/capture_image_detail.dart';
 import '../../../routes/app_pages.dart';
 import '../../auth/services/login_service.dart';
 import '../../fuel/services/fuel_data_service.dart';
 import '../../fuel/services/fuel_sensor_service.dart';
-import '../../transactions/penerimaan/services/outstanding_service.dart';
-import '../../transactions/penerimaan/services/penerimaan_api_service.dart';
 import '../services/draft_penerimaan_service.dart';
 
 class PenerimaanSebelumController extends GetxController {
-  final FuelSensorService _sensorService = Get.find<FuelSensorService>();
+  final FuelSensorService _sensorService = Get.find<FuelSensorService>(); // Service Sensor
+  final FuelDataService _fuelDataService = Get.find<FuelDataService>(); // Service Manual & Master
   final LoginService _loginService = Get.find<LoginService>();
-  final FuelDataService _fuelDataService = Get.find<FuelDataService>();
-  final PenerimaanApiService _apiService = PenerimaanApiService();
 
   // Data UI
   final totalVolume = 0.0.obs;
@@ -98,23 +89,8 @@ class PenerimaanSebelumController extends GetxController {
 
     if (Get.arguments != null && Get.arguments is Map) {
       final args = Get.arguments as Map;
-      if (args.containsKey('storage')) selectedStorage.value = args['storage'];
-      if (args.containsKey('manual_total')) {
-        totalVolumeManual.value = (args['manual_total'] as num).toDouble();
-      }
-      if (args.containsKey('tank_data')) {
-        List<Map<String, dynamic>> rawData = List<Map<String, dynamic>>.from(args['tank_data']);
-        receivedManualData.assignAll(rawData);
-
-        List<Map<String, String>> displayList = [];
-        for (var item in rawData) {
-          displayList.add({
-            'code': item['tank_code'].toString(),
-            'volume': "${item['volume_manual']} Ltr",
-            'height': "${item['height_manual']} cm",
-          });
-        }
-        tankListManualDisplay.assignAll(displayList);
+      if (args.containsKey('storage')) {
+        selectedStorage.value = args['storage'];
       }
     }
     _ensureDataIsLoaded();
@@ -124,11 +100,23 @@ class PenerimaanSebelumController extends GetxController {
     final auth = await _loginService.getAuthOrLoad();
     if (auth != null) {
       _activeUsername = auth.user.username;
-      await _sensorService.loadInitialData(_activeUsername);
-      await _fuelDataService.openFuelDataBox(_activeUsername);
 
-      final storages = _fuelDataService.getStorages();
-      storageLocations.assignAll(storages.map((e) => e.storageName).toList());
+      await _fuelDataService.openFuelDataBox(_activeUsername);
+      await _sensorService.initSensorBox(_activeUsername); // Init Sensor Bo
+
+      final List<UnitToStorageModel> rawStorages = _fuelDataService.getLocalStorages();
+
+      // Flat-kan list storage (Unit -> List<Storage>)
+      List<String> formattedStorages = [];
+      for (var unitData in rawStorages) {
+        for (var storage in unitData.masterStorage) {
+          if (storage.storageStatus == 'Y') {
+            formattedStorages.add("${storage.namaStorage} - ${storage.kodeStorage}");
+          }
+        }
+      }
+
+      storageLocations.assignAll(formattedStorages);
 
       if (storageLocations.isNotEmpty) {
         if (selectedStorage.value == 'Pilih Lokasi Storage') {
@@ -237,7 +225,7 @@ class PenerimaanSebelumController extends GetxController {
 
     String formatVal(double? val) {
       if (val == null) return "";
-      return StringHelper().formatNumber(val);
+      return TextConvertHelper().formatNumber(val);
     }
 
     // Step 1
@@ -281,400 +269,46 @@ class PenerimaanSebelumController extends GetxController {
     }
   }
 
-  Future<void> _saveCurrentProgressToDraft() async {
-    if (_activeUsername.isEmpty) return;
+  void proceedToTankMeasurement() {
+    if (!_validateCurrentStep()) return;
 
-    // Helper local agar kodingan lebih pendek
-    double? parseClean(String val) => double.tryParse(StringHelper().cleanNumber(val));
+    final Map<String, dynamic> administrativeData = {
+      'purch_no': noPoController.text,
+      'vendor_spb': noDoController.text,
+      'volume_vendor': TextConvertHelper().cleanNumber(jumlahLtrController.text),
+      'density_vendor': TextConvertHelper().cleanNumber(densityObsController.text),
+      'temp_vendor': TextConvertHelper().cleanNumber(temperatureObsController.text),
+      'nopol_vendor': noPolisiController.text.toUpperCase(),
+      'supir_vendor': namaSopirController.text.toUpperCase(),
+      'kapasitas_vendor': TextConvertHelper().cleanNumber(kapasitasTangkiController.text),
 
-    final currentModel = PenerimaanSebelumModel(
-      userName: _activeUsername,
-      status: 'draft',
+      // Data Step 3 (Pemeriksaan)
+      'terra_vendor': TextConvertHelper().cleanNumber(tinggiTeraSpbController.text),
+      'terra_check': TextConvertHelper().cleanNumber(tinggiTeraSoundingController.text),
+      'terra_var': TextConvertHelper().cleanNumber(selisihTinggiTeraController.text),
+      'tangki_peka': nilaiKapelkaanController.text,
+      'segel_tangki_atas': segelTangkiAtasController.text,
+      'segel_tangki_bawah': segelTangkiBawahController.text,
+      'segel_kondisi': kondisiSegelSelected.value,
 
-      // Step 1 Form
-      purchNo: noPoController.text,
-      vendorSpb: noDoController.text,
+      // Lokasi & Foto
+      'storage_code': selectedStorage.value,
+      'long': photoSlots[0]?.longitude ?? 0,
+      'lat': photoSlots[0]?.latitude ?? 0,
+      'path_foto_doc': photoSlots[0]?.tempPath,
+      'path_foto_depan': photoSlots[1]?.tempPath,
+      'path_foto_samping': photoSlots[2]?.tempPath,
 
-      // PERBAIKAN DI SINI: Bersihkan titik sebelum parse
-      volumeVendor: parseClean(jumlahLtrController.text),
-      densityVendor: parseClean(densityObsController.text),
-      tempVendor: parseClean(temperatureObsController.text),
+      'date_inbound': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      'dtime_before': DateTime.now().toIso8601String(),
+    };
 
-      nopolVendor: noPolisiController.text,
-      supirVendor: namaSopirController.text,
-      kapasitasVendor: parseClean(kapasitasTangkiController.text),
-
-      // Step 3 Form
-      nopolCheck: noPolisiCheckController.text,
-      supirCheck: namaSopirCheckController.text,
-      kapasitasCheck: double.tryParse(kapasitasTangkiCheckController.text),
-      densityCheck: double.tryParse(densityCheckObsController.text),
-      tempCheck: double.tryParse(temperatureCheckObsController.text),
-
-      terraVendor: parseClean(tinggiTeraSpbController.text),
-      terraCheck: parseClean(tinggiTeraSoundingController.text),
-      terraVar: parseClean(selisihTinggiTeraController.text),
-
-      tangkiPeka: nilaiKapelkaanController.text,
-      segelTangkiAtas: segelTangkiAtasController.text,
-      segelTangkiBawah: segelTangkiBawahController.text,
-      segelKondisi: kondisiSegelSelected.value,
-
-      // Foto & Lainnya
-      pathFotoDoc: photoSlots[0]?.tempPath,
-      pathFotoDepan: photoSlots[1]?.tempPath,
-      pathFotoSamping: photoSlots[2]?.tempPath,
-      storageCode: selectedStorage.value,
-      dateInbound: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-    );
-
-    final draftService = DraftPenerimaanService(_activeUsername);
-    await draftService.saveDraftBefore(currentModel);
-  }
-
-  // void _showConfirmationDialog() {
-  //   Get.dialog(DialogFlexible(
-  //       logo: LottiesHelper().getLottieVerification(),
-  //       title: "Konfirmasi", message: "Submit data?",
-  //       primaryButtonText: "Ya", onPrimaryPressed: () { Get.back(); _submitPenerimaan(); },
-  //       secondaryButtonText: "Batal", onSecondaryPressed: () => Get.back()
-  //   ));
-  // }
-
-  void _showConfirmationDialog() {
-    Get.dialog(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieVerification(),
-          title: "Final Konfirmasi",
-          message: "Pastikan semua data dan foto pemeriksaan telah benar. Data yang telah disubmit tidak dapat diubah.",
-          secondaryButtonText: "Cek Kembali",
-          onSecondaryPressed: () => Get.back(),
-          primaryButtonText: "Submit",
-          onPrimaryPressed: () async {
-            Get.back();
-            await _submitPenerimaan();
-          },
-        )
-    );
-  }
-
-  Future<void> _submitPenerimaan() async {
-    if (isSubmitting.value) return;
-    isSubmitting.value = true;
-
-    final auth = await _loginService.getAuthOrLoad();
-    final currentUsername = auth?.user.username ?? "";
-    final String token = auth?.access ?? "";
-
-    if (auth == null || currentUsername.isEmpty) {
-      Get.snackbar("Error", "Sesi login tidak valid.");
-      isSubmitting.value = false;
-      return;
-    }
-
-    if (token.isEmpty || currentUsername.isEmpty) {
-      Get.snackbar("Error", "Sesi login tidak valid. Silahkan login ulang.");
-      isSubmitting.value = false;
-      return;
-    }
-
-    // Loading Dialog
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primary),
-              const SizedBox(height: 24),
-              Text("Proses Upload Dokumen...", textAlign: TextAlign.center,
-                  style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary, fontSize: 16)),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
-    );
-
-    try {
-      double? parseClean(String val) =>
-          double.tryParse(StringHelper().cleanNumber(val));
-
-      String rawStorage = selectedStorage.value;
-      String finalStorageCode = rawStorage.contains(' - ') ? rawStorage
-          .split(' - ')
-          .last : rawStorage;
-
-      final currentIotSnapshot = _sensorService.iotData.map((e) =>
-      {
-        'tank_code': e.tankCode,
-        'volume_iot': e.volume,
-        'height_iot': e.height,
-      }).toList();
-
-      final Map<String, dynamic> formMap = {
-        'purch_no': noPoController.text,
-        'vendor_spb': noDoController.text,
-        'doc_type_code': ValueKeyStatic.CODE_TRANSACTION_PENERIMAAN,
-        'volume_vendor': jumlahLtrController.text,
-        'density_vendor': StringHelper().cleanNumber(densityObsController.text),
-        'temp_vendor': StringHelper().cleanNumber(
-            temperatureObsController.text),
-        'nopol_vendor': noPolisiController.text.toUpperCase(),
-        'supir_vendor': namaSopirController.text.toUpperCase(),
-        'kapasitas_vendor': StringHelper().cleanNumber(
-            kapasitasTangkiController.text),
-        'long': photoSlots[0]?.longitude ?? 0,
-        'lat': photoSlots[0]?.latitude ?? 0,
-        'segel_kondisi': kondisiSegelSelected.value,
-        'tangki_peka': nilaiKapelkaanController.text,
-        'segel_tangki_bawah': segelTangkiBawahController.text,
-        'segel_tangki_atas': segelTangkiAtasController.text,
-        'terra_vendor': StringHelper().cleanNumber(
-            tinggiTeraSpbController.text),
-        'terra_check': StringHelper().cleanNumber(
-            tinggiTeraSoundingController.text),
-        'terra_var': StringHelper().cleanNumber(
-            selisihTinggiTeraController.text),
-        'iot_tank_details': jsonEncode(currentIotSnapshot),
-        'manual_tank_details': jsonEncode(receivedManualData),
-        'date_inbound': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        'dtime_before': DateTime.now().toIso8601String(),
-        'storage_code': finalStorageCode,
-        'volume_terkini_liter': totalVolumeManual.value,
-        'kode_unit': auth.user.userKaryawan.unit.kodeUnit ?? "",
-      };
-
-      formMap['iot_tank_details'] = jsonEncode(currentIotSnapshot);
-      formMap['manual_tank_details'] = jsonEncode(receivedManualData);
-
-      List<File?> filesToUpload = [];
-      for (var slot in photoSlots) {
-        if (slot != null) {
-          filesToUpload.add(File(slot.tempPath));
-        } else {
-          filesToUpload.add(null);
+    Get.toNamed(
+        Routes.PENERIMAAN,
+        arguments: {
+          'administrative_data': administrativeData,
+          'is_new_transaction': true
         }
-      }
-
-      final responseData = await _apiService.submitInboundOpen(
-          formMap: formMap,
-          photos: filesToUpload
-      );
-
-      Get.back(); // Tutup Loading
-      String noBastResult = responseData['no_doc'] ?? "-";
-
-      final completedModel = PenerimaanSebelumModel(
-        userName: currentUsername,
-        status: 'proses',
-        noDocBast: noBastResult,
-        kodeUnit: auth.user.userKaryawan.unit.kodeUnit ?? "",
-        isSynced: true,
-        purchNo: noPoController.text,
-        storageCode: selectedStorage.value,
-        vendorSpb: noDoController.text,
-        volumeVendor: parseClean(jumlahLtrController.text),
-        densityVendor: parseClean(densityObsController.text),
-        tempVendor: parseClean(temperatureObsController.text),
-        nopolVendor: noPolisiController.text,
-        supirVendor: namaSopirController.text,
-        kapasitasVendor: parseClean(kapasitasTangkiController.text),
-        terraVendor: parseClean(tinggiTeraSpbController.text),
-        terraCheck: parseClean(tinggiTeraSoundingController.text),
-        terraVar: parseClean(selisihTinggiTeraController.text),
-        tangkiPeka: nilaiKapelkaanController.text,
-        segelTangkiAtas: segelTangkiAtasController.text,
-        segelTangkiBawah: segelTangkiBawahController.text,
-        segelKondisi: kondisiSegelSelected.value,
-        dateInbound: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        pathFotoDoc: photoSlots[0]?.tempPath,
-        pathFotoDepan: photoSlots[1]?.tempPath,
-        pathFotoSamping: photoSlots[2]?.tempPath,
-        iotTankDetailsJson: jsonEncode(currentIotSnapshot),
-        manualTankDetailsJson: jsonEncode(receivedManualData),
-        dtimeBefore: DateTime.now().toIso8601String(),
-      );
-
-      final trx = TransactionModel(
-        noBast: noBastResult,
-        status: 'proses',
-        dateCreated: DateTime.now().toIso8601String(),
-        dataSebelum: completedModel, // Masuk ke sini
-        dataSesudah: null,
-      );
-
-      final outstandingService = OutstandingService(currentUsername);
-      await outstandingService.saveTransaction(trx);
-
-      final draftService = DraftPenerimaanService(currentUsername);
-      await draftService.deleteDraftBefore();
-
-      await _handleSuccessStorage(noBastResult);
-
-      if (Get.isRegistered<PenerimaanController>()) {
-        Get.find<PenerimaanController>().resetForNewTransaction();
-      }
-
-      _showResultDialog(
-          isSuccess: true,
-          title: "Berhasil Submit",
-          message: "No. Doc: $noBastResult",
-          onDone: () => Get.offNamed(
-              Routes.PENGISIAN_SOLAR,
-              arguments: {
-                'noBast': noBastResult,
-                'noPO': noPoController.text,
-                'noPolisi': noPolisiController.text,
-                'tanggal': dateInputController.text,
-                'status': 'pengisian_solar',
-              }
-          )
-      );
-
-    } on DioException catch (e) {
-      Get.back();
-      if (e.response != null) {
-        final statusCode = e.response?.statusCode;
-        final responseData = e.response?.data;
-        String errorDetail = "Terjadi kesalahan.";
-
-        if (responseData is Map && responseData.containsKey('detail')) {
-          var detail = responseData['detail'];
-          if (detail is List) {
-            errorDetail = detail.map((e) => e.toString()).join('\n');
-          } else {
-            errorDetail = detail.toString();
-          }
-        }
-
-        if (statusCode == 400 || statusCode == 422) {
-          _showResultDialog(
-              isSuccess: false,
-              title: "Submit Gagal",
-              message: errorDetail,
-              onDone: () {}
-          );
-        } else if (statusCode == 404) {
-          _showResultDialog(
-              isSuccess: false,
-              title: "Data Tidak Ditemukan",
-              message: errorDetail,
-              onDone: () {}
-          );
-        } else {
-          _showResultDialog(
-              isSuccess: false,
-              title: "Server Error ($statusCode)",
-              message: errorDetail,
-              onDone: () {}
-          );
-        }
-      } else {
-        _showResultDialog(
-            isSuccess: false,
-            title: "Koneksi Gagal",
-            message: "Gagal terhubung ke server.\n${e.message}",
-            onDone: () {}
-        );
-      }
-    } catch (e) {
-      Get.back();
-      _handleError(e);
-    } finally {
-      isSubmitting.value = false;
-    }
-  }
-
-  void _handleError(dynamic e) {
-    if (e is DioException && e.response != null) {
-      final statusCode = e.response?.statusCode;
-      final responseData = e.response?.data;
-      String errorDetail = "Terjadi kesalahan.";
-
-      if (responseData is Map && responseData.containsKey('detail')) {
-        var detail = responseData['detail'];
-        if (detail is List) {
-          errorDetail = detail.map((e) => e.toString()).join('\n');
-        } else {
-          errorDetail = detail.toString();
-        }
-      } else if (responseData is Map && responseData.containsKey('message')) {
-        errorDetail = responseData['message'];
-      }
-
-      if (statusCode == 404) {
-        _showResultDialog(isSuccess: false, title: "Data Tidak Ditemukan", message: errorDetail, onDone: (){});
-      } else {
-        _showResultDialog(isSuccess: false, title: "Gagal ($statusCode)", message: errorDetail, onDone: (){});
-      }
-    } else {
-      // Error koneksi / Lainnya
-      _showResultDialog(
-          isSuccess: false,
-          title: "Gagal",
-          message: e.toString().replaceAll("Exception:", ""),
-          onDone: (){}
-      );
-    }
-  }
-
-  Future<void> _handleSuccessStorage(String noBast) async {
-    try {
-      final Directory appDocDir = await getApplicationDocumentsDirectory();
-      final String permanentStoragePath = p.join(appDocDir.path, 'penerimaan_sebelum', noBast);
-      final Directory permanentDir = Directory(permanentStoragePath);
-
-      if (!await permanentDir.exists()) {
-        await permanentDir.create(recursive: true);
-      }
-
-      for (var i = 0; i < photoSlots.length; i++) {
-        final detail = photoSlots[i];
-        if (detail != null) {
-          final int nourutImage = i + 1;
-          final String permanentFileName = '${noBast}_$nourutImage.jpg';
-          final String permanentPath = p.join(permanentStoragePath, permanentFileName);
-          await File(detail.tempPath).copy(permanentPath);
-        }
-      }
-    } catch (e) {
-      debugPrint("Gagal copy file: $e");
-    }
-  }
-
-  void _showResultDialog({
-    required bool isSuccess,
-    required String title,
-    required String message,
-    required VoidCallback onDone,
-  }) {
-    Widget logoWidget;
-
-    if (isSuccess) {
-      logoWidget = LottiesHelper().getLottieSuccess();
-    } else {
-      logoWidget = LottiesHelper().getLottieFailed();
-    }
-
-    Get.dialog(
-      DialogFlexible(
-        logo: logoWidget,
-        title: title,
-        message: message,
-        primaryButtonText: isSuccess ? "Selesai" : "Tutup",
-        onPrimaryPressed: () {
-          Get.back();
-          onDone();
-        },
-        secondaryButtonText: null,
-        onSecondaryPressed: null,
-      ),
-      barrierDismissible: false,
     );
   }
 
@@ -723,20 +357,30 @@ class PenerimaanSebelumController extends GetxController {
         : storageName;
 
     final activeTanks = _sensorService.iotData.where(
-          (tank) => tank.storageCode == storageCode && tank.statusActive == 'Y',
+          (tank) => tank.masterStorage?.kodeStorage == storageCode,
     ).toList();
 
-    activeTanks.sort((a, b) => a.tankCode.compareTo(b.tankCode));
+    activeTanks.sort((a, b) {
+      String codeA = a.masterSolarTank?.kodeTank ?? '';
+      String codeB = b.masterSolarTank?.kodeTank ?? '';
+      return codeA.compareTo(codeB);
+    });
 
     double totalVol = 0.0;
     List<Map<String, String>> tempList = [];
 
     for (var tank in activeTanks) {
-      totalVol += tank.volume;
+      String tankCode = tank.masterSolarTank?.kodeTank ?? 'UNK';
+
+      final manualState = _fuelDataService.getManualTankInput(tankCode);
+      double vol = manualState['volume']!;
+      double height = manualState['height']!;
+
+      totalVol += vol;
       tempList.add({
-        'code': tank.tankCode,
-        'volume': tank.volume.toString(), // Sesuaikan tipe data string/double
-        'height': tank.height.toString(),
+        'code': tankCode,
+        'volume': "${vol.toStringAsFixed(0)} Ltr",
+        'height': "${height.toStringAsFixed(0)} cm",
       });
     }
 
@@ -750,10 +394,13 @@ class PenerimaanSebelumController extends GetxController {
 
       final currentLat = lastKnownPosition.value?.latitude ?? 0;
       final currentLong = lastKnownPosition.value?.longitude ?? 0;
+
       final XFile? imageFile = await _picker.pickImage(
         source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.rear,
         maxWidth: 1080.0,
-        imageQuality: 70,
+        maxHeight: 1920.0,
+        imageQuality: 80,
       );
 
       if (imageFile == null) {
@@ -761,7 +408,12 @@ class PenerimaanSebelumController extends GetxController {
         return;
       }
 
-      final String tempPath = imageFile.path;
+      File originalFile = File(imageFile.path);
+      File? compressedFile = await _compressImage(originalFile);
+
+      if (compressedFile == null) return;
+
+      final String tempPath = compressedFile.path;
       final String tempFileName = p.basename(tempPath);
 
       photoSlots[index] = CapturedImageDetail(
@@ -779,6 +431,35 @@ class PenerimaanSebelumController extends GetxController {
     }
   }
 
+  Future<File?> _compressImage(File file) async {
+    try {
+      final lastIndex = file.path.lastIndexOf(RegExp(r'.jp'));
+      final splitted = file.path.substring(0, (lastIndex));
+      final outPath = "${splitted}_compressed.jpg";
+
+      // Hapus file lama jika ada
+      final outCheck = File(outPath);
+      if (await outCheck.exists()) {
+        await outCheck.delete();
+      }
+
+      var result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        outPath,
+        quality: 60,
+        minWidth: 1024,
+        minHeight: 1024,
+      );
+
+      await file.delete();
+
+      return result != null ? File(result.path) : null;
+    } catch (e) {
+      print("Gagal compress: $e");
+      return file;
+    }
+  }
+
   void removeImage(int index) {
     if (index >= 0 && index < 3 && photoSlots[index] != null) {
       try {
@@ -793,12 +474,16 @@ class PenerimaanSebelumController extends GetxController {
 
   void goToNextPage() async {
     if (!_validateCurrentStep()) return;
+
     if (currentPage.value < 2) {
-      pageController.nextPage(duration: const Duration(milliseconds: 800), curve: Curves.easeIn);
+      pageController.nextPage(
+          duration: const Duration(milliseconds: 800), curve: Curves.easeIn);
     } else {
-      _showConfirmationDialog();
+      // Step Terakhir: Lanjut ke Pengukuran Tangki (PenerimaanController)
+      proceedToTankMeasurement();
     }
   }
+
   void onPageChanged(int index) { currentPage.value = index; }
 
   @override

@@ -1,50 +1,50 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'iot_tangki_model.dart';
+part of 'tangki_model.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class IotTangkiModelAdapter extends TypeAdapter<IotTangkiModel> {
+class TangkiModelAdapter extends TypeAdapter<TangkiModel> {
   @override
-  final int typeId = 18;
+  final int typeId = 17;
 
   @override
-  IotTangkiModel read(BinaryReader reader) {
+  TangkiModel read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return IotTangkiModel(
+    return TangkiModel(
       kodeTank: fields[0] as String,
-      iotVolumeTerkiniLiter: fields[1] as double?,
-      iotTinggiTerkiniCm: fields[2] as double?,
-      iotVolumeAkhirLiter: fields[3] as double?,
-      iotTinggiAkhirCm: fields[4] as double?,
-      iotVolumeVarLiter: fields[5] as double?,
-      iotTinggiVarCm: fields[6] as double?,
+      volumeTerkiniLiter: fields[1] as double?,
+      tinggiTerkiniMM: fields[2] as double?,
+      volumeAkhirLiter: fields[3] as double?,
+      tinggiAkhirMM: fields[4] as double?,
+      volumeVarLiter: fields[5] as double?,
+      tinggiVarMM: fields[6] as double?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, IotTangkiModel obj) {
+  void write(BinaryWriter writer, TangkiModel obj) {
     writer
       ..writeByte(7)
       ..writeByte(0)
       ..write(obj.kodeTank)
       ..writeByte(1)
-      ..write(obj.iotVolumeTerkiniLiter)
+      ..write(obj.volumeTerkiniLiter)
       ..writeByte(2)
-      ..write(obj.iotTinggiTerkiniCm)
+      ..write(obj.tinggiTerkiniMM)
       ..writeByte(3)
-      ..write(obj.iotVolumeAkhirLiter)
+      ..write(obj.volumeAkhirLiter)
       ..writeByte(4)
-      ..write(obj.iotTinggiAkhirCm)
+      ..write(obj.tinggiAkhirMM)
       ..writeByte(5)
-      ..write(obj.iotVolumeVarLiter)
+      ..write(obj.volumeVarLiter)
       ..writeByte(6)
-      ..write(obj.iotTinggiVarCm);
+      ..write(obj.tinggiVarMM);
   }
 
   @override
@@ -53,7 +53,7 @@ class IotTangkiModelAdapter extends TypeAdapter<IotTangkiModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is IotTangkiModelAdapter &&
+      other is TangkiModelAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

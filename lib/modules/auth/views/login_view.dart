@@ -9,7 +9,6 @@ class LoginView extends GetView<LoginController> {
   const LoginView({super.key});
 
   Widget _buildUsernameField() {
-    // Tambahkan variabel untuk styling BorderSide
     const borderSide = BorderSide(color: AppColors.primary, width: 1.5);
 
     return TextFormField(
@@ -22,16 +21,14 @@ class LoginView extends GetView<LoginController> {
         prefixIcon: const Icon(Icons.person_outline, color: AppColors.secondaryText),
         filled: true,
         fillColor: AppColors.fieldBackground,
-        // *** Perubahan: Tambahkan contentPadding untuk memperkecil tinggi input ***
         contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        // *** Perubahan: Atur border, focusedBorder, dan enabledBorder dengan warna ***
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: borderSide, // Border saat default
+          borderSide: borderSide,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.secondaryText.withOpacity(0.5), width: 1.0), // Garis saat tidak fokus
+          borderSide: BorderSide(color: AppColors.secondaryText.withOpacity(0.5), width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -42,7 +39,6 @@ class LoginView extends GetView<LoginController> {
   }
 
   Widget _buildPasswordField() {
-    // Tambahkan variabel untuk styling BorderSide
     const borderSide = BorderSide(color: AppColors.primary, width: 1.5);
 
     return Obx(
@@ -56,20 +52,18 @@ class LoginView extends GetView<LoginController> {
           prefixIcon: const Icon(Icons.lock_outline, color: AppColors.secondaryText),
           filled: true,
           fillColor: AppColors.fieldBackground,
-          // *** Perubahan: Tambahkan contentPadding untuk memperkecil tinggi input ***
           contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          // *** Perubahan: Atur border, focusedBorder, dan enabledBorder dengan warna ***
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: borderSide, // Border saat default
+            borderSide: borderSide,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: AppColors.secondaryText.withOpacity(0.5), width: 1.0), // Garis saat tidak fokus
+            borderSide: BorderSide(color: AppColors.secondaryText.withOpacity(0.5), width: 1.0),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: borderSide, // Garis saat fokus
+            borderSide: borderSide,
           ),
           suffixIcon: IconButton(
             icon: Icon(
@@ -96,7 +90,6 @@ class LoginView extends GetView<LoginController> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          // Matikan tombol saat sedang loading
           onPressed: controller.isLoading.value ? null : controller.login,
           child: controller.isLoading.value
               ? const SizedBox(
@@ -129,7 +122,7 @@ class LoginView extends GetView<LoginController> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Image.asset(
-                    AppImages.imgFuel,
+                    AppImages.bgLoginFuel,
                     height: 180,
                   ),
                   const SizedBox(height: 12),
@@ -162,7 +155,7 @@ class LoginView extends GetView<LoginController> {
                     child: TextButton(
                       onPressed: controller.forgotPassword,
                       child: Text(
-                        'Lupa Password?', // *** Perubahan: Ditambahkan tanda tanya ***
+                        'Lupa Password?',
                         style: AppFonts.fUrbanistSemiBold12.copyWith(
                             color: AppColors.primary
                         ),
@@ -177,7 +170,6 @@ class LoginView extends GetView<LoginController> {
         ),
       ),
       bottomNavigationBar: Padding(
-        // *** Perubahan: Padding bottom dikurangi sedikit agar tombol tidak terlalu jauh dari bawah ***
         padding: const EdgeInsets.only(left: 24, right: 24, bottom: 20),
         child: _buildLoginButton(),
       ),

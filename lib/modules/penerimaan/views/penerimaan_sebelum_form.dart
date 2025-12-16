@@ -8,7 +8,7 @@ import 'package:get/get.dart';
 
 import '../../../datas/models/widgets/capture_image_detail.dart';
 import '../../../helpers/separator_input_formatter.dart';
-import '../../../helpers/string_helper.dart';
+import '../../../helpers/text_convert_helper.dart';
 import '../../../widgets/component/total_volume_card.dart';
 import '../controllers/penerimaan_sebelum_controller.dart';
 
@@ -23,14 +23,9 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Obx(() => _buildProgressIndicator(ctrl.currentPage.value)),
-            const SizedBox(height: 16),
 
-            // Header Total Volume
-            _buildTotalVolumeCardSection(),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 24),
-
-            // PILIHAN STEP
             if (stepIndex == 0) _buildStepOneForm(ctrl),
             if (stepIndex == 1) _buildStepTwoPhotos(ctrl),
             if (stepIndex == 2) _buildStepThreeForm(ctrl),
@@ -40,21 +35,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
     );
   }
 
-  Widget _buildTotalVolumeCardSection() {
-    return Obx(() => TotalVolumeCard(
-      totalVolume: StringHelper().formatNumber(controller.totalVolumeManual.value),
-      tankList: controller.tankListManualDisplay,
-
-      storageLocations: controller.storageLocations,
-      selectedStorage: controller.selectedStorage.value,
-      onStorageChanged: (val) {},
-      showDropdown: false,
-      showTotalVolume: true,
-    ));
-  }
-
   Widget _buildProgressIndicator(int stepIndex) {
-
     String stepText = '';
     if (stepIndex == 0) {
       stepText = 'Pengecekan dokumen';
@@ -96,7 +77,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
       children: [
         Text(
           'Data Pengiriman',
-          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary),
+          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
         ),
         const SizedBox(height: 12),
 
@@ -107,7 +88,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
         const SizedBox(height: 18),
         Text(
           'Data Pengiriman Sesuai Doc.SPB',
-          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary),
+          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
         ),
         const SizedBox(height: 12),
 
@@ -145,7 +126,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
         const SizedBox(height: 18),
         Text(
           'Unit Pengangkut',
-          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary),
+          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
         ),
         const SizedBox(height: 12),
         _buildTextField('No Polisi', controller: ctrl.noPolisiController, keyboardType: TextInputType.text, hintText: 'No. Kendaraan Pengangkut'),
@@ -166,14 +147,130 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
     );
   }
 
-  // Widget Item Kotak Foto
+  // --- STEP 2: FOTO PENGIRIMAN (BARU) ---
+  Widget _buildStepTwoPhotos(PenerimaanSebelumController ctrl) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Foto Pengiriman Solar',
+          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Silahkan ambil foto sesuai instruksi.',
+          style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+        ),
+        const SizedBox(height: 20),
+
+        // Layout 3 Kotak Foto Berjajar
+        Obx(() => Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildPhotoBox(
+              ctrl: ctrl,
+              index: 0,
+              label: 'Dokumen SPB',
+              assetPath: AppIcons.icPenerimaan2,
+            ),
+            _buildPhotoBox(
+              ctrl: ctrl,
+              index: 1,
+              label: 'Tampak Depan',
+              assetPath: AppIcons.icFrontTruck,
+            ),
+            _buildPhotoBox(
+              ctrl: ctrl,
+              index: 2,
+              label: 'Tampak Samping',
+              assetPath: AppIcons.icSideTruck,
+            ),
+          ],
+        )),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  // --- STEP 3: PEMERIKSAAN ---
+  Widget _buildStepThreeForm(PenerimaanSebelumController ctrl) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pemeriksaan',
+          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+        ),
+        const SizedBox(height: 16),
+
+        _buildTextField('No Polisi', controller: ctrl.noPolisiController),
+        _buildTextField('Nama Sopir', controller: ctrl.namaSopirController),
+        _buildTextField('Kapasitas Tangki Angkut (Ltr)', keyboardType: TextInputType.number, controller: ctrl.kapasitasTangkiController),
+
+        Row(
+          children: [
+            Expanded(child: _buildTextField('Density', keyboardType: TextInputType.number, controller: ctrl.densityObsController)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildTextField('Tempr (Obs)', keyboardType: TextInputType.number, controller: ctrl.temperatureObsController)),
+          ],
+        ),
+
+        _buildTextField(
+          'Tinggi Tera Berdasarkan SPB (mm)',
+          controller: ctrl.tinggiTeraSpbController,
+          keyboardType: TextInputType.number,
+          hintText: 'Masukkan tinggi (mm)',
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            SeparatorInputFormatter(),
+          ],
+        ),
+        _buildTextField(
+            'Tinggi Tera Sounding Solar Mobil (mm)',
+            controller: ctrl.tinggiTeraSoundingController,
+            keyboardType: TextInputType.number,
+            hintText: 'Masukkan tinggi sounding (mm)',
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              SeparatorInputFormatter(),
+            ]
+        ),
+
+        _buildTextField(
+            'Selisih Tinggi Tera (mm)',
+            controller: ctrl.selisihTinggiTeraController,
+            keyboardType: TextInputType.number,
+            hintText: 'Hitung selisih (mm)',
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              SeparatorInputFormatter(),
+            ]
+        ),
+
+        _buildTextField('Nilai Kapelkaan Tangki', controller: ctrl.nilaiKapelkaanController, hintText: 'Masukkan nilai kapelkaan'),
+        _buildTextField('Segel Tangki Atas', controller: ctrl.segelTangkiAtasController, hintText: 'Masukkan nomor segel atas'),
+        _buildTextField('Segel Tangki Bawah', controller: ctrl.segelTangkiBawahController, hintText: 'Masukkan nomor segel bawah'),
+
+        Obx(() => _buildDropdownField(
+          label: 'Kondisi Segel',
+          items: const ['Baik', 'Rusak', 'Hilang'],
+          selectedValue: ctrl.kondisiSegelSelected.value,
+          onChanged: (newValue) {
+            if (newValue != null) ctrl.kondisiSegelSelected.value = newValue;
+          },
+        )),
+
+        const SizedBox(height: 18),
+      ],
+    );
+  }
+
   Widget _buildPhotoBox({
     required PenerimaanSebelumController ctrl,
     required int index,
     required String label,
     required String assetPath, // Ubah dari IconData ke String assetPath
   }) {
-    // Ambil data foto dari slot
     final CapturedImageDetail? imageDetail = ctrl.photoSlots[index];
     final bool hasImage = imageDetail != null;
 
@@ -250,124 +347,6 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
     );
   }
 
-  // --- STEP 2: FOTO PENGIRIMAN (BARU) ---
-  Widget _buildStepTwoPhotos(PenerimaanSebelumController ctrl) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Foto Pengiriman Solar',
-          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Silahkan ambil foto sesuai instruksi.',
-          style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
-        ),
-        const SizedBox(height: 20),
-
-        // Layout 3 Kotak Foto Berjajar
-        Obx(() => Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildPhotoBox(
-              ctrl: ctrl,
-              index: 0,
-              label: 'Dokumen SPB',
-              assetPath: AppIcons.icPenerimaan2,
-            ),
-            _buildPhotoBox(
-              ctrl: ctrl,
-              index: 1,
-              label: 'Tampak Depan',
-              assetPath: AppIcons.icFrontTruck,
-            ),
-            _buildPhotoBox(
-              ctrl: ctrl,
-              index: 2,
-              label: 'Tampak Samping',
-              assetPath: AppIcons.icSideTruck,
-            ),
-          ],
-        )),
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
-  // --- STEP 3: PEMERIKSAAN ---
-  Widget _buildStepThreeForm(PenerimaanSebelumController ctrl) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pemeriksaan',
-          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary),
-        ),
-        const SizedBox(height: 16),
-
-        _buildTextField('No Polisi', controller: ctrl.noPolisiController),
-        _buildTextField('Nama Sopir', controller: ctrl.namaSopirController),
-        _buildTextField('Kapasitas Tangki Angkut (Ltr)', keyboardType: TextInputType.number, controller: ctrl.kapasitasTangkiController),
-
-        Row(
-          children: [
-            Expanded(child: _buildTextField('Density', keyboardType: TextInputType.number, controller: ctrl.densityObsController)),
-            const SizedBox(width: 12),
-            Expanded(child: _buildTextField('Tempr (Obs)', keyboardType: TextInputType.number, controller: ctrl.temperatureObsController)),
-          ],
-        ),
-
-        _buildTextField(
-          'Tinggi Tera Berdasarkan SPB (mm)',
-          controller: ctrl.tinggiTeraSpbController,
-          keyboardType: TextInputType.number,
-          hintText: 'Masukkan tinggi (mm)',
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            SeparatorInputFormatter(),
-          ],
-        ),
-        _buildTextField(
-            'Tinggi Tera Sounding Solar Mobil (mm)',
-            controller: ctrl.tinggiTeraSoundingController,
-            keyboardType: TextInputType.number,
-            hintText: 'Masukkan tinggi sounding (mm)',
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              SeparatorInputFormatter(),
-            ]
-        ),
-
-        _buildTextField(
-            'Selisih Tinggi Tera (mm)',
-            controller: ctrl.selisihTinggiTeraController,
-            keyboardType: TextInputType.number,
-            hintText: 'Hitung selisih (mm)',
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              SeparatorInputFormatter(),
-            ]
-        ),
-
-        _buildTextField('Nilai Kapelkaan Tangki', controller: ctrl.nilaiKapelkaanController, hintText: 'Masukkan nilai kapelkaan'),
-        _buildTextField('Segel Tangki Atas', controller: ctrl.segelTangkiAtasController, hintText: 'Masukkan nomor segel atas'),
-        _buildTextField('Segel Tangki Bawah', controller: ctrl.segelTangkiBawahController, hintText: 'Masukkan nomor segel bawah'),
-
-        Obx(() => _buildDropdownField(
-          label: 'Kondisi Segel',
-          items: const ['Baik', 'Rusak', 'Hilang'],
-          selectedValue: ctrl.kondisiSegelSelected.value,
-          onChanged: (newValue) {
-            if (newValue != null) ctrl.kondisiSegelSelected.value = newValue;
-          },
-        )),
-
-        const SizedBox(height: 18),
-      ],
-    );
-  }
-
   Widget _buildTextField(
       String label, {
         TextInputType keyboardType = TextInputType.text,
@@ -385,7 +364,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
         children: [
           Text(label,
               style: AppFonts.fUrbanistSemiBold14
-                  .copyWith(color: AppColors.primary)),
+                  .copyWith(color: AppColors.primaryText)),
           const SizedBox(height: 4),
           TextFormField(
             controller: controller,
@@ -419,7 +398,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
                   borderSide: BorderSide(color: AppColors.primary)),
             ),
             style:
-            AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primary),
+            AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
           ),
         ],
       ),
@@ -432,7 +411,7 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary)),
+          Text(label, style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primaryText)),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
             value: selectedValue,
@@ -453,24 +432,25 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
   }
 
   Widget _buildStepButton(PenerimaanSebelumController ctrl) {
-    String buttonText = 'Selanjutnya';
-    if (ctrl.currentPage.value == 1) buttonText = 'Selanjutnya'; // Sesuai Gambar
-    if (ctrl.currentPage.value == 2) buttonText = 'Submit';
+    return Obx(() {
+      bool isLastPage = ctrl.currentPage.value == 2;
+      String buttonText = isLastPage ? 'Lanjut Pengukuran' : 'Selanjutnya';
 
-    return ElevatedButton(
-      onPressed: ctrl.goToNextPage,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+      return ElevatedButton(
+        onPressed: ctrl.goToNextPage,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-      ),
-      child: Text(
-        buttonText,
-        style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.white),
-      ),
-    );
+        child: Text(
+          buttonText,
+          style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.white),
+        ),
+      );
+    });
   }
 
   @override
@@ -479,7 +459,6 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
       final isTakingPhoto = controller.isTakingPhoto.value;
       final int currentIndex = controller.currentPage.value;
 
-      // LOGIC TITLE APPBAR
       String titleText = 'Form Penerimaan Solar';
       if (currentIndex == 1) {
         titleText = 'Foto Dokumen SPB';
@@ -511,7 +490,6 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
                   icon: const Icon(
                       Icons.arrow_back_ios, color: AppColors.primary),
                   onPressed: () {
-                    // Mencegah back saat loading
                     if (isTakingPhoto) return;
 
                     if (controller.currentPage.value > 0) {
@@ -540,20 +518,17 @@ class PenerimaanSebelumForm extends GetView<PenerimaanSebelumController> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Obx(() => _buildStepButton(controller)),
+                    padding: const EdgeInsets.all(8.0),
+                    child: _buildStepButton(controller),
                   ),
                 ],
               ),
             ),
 
-            // INDIKATOR LOADING OVERLAY
             if (isTakingPhoto)
               Positioned.fill(
                 child: Container(
-                  // Gunakan warna yang sesuai dengan tema aplikasi Anda
                   color: AppColors.darkText.withOpacity(0.7),
-                  // Latar belakang gelap transparan
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

@@ -5,19 +5,21 @@ import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
 import '../../../datas/models/widgets/penerimaan_step.dart';
 import '../../../routes/app_pages.dart';
 import '../../auth/services/login_service.dart';
-import '../../transactions/penerimaan/services/outstanding_service.dart';
+import '../../transactions/outstanding_service.dart';
 
 class PenerimaanTrackingController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
-
   final isLoading = true.obs;
   final Rx<TransactionModel?> transaction = Rx<TransactionModel?>(null);
 
   final currentStepId = 0.obs;
   final steps = <PenerimaanStep>[].obs;
-
   final formattedDate = "-".obs;
   final noBast = "-".obs;
+
+  // Variabel helper untuk UI button
+  bool get isWaitingApproval => currentStepId.value == 5 || currentStepId.value == 6;
+  bool get isFinished => currentStepId.value == 7;
 
   @override
   void onInit() {
@@ -28,13 +30,14 @@ class PenerimaanTrackingController extends GetxController {
 
   void _initializeSteps() {
     steps.assignAll([
-      PenerimaanStep(id: 1, title: 'Pengecekan Dokumen', routeName: Routes.PENERIMAAN),
+      PenerimaanStep(id: 1, title: 'Pengisian Dokumen', routeName: Routes.PENERIMAAN),
       PenerimaanStep(id: 2, title: 'Pengisian Solar', routeName: Routes.PENGISIAN_SOLAR),
-      PenerimaanStep(id: 3, title: 'Pengukuran Setelah', routeName: Routes.PENERIMAAN_SETELAH),
+      PenerimaanStep(id: 3, title: 'Pengukuran Solar Setelah Pengisian', routeName: Routes.PENERIMAAN_SETELAH),
       PenerimaanStep(id: 4, title: 'Pembuatan BAST', routeName: Routes.PENERIMAAAN_VERIFIKASI_BAST),
-      PenerimaanStep(id: 5, title: 'Proses Approval KASIE', routeName: Routes.HOME),
-      PenerimaanStep(id: 6, title: 'Proses Approval MANAGER', routeName: Routes.HOME),
-      PenerimaanStep(id: 7, title: 'Selesai', routeName: Routes.HOME),
+      PenerimaanStep(id: 5, title: 'Proses Approval KRANI', routeName: Routes.HOME),   // Status: approval_krani
+      PenerimaanStep(id: 6, title: 'Proses Approval KASIE', routeName: Routes.HOME),   // Status: approval_kasie
+      PenerimaanStep(id: 7, title: 'Proses Approval MANAGER', routeName: Routes.HOME), // Status: approval_manager
+      PenerimaanStep(id: 8, title: 'Selesai', routeName: Routes.HOME),                 // Status: selesai
     ]);
   }
 
@@ -65,12 +68,10 @@ class PenerimaanTrackingController extends GetxController {
 
     if (auth != null) {
       final outstandingService = OutstandingService(auth.user.username);
-      // Returns TransactionModel
       final data = await outstandingService.getTransactionByNoBast(noDoc);
 
       if (data != null) {
         transaction.value = data;
-
         _formatDate(data.dateCreated);
         _determineStepFromStatus(data);
       }
@@ -79,37 +80,34 @@ class PenerimaanTrackingController extends GetxController {
   }
 
   void _determineStepFromStatus(TransactionModel? trx) {
-    String? status = trx?.status;
+    String? status = trx?.status?.toLowerCase();
 
     if (status == null) {
-      currentStepId.value = 2;
+      currentStepId.value = 1;
       _updateStepUI();
       return;
     }
 
-    switch (status.toLowerCase()) {
+    switch (status) {
+      case 'draft':
+        currentStepId.value = 1;
+        break;
       case 'proses':
       case 'pengisian_solar':
         currentStepId.value = 2;
         break;
-
       case 'setelah_pengisian':
         currentStepId.value = 3;
         break;
-
       case 'verifikasi_bast':
         currentStepId.value = 4;
         break;
 
-      case 'approval':
-        String level = trx?.currentLevelApproval ?? "";
-        int step = trx?.currentStepApproval ?? 1;
-
-        if (level.toUpperCase().contains("fuel_level_2") || step >= 2) {
-          currentStepId.value = 6;
-        } else {
-          currentStepId.value = 5;
-        }
+      case 'approval_kasie':
+        currentStepId.value = 5;
+        break;
+      case 'approval_manager':
+        currentStepId.value = 6;
         break;
 
       case 'selesai':
@@ -118,7 +116,11 @@ class PenerimaanTrackingController extends GetxController {
         break;
 
       default:
-        currentStepId.value = 2;
+        if (status == 'approval') {
+          currentStepId.value = 5;
+        } else {
+          currentStepId.value = 1;
+        }
     }
 
     _updateStepUI();
@@ -126,9 +128,23 @@ class PenerimaanTrackingController extends GetxController {
 
   void _updateStepUI() {
     for (var step in steps) {
-      step.isCompleted.value = step.id < currentStepId.value;
-      step.isActive.value = step.id == currentStepId.value;
+      if (currentStepId.value == 7) {
+        step.isCompleted.value = true;
+        step.isActive.value = false;
+        if(step.id == 7) step.isActive.value = true;
+      } else {
+        step.isCompleted.value = step.id < currentStepId.value;
+        step.isActive.value = step.id == currentStepId.value;
+      }
     }
+  }
+
+  void backToHome() {
+    Get.offAllNamed(Routes.HOME);
+  }
+
+  void viewBastPdf() {
+    Get.snackbar("Informasi", "Fitur Lihat BAST PDF");
   }
 
   void _formatDate(String? dateString) {
@@ -138,19 +154,9 @@ class PenerimaanTrackingController extends GetxController {
     }
     try {
       DateTime date = DateTime.parse(dateString);
-      String dayName = DateFormat('EEEE', 'id_ID').format(date); // Butuh initializeDateFormatting di main jika error locale
       String fullDate = DateFormat('dd/MM/yyyy').format(date);
 
-      // Manual translation fallback jika locale indonesia belum setup
-      if (dayName == 'Monday') dayName = 'Senin';
-      else if (dayName == 'Tuesday') dayName = 'Selasa';
-      else if (dayName == 'Wednesday') dayName = 'Rabu';
-      else if (dayName == 'Thursday') dayName = 'Kamis';
-      else if (dayName == 'Friday') dayName = 'Jumat';
-      else if (dayName == 'Saturday') dayName = 'Sabtu';
-      else if (dayName == 'Sunday') dayName = 'Minggu';
-
-      formattedDate.value = "$dayName, $fullDate";
+      formattedDate.value = fullDate;
     } catch (e) {
       formattedDate.value = dateString;
     }

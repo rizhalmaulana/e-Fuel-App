@@ -6,49 +6,6 @@ part of 'fuel_model.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class StorageModelAdapter extends TypeAdapter<StorageModel> {
-  @override
-  final int typeId = 10;
-
-  @override
-  StorageModel read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return StorageModel(
-      storageCode: fields[0] as String,
-      storageDesc: fields[1] as String,
-      storageActive: fields[2] as String,
-      storageName: fields[3] as String,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, StorageModel obj) {
-    writer
-      ..writeByte(4)
-      ..writeByte(0)
-      ..write(obj.storageCode)
-      ..writeByte(1)
-      ..write(obj.storageDesc)
-      ..writeByte(2)
-      ..write(obj.storageActive)
-      ..writeByte(3)
-      ..write(obj.storageName);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StorageModelAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class TankModelAdapter extends TypeAdapter<TankModel> {
   @override
   final int typeId = 11;

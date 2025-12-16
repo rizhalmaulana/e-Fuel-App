@@ -10,7 +10,7 @@ class TransactionModel extends HiveObject {
   String noBast;
 
   @HiveField(1)
-  String status; // 'proses', 'pengisian_solar', 'setelah_pengisian', 'verifikasi_bast', 'approval', 'selesai'
+  String status;
 
   @HiveField(2)
   String dateCreated;

@@ -24,6 +24,17 @@ class LottiesHelper{
     return lottieLogo;
   }
 
+  LottieBuilder getLottieQuestion() {
+    final lottieLogo = Lottie.asset(
+      AppLotties.question,
+      width: 150,
+      height: 100,
+      repeat: true,
+    );
+
+    return lottieLogo;
+  }
+
   LottieBuilder getLottieFailed() {
     final lottieLogo = Lottie.asset(
       AppLotties.failed,
@@ -60,6 +71,17 @@ class LottiesHelper{
   LottieBuilder getLottieFuel() {
     final lottieLogo = Lottie.asset(
       AppLotties.loading,
+      width: 150,
+      height: 100,
+      repeat: true,
+    );
+
+    return lottieLogo;
+  }
+
+  LottieBuilder getLottieFuelPengeluaran() {
+    final lottieLogo = Lottie.asset(
+      AppLotties.loadingPengeluaran,
       width: 150,
       height: 100,
       repeat: true,

@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
-import '../../tangki/tangki_model.dart';
-import '../../tangki/iot_tangki_model.dart';
-import '../../tangki/ukuran_standar_tangki_model.dart';
+import '../../volume_tangki/tangki_model.dart';
+import '../../volume_tangki/iot_tangki_model.dart';
+import '../../volume_tangki/ukuran_standar_tangki_model.dart';
 
 part 'penerimaan_setelah_model.g.dart';
 

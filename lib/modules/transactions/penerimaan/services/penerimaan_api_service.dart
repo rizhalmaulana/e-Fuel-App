@@ -5,7 +5,6 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:e_fuel/configs/app_config.dart';
 import 'package:get/get.dart' hide FormData, MultipartFile;
-import 'package:get/get_core/src/get_main.dart';
 import '../../../../datas/network/api_client_network.dart'; // Sesuaikan path
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/constant/url_api_static.dart';
@@ -111,10 +110,8 @@ class PenerimaanApiService {
 
   Future<dynamic> createTransactionApproval({
     required String noDoc,
-    required int levelApprovalId,
-    required String catatan,
-    required File imageSign1,
-    required File imageSign2,
+    required String kodeUnit,
+    required String transactionType,
   }) async {
     final loginService = Get.find<LoginService>();
     final auth = loginService.getCurrentAuth();
@@ -122,30 +119,22 @@ class PenerimaanApiService {
 
     String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_APPROVAL;
 
+    // Payload Sesuai Request Baru
     Map<String, dynamic> payloadData = {
       "no_doc": noDoc,
-      "level_approval_id": levelApprovalId,
-      "catatan": catatan,
+      "kode_unit": kodeUnit,
+      "transaction_type": transactionType,
     };
 
-    FormData formData = FormData.fromMap({
-      "image_sign1": await MultipartFile.fromFile(
-        imageSign1.path,
-        filename: imageSign1.path.split('/').last,
-      ),
-      "image_sign2": await MultipartFile.fromFile(
-        imageSign2.path,
-        filename: imageSign2.path.split('/').last,
-      ),
-      "payload": jsonEncode(payloadData),
-    });
+    print("🔵 [DEBUG] URL Step 3: $url");
+    print("🔵 [DEBUG] Payload Step 3: $payloadData");
 
     try {
       var response = await _dio.post(
         url,
-        data: formData,
+        data: payloadData,
         options: Options(
-          contentType: 'multipart/form-data',
+          contentType: 'application/json',
           headers: {
             "Authorization": "Bearer $token",
           },
@@ -178,7 +167,8 @@ class PenerimaanApiService {
       url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
     }
 
-    final Map<String, dynamic> dataPayload = {
+    // Payload JSON Murni
+    Map<String, dynamic> payloadData = {
       "status_approve": statusApprove,
       "level_approval": levelApproval,
       "catatan": catatan,
@@ -186,13 +176,13 @@ class PenerimaanApiService {
       "is_partner_sign": isPartnerSign,
     };
 
-    print("🔵 [DEBUG] URL Step 4: $url");
-    print("🔵 [DEBUG] Payload Step 4: $dataPayload");
+    print("🔵 [DEBUG] URL Step 4 (Update Status): $url");
+    print("🔵 [DEBUG] Payload Step 4: $payloadData");
 
     try {
       var response = await _dio.put(
         url,
-        data: dataPayload,
+        data: payloadData,
         options: Options(
             contentType: 'application/json',
             headers: {
@@ -205,6 +195,63 @@ class PenerimaanApiService {
       if (e.response != null) {
         print("❌ [SERVER ERROR] Status: ${e.response?.statusCode}");
         print("❌ [SERVER ERROR] Data: ${e.response?.data}");
+      }
+      rethrow;
+    }
+  }
+
+  Future<dynamic> uploadSignatureTransactionApproval({
+    required String noDoc,
+    required String levelApproval,
+    required File imageSign1,
+    required File imageSign2,
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    // Pastikan Anda sudah punya konstanta ini di UrlApiStatic
+    // Contoh: static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
+    String endpoint = UrlApiStatic.API_POST_SIGNATURE_APPROVAL;
+    String url;
+
+    if (endpoint.contains('{no_doc}')) {
+      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
+    } else {
+      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
+    }
+
+    // Gunakan FormData untuk Upload File
+    FormData formData = FormData.fromMap({
+      'level_approval': levelApproval,
+      'image_sign1': await MultipartFile.fromFile(
+        imageSign1.path,
+        filename: imageSign1.path.split('/').last,
+      ),
+      'image_sign2': await MultipartFile.fromFile(
+        imageSign2.path,
+        filename: imageSign2.path.split('/').last,
+      ),
+    });
+
+    print("🔵 [DEBUG] URL Step 5 (Upload Signature): $url");
+
+    try {
+      // Biasanya Upload menggunakan POST, sesuaikan jika API Anda menggunakan PUT
+      var response = await _dio.post(
+        url,
+        data: formData,
+        options: Options(
+            headers: {
+              "Authorization": "Bearer $token",
+            }
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [UPLOAD ERROR] Status: ${e.response?.statusCode}");
+        print("❌ [UPLOAD ERROR] Data: ${e.response?.data}");
       }
       rethrow;
     }

@@ -1,4 +1,5 @@
 import 'package:e_fuel/configs/app_colors.dart';
+import 'package:e_fuel/datas/models/filling/filling_model.dart';
 import 'package:e_fuel/datas/models/fuel/fuel_model.dart';
 import 'package:e_fuel/datas/models/karyawan/afdeling/afdeling_model.dart';
 import 'package:e_fuel/datas/models/karyawan/detail/jenis_karyawan_model.dart';
@@ -7,9 +8,21 @@ import 'package:e_fuel/datas/models/karyawan/jabatan/jabatan_model.dart';
 import 'package:e_fuel/datas/models/karyawan/kemandoran/kemandoran_model.dart';
 import 'package:e_fuel/datas/models/karyawan/unit/unit_model.dart';
 import 'package:e_fuel/datas/models/master_menu/app_menu_model.dart';
+import 'package:e_fuel/datas/models/master_storage/master_storage_model.dart';
+import 'package:e_fuel/datas/models/master_tank/master_tank_model.dart';
 import 'package:e_fuel/datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan_sebelum_model.dart';
+import 'package:e_fuel/datas/models/penerimaan/penerimaan_setelah_pengisian/penerimaan_setelah_model.dart';
+import 'package:e_fuel/datas/models/pengeluaran/pengeluaran_model.dart';
+import 'package:e_fuel/datas/models/storage_to_tank/storage_to_tank_model.dart';
+import 'package:e_fuel/datas/models/storage_unit/storage_unit_model.dart';
 import 'package:e_fuel/datas/models/transactions/penerimaan/transaction_model.dart';
+import 'package:e_fuel/datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
+import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
 import 'package:e_fuel/datas/models/user/user_model.dart';
+import 'package:e_fuel/datas/models/volume_tangki/iot_tangki_model.dart';
+import 'package:e_fuel/datas/models/volume_tangki/tangki_model.dart';
+import 'package:e_fuel/datas/models/volume_tangki/ukuran_standar_tangki_model.dart';
+import 'package:e_fuel/datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import 'package:e_fuel/modules/auth/services/login_service.dart';
 import 'package:e_fuel/modules/auth/services/login_user_service.dart';
 import 'package:e_fuel/modules/fuel/services/fuel_data_service.dart';
@@ -40,11 +53,26 @@ Future<void> initializeDependencies() async {
   Hive.registerAdapter(JenisKaryawanModelAdapter());
   Hive.registerAdapter(AppMenuModelAdapter());
   Hive.registerAdapter(KemandoranModelAdapter());
-  Hive.registerAdapter(StorageModelAdapter());
   Hive.registerAdapter(TankModelAdapter());
   Hive.registerAdapter(StorageTankModelAdapter());
   Hive.registerAdapter(PenerimaanSebelumModelAdapter());
+  Hive.registerAdapter(FillingModelAdapter());
+  Hive.registerAdapter(PenerimaanSetelahModelAdapter());
+  Hive.registerAdapter(TangkiModelAdapter());
+  Hive.registerAdapter(IotTangkiModelAdapter());
+  Hive.registerAdapter(UkuranStandarTangkiModelAdapter());
   Hive.registerAdapter(TransactionModelAdapter());
+  Hive.registerAdapter(MasterStorageModelAdapter());
+  Hive.registerAdapter(StorageUnitModelAdapter());
+  Hive.registerAdapter(MasterTankModelAdapter());
+  Hive.registerAdapter(UnitToStorageModelAdapter());
+  Hive.registerAdapter(UnitToStorageItemModelAdapter());
+  Hive.registerAdapter(StorageToTankModelAdapter());
+  Hive.registerAdapter(CSTStorageModelAdapter());
+  Hive.registerAdapter(CSTTankModelAdapter());
+  Hive.registerAdapter(VolumeTankDetailModelAdapter());
+  Hive.registerAdapter(PengeluaranModelAdapter());
+  Hive.registerAdapter(TransactionPengeluaranModelAdapter());
 
   Get.lazyPut(() => LoginUserService(), fenix: true);
   Get.lazyPut(() => LoginService(), fenix: true);
@@ -61,10 +89,7 @@ void main() async {
   await Hive.initFlutter();
   await Firebase.initializeApp();
 
-  // Inisialisasi Notification Service
   await initializeDependencies();
-  final notificationService = Get.find<NotificationService>();
-  await notificationService.init();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -99,10 +124,14 @@ class _MyAppState extends State<MyApp> {
 
   Future<bool> _initProcess() async {
     await Future.delayed(const Duration(milliseconds: 1200));
-    await initializeDependencies();
 
-    final loginService = Get.find<LoginService>();
-    return await loginService.initializeSessionFromHive();
+    try {
+      final loginService = Get.find<LoginService>();
+      return await loginService.initializeSessionFromHive();
+    } catch (e) {
+      print("Error saat cek session: $e");
+      return false; // Jika error, anggap belum login
+    }
   }
 
   @override

@@ -3,33 +3,33 @@ import 'package:hive/hive.dart';
 part 'fuel_model.g.dart';
 
 // 1. Model Master Storage
-@HiveType(typeId: 10)
-class StorageModel {
-  @HiveField(0)
-  final String storageCode;
-  @HiveField(1)
-  final String storageDesc;
-  @HiveField(2)
-  final String storageActive;
-  @HiveField(3)
-  final String storageName; // Field 'storage' dari dummy
-
-  StorageModel({
-    required this.storageCode,
-    required this.storageDesc,
-    required this.storageActive,
-    required this.storageName,
-  });
-
-  factory StorageModel.fromJson(Map<String, dynamic> json) {
-    return StorageModel(
-      storageCode: json['storage_code'] ?? '',
-      storageDesc: json['storage_desc'] ?? '',
-      storageActive: json['storage_active'] ?? 'N',
-      storageName: json['storage'] ?? '',
-    );
-  }
-}
+// @HiveType(typeId: 10)
+// class StorageModel {
+//   @HiveField(0)
+//   final String storageCode;
+//   @HiveField(1)
+//   final String storageDesc;
+//   @HiveField(2)
+//   final String storageActive;
+//   @HiveField(3)
+//   final String storageName; // Field 'storage' dari dummy
+//
+//   StorageModel({
+//     required this.storageCode,
+//     required this.storageDesc,
+//     required this.storageActive,
+//     required this.storageName,
+//   });
+//
+//   factory StorageModel.fromJson(Map<String, dynamic> json) {
+//     return StorageModel(
+//       storageCode: json['storage_code'] ?? '',
+//       storageDesc: json['storage_desc'] ?? '',
+//       storageActive: json['storage_active'] ?? 'N',
+//       storageName: json['storage'] ?? '',
+//     );
+//   }
+// }
 
 // 2. Model Master Tank
 @HiveType(typeId: 11)

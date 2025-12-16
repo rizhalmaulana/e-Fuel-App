@@ -4,8 +4,9 @@ import 'package:e_fuel/modules/penerimaan/controllers/penerimaan_controller.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
-import '../../../helpers/string_helper.dart';
+import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/component/penerimaan_step_view.dart';
 
@@ -16,18 +17,10 @@ class PenerimaanView extends GetView<PenerimaanController> {
     return Column(
       children: [
         SizedBox(
-          height: 180,
+          height: 240,
           child: PageView(
             onPageChanged: (index) => controller.headerPageIndex.value = index,
             children: [
-              Obx(() => _buildInfoCard(
-                title: "Data Manual (Terakhir)",
-                totalVolume: controller.totalVolumeManualSnapshot.value,
-                tankList: controller.tankListManualSnapshot,
-                badgeColor: const Color(0xFFE3F2FD),
-                icon: Icons.edit_note,
-                isRefreshable: false,
-              )),
               Obx(() => _buildInfoCard(
                 title: "Data Sensor IoT (Live)",
                 totalVolume: controller.totalVolumeIoT.value,
@@ -42,22 +35,6 @@ class PenerimaanView extends GetView<PenerimaanController> {
           ),
         ),
         const SizedBox(height: 12),
-        Obx(() => Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(2, (index) {
-            bool isActive = controller.headerPageIndex.value == index;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: isActive ? 20 : 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : AppColors.backgroundGrey,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            );
-          }),
-        )),
       ],
     );
   }
@@ -110,59 +87,71 @@ class PenerimaanView extends GetView<PenerimaanController> {
                 )
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
 
+          // Total Volume
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.local_gas_station, color: AppColors.primary, size: 32),
               const SizedBox(width: 8),
               Text(
-                  "${totalVolume.toStringAsFixed(0).replaceAll('.', ',')} ",
+                  "${TextConvertHelper().formatNumber(totalVolume)} ",
                   style: AppFonts.fUrbanistBold24.copyWith(fontSize: 28, color: AppColors.darkText)
               ),
               Text("Liter", style: AppFonts.fUrbanistBold20.copyWith(color: AppColors.primary)),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
-          if (tankList.isNotEmpty)
-            Column(
-              children: tankList.map((tank) {
-                double vol = 0.0;
-                double height = 0.0;
+          Divider(color: AppColors.secondaryText.withOpacity(0.2)),
 
-                if (tank['volume'] is num) {
-                  vol = (tank['volume'] as num).toDouble();
-                } else if (tank['volume'] is String) {
-                  vol = double.tryParse(tank['volume'].toString()) ?? 0.0;
-                }
+          Expanded(
+            child: tankList.isNotEmpty
+                ? SingleChildScrollView(
+              child: Column(
+                children: tankList.map((tank) {
+                  double vol = 0.0;
+                  double height = 0.0;
 
-                if (tank['height'] is num) {
-                  height = (tank['height'] as num).toDouble();
-                } else if (tank['height'] is String) {
-                  height = double.tryParse(tank['height'].toString()) ?? 0.0;
-                }
+                  if (tank['volume'] is num) {
+                    vol = (tank['volume'] as num).toDouble();
+                  }
+                  if (tank['height'] is num) {
+                    height = (tank['height'] as num).toDouble();
+                  }
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6.0),
-                  child: Row(
-                    children: [
-                      Text("${tank['code']}", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
-                      const Spacer(),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text("${tank['code']}", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText)),
+                        ),
 
-                      Text("Vol ", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
-                      Text("${StringHelper().formatNumber(vol)} Ltr ", style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.darkText)),
-
-                      Text("Tinggi ", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
-                      Text("${StringHelper().formatNumber(height)} Cm", style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.darkText)),
-                    ],
-                  ),
-                );
-              }).toList(),
+                        // Volume & Tinggi
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text("${TextConvertHelper().formatNumber(vol)} Ltr", style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primary)),
+                              const SizedBox(width: 8),
+                              Text("|", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
+                              const SizedBox(width: 8),
+                              Text("${TextConvertHelper().formatNumber(height)} mm", style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.darkText)),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
             )
-          else
-            Text("- Data Kosong -", style: AppFonts.fUrbanistRegular12.copyWith(color: Colors.grey)),
+                : Center(child: Text("- Data Kosong -", style: AppFonts.fUrbanistRegular12.copyWith(color: Colors.grey))),
+          ),
         ],
       ),
     );
@@ -227,7 +216,6 @@ class PenerimaanView extends GetView<PenerimaanController> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. JUDUL STORAGE
         Center(
           child: Obx(() => Text(
             controller.selectedStorage.value,
@@ -235,70 +223,84 @@ class PenerimaanView extends GetView<PenerimaanController> {
             textAlign: TextAlign.center,
           )),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
-        // 2. JUDUL SECTION
         Text("Pengukuran Sebelum Pengisian", style: AppFonts.fUrbanistBold16),
         Text("Input manual untuk Volume dan Tinggi solar", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
         const SizedBox(height: 20),
 
-        // 3. LOOPING FORM DINAMIS BERDASARKAN TANGKI
+        // Obx memantau perubahan data dari API (Snapshot)
         Obx(() {
-          // Menggunakan list snapshot manual yang sudah di-generate controller
-          // List ini isinya map: {'code': 'Tangki 1', ...}
           if (controller.tankListManualSnapshot.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: Text("Tidak ada tangki terdeteksi pada storage ini.")),
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 30),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF2F6FF),
+                  borderRadius: BorderRadius.circular(12)
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.info_outline, color: AppColors.secondaryText),
+                  const SizedBox(height: 8),
+                  Text("Tidak ada tangki terdeteksi", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
+                ],
+              ),
             );
           }
 
           return Column(
             children: controller.tankListManualSnapshot.map((tank) {
-              final code = tank['code']!; // Contoh: "Tangki 1"
-              final ctrls = controller.manualInputControllers[code];
+              final code = tank['code']!;
 
-              // Safety check jika controller belum siap
-              if (ctrls == null) return const SizedBox.shrink();
+              // Pastikan controller map memiliki key ini
+              if (!controller.manualInputControllers.containsKey(code)) {
+                return const SizedBox.shrink(); // Skip jika controller belum siap
+              }
+
+              final ctrls = controller.manualInputControllers[code]!;
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 24.0), // Jarak antar form tangki
+                padding: const EdgeInsets.only(bottom: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Label Tangki (Biru)
-                    Text(
-                        code,
-                        style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary)
+                    // Label Tangki
+                    Row(
+                      children: [
+                        const Icon(Icons.propane_tank_outlined, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                            code, // Nama Tangki dari API
+                            style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary)
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
-                    // Row Input (Volume & Tinggi)
                     Row(
                       children: [
-                        // Input Volume
                         Expanded(
                           child: _buildCustomTextField(
-                            label: "Volume (Ltr)",
-                            controller: ctrls['volume']!,
-                            hint: "0",
+                              label: "Tinggi (mm)",
+                              controller: ctrls['height']!,
+                              hint: "0",
+                              isReadOnly: false
                           ),
                         ),
+
                         const SizedBox(width: 16),
 
-                        // Input Tinggi
                         Expanded(
                           child: _buildCustomTextField(
-                            label: "Tinggi (Cm)",
-                            controller: ctrls['height']!,
-                            hint: "0",
+                              label: "Volume (Ltr)",
+                              controller: ctrls['volume']!,
+                              hint: "Auto", // Hint berubah
+                              isReadOnly: true
                           ),
                         ),
                       ],
                     ),
-
-                    // Opsional: Varian Field (Disembunyikan untuk tahap Awal)
-                    // Jika ingin menampilkan varian (misal perbandingan dengan IoT), tambahkan widget disini
                   ],
                 ),
               );
@@ -308,21 +310,28 @@ class PenerimaanView extends GetView<PenerimaanController> {
 
         // 4. TOTAL VOLUME CARD
         const SizedBox(height: 8),
-        Text("Total Volume", style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary)),
+        Text("Total Volume Manual", style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary)),
         const SizedBox(height: 4),
-        Text("Total Volume Semua Tangki (Ltr)", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
+        Text("Akumulasi input volume user", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
         const SizedBox(height: 8),
 
         Obx(() => Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFF2F6FF),
-            borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFF2F6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withOpacity(0.2))
           ),
-          child: Text(
-            StringHelper().formatNumber(controller.manualTotalVolume.value),
-            style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary.withOpacity(0.6)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Total:", style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.darkText)),
+              Text(
+                "${TextConvertHelper().formatNumber(controller.manualTotalVolume.value)} Ltr",
+                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary),
+              ),
+            ],
           ),
         )),
       ],
@@ -332,21 +341,26 @@ class PenerimaanView extends GetView<PenerimaanController> {
   Widget _buildCustomTextField({
     required String label,
     required TextEditingController controller,
-    required String hint
+    required String hint,
+    required bool isReadOnly
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
+        Text(label, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primaryText)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          readOnly: isReadOnly,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            ThousandsFormatter(),
+          ],
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: const Color(0xFFF2F6FF), // Warna background input
+            fillColor: const Color(0xFFF2F6FF),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -371,7 +385,7 @@ class PenerimaanView extends GetView<PenerimaanController> {
         elevation: 0,
       ),
       child: Text(
-        'Next',
+        'Submit',
         style: AppFonts.fUrbanistSemiBold16.copyWith(color: Colors.white),
       ),
     );
@@ -383,7 +397,7 @@ class PenerimaanView extends GetView<PenerimaanController> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Volume Solar',
+          'Sounding Stok Solar',
           style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.primary),
         ),
         centerTitle: true,
@@ -408,20 +422,38 @@ class PenerimaanView extends GetView<PenerimaanController> {
             children: [
               _buildProgressHeader(context),
               const SizedBox(height: 20),
-
               _buildSwipeableHeader(),
-
-              const SizedBox(height: 24),
-
               _buildManualInputSection(),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: 25),
               _buildNextButton(),
               const SizedBox(height: 20),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class ThousandsFormatter extends TextInputFormatter {
+  static const separator = '.';
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    int value = int.tryParse(newText) ?? 0;
+
+    final formatter = NumberFormat('#,###', 'id_ID');
+    String formatted = formatter.format(value);
+    formatted = formatted.replaceAll(',', '.');
+
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

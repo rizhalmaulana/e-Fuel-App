@@ -10,6 +10,8 @@ class DialogFlexible extends StatelessWidget {
   final VoidCallback? onPrimaryPressed;
   final String? secondaryButtonText;
   final VoidCallback? onSecondaryPressed;
+  final Color? primaryColor;
+  final Color? secondaryColor;
 
   const DialogFlexible({
     super.key,
@@ -20,6 +22,8 @@ class DialogFlexible extends StatelessWidget {
     this.onPrimaryPressed,
     this.secondaryButtonText,
     this.onSecondaryPressed,
+    this.primaryColor,
+    this.secondaryColor,
   });
 
   @override
@@ -76,6 +80,7 @@ class DialogFlexible extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final Color themeColor = primaryColor ?? AppColors.primary;
     Widget buttonWidgets;
 
     if (hasPrimary && !hasSecondary) {
@@ -84,7 +89,7 @@ class DialogFlexible extends StatelessWidget {
         child: ElevatedButton(
           onPressed: onPrimaryPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: themeColor,
             foregroundColor: AppColors.white,
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -98,11 +103,11 @@ class DialogFlexible extends StatelessWidget {
         child: TextButton(
           onPressed: onSecondaryPressed,
           style: TextButton.styleFrom(
-            backgroundColor: AppColors.primary.withOpacity(0.1),
+            backgroundColor: themeColor.withOpacity(0.1),
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: Text(secondaryButtonText!, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary)),
+          child: Text(secondaryButtonText!, style: AppFonts.fUrbanistSemiBold12.copyWith(color: themeColor)),
         ),
       );
     } else {
@@ -112,11 +117,11 @@ class DialogFlexible extends StatelessWidget {
             child: TextButton(
               onPressed: onSecondaryPressed,
               style: TextButton.styleFrom(
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: themeColor.withOpacity(0.1),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text(secondaryButtonText!, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary)),
+              child: Text(secondaryButtonText!, style: AppFonts.fUrbanistSemiBold12.copyWith(color: themeColor)),
             ),
           ),
           const SizedBox(width: 10),
@@ -124,7 +129,7 @@ class DialogFlexible extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onPrimaryPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: themeColor,
                 foregroundColor: AppColors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

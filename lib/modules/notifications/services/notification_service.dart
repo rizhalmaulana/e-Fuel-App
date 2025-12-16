@@ -16,7 +16,12 @@ class NotificationService extends GetxService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final PenerimaanApiService _apiService = PenerimaanApiService();
 
+  bool _isInitialized = false;
+
   Future<void> init() async {
+    // Cek jika sudah pernah di-init, stop agar tidak muncul popup lagi/setup ulang
+    if (_isInitialized) return;
+
     NotificationSettings settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -32,6 +37,8 @@ class NotificationService extends GetxService {
 
       _setupInteractedMessage();
     }
+
+    _isInitialized = true;
   }
 
   Future<void> syncTokenToServer([String? token]) async {

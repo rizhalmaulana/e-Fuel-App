@@ -65,7 +65,6 @@ class LoginUserService {
       _userAuthBox = Hive.box<AuthResponseModel>(userBoxName);
     }
 
-    // Buka Box Token
     if (!Hive.isBoxOpen(tokenBoxName)) {
       _tokenBox = await Hive.openBox<String>(tokenBoxName);
       print('✅ Box Hive Token dibuka per akun untuk: $username di $tokenBoxName');
@@ -73,7 +72,6 @@ class LoginUserService {
       _tokenBox = Hive.box<String>(tokenBoxName);
     }
 
-    // Buka Box Refresh Token
     if (!Hive.isBoxOpen(refreshBoxName)) {
       _refreshBox = await Hive.openBox<String>(refreshBoxName);
       print('✅ Box Hive Refresh dibuka per akun untuk: $username di $refreshBoxName');

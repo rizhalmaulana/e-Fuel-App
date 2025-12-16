@@ -1,31 +1,39 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:e_fuel/helpers/string_helper.dart';
-import 'package:e_fuel/modules/auth/services/login_service.dart';
-import 'package:e_fuel/modules/fuel/services/fuel_data_service.dart';
+import 'package:e_fuel/configs/app_colors.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../configs/app_icons.dart';
-import '../../../datas/dummy/master_tank_dummy.dart';
-import '../../../datas/dummy/master_unit_dummy.dart';
-import '../../../datas/dummy/master_storage_dummy.dart';
-import '../../../datas/dummy/master_unit_storage_dummy.dart';
-import '../../../datas/dummy/child_storage_tank_dummy.dart';
-import '../../../datas/models/fuel/fuel_model.dart';
-import '../../../datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan_sebelum_model.dart';
-import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
+import '../../../configs/app_lotties.dart';
+import '../../../datas/models/auth/auth_response_model.dart';
+import '../../../datas/models/master_storage/master_storage_model.dart';
+import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
+import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
+import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
+
+// Services
+import 'package:e_fuel/modules/auth/services/login_service.dart';
+import 'package:e_fuel/modules/fuel/services/fuel_data_service.dart';
+import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../fuel/services/fuel_sensor_service.dart';
+import '../../fuel/services/master_data_service.dart';
 import '../../notifications/services/notification_service.dart';
-import '../../penerimaan/services/draft_penerimaan_service.dart';
-import '../../transactions/penerimaan/services/outstanding_service.dart';
+import '../../transactions/outstanding_service.dart';
+
+// Models
+import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
+import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
 
 class HomeController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
   final FuelDataService _fuelDataService = Get.find<FuelDataService>();
-  final FuelSensorService _sensorService = Get.find<FuelSensorService>();
+  final FuelSensorService _sensorService = Get.find<FuelSensorService>(); // Tetap di keep jika butuh background process
+  final NotificationService _notificationService = Get.find<NotificationService>();
+  final MasterDataService _masterDataService = MasterDataService();
 
   // Data User
   final userName = 'User'.obs;
@@ -39,86 +47,138 @@ class HomeController extends GetxController {
   final selectedStorage = 'Pilih Lokasi Storage'.obs;
   final selectedUnitCode = ''.obs;
 
+  // DATA TANGKI MANUAL (API) - Dipisahkan dari Sensor Service
+  final manualTanksList = <VolumeTankDetailModel>[].obs;
+
+  // UI Display
   final totalVolumeDisplay = 0.0.obs;
   final tankListDisplay = <Map<String, String>>[].obs;
 
+  // Transaksi
   final ongoingTransactions = <Map<String, dynamic>>[].obs;
   final historyTransactions = <Map<String, dynamic>>[].obs;
   final selectedTransactionTab = 0.obs;
-
   final outstandingTransactions = <Map<String, dynamic>>[].obs;
 
+  // Permissions
   final deniedPermissionsList = <String>[].obs;
   bool get isPermissionComplete => deniedPermissionsList.isEmpty;
 
-  List<StorageModel> _cachedStorages = [];
+  // Cache Local
+  List<UnitToStorageModel> _cachedStorages = [];
 
   @override
   void onInit() {
     super.onInit();
+    _initNotificationPermission();
     checkAndRequestPermissions();
 
-    _loadDataForActiveUser().then((_) {
-      _loadOutstandingTransactions();
-
-      if (selectedStorage.value != 'Pilih Lokasi Storage') {
-        _updateUiWithManualData(selectedStorage.value);
+    _loadDataForActiveUser().then((success) {
+      if (success) {
+        _loadOutstandingTransactions();
+        // Jalankan Sync API (Storage -> lalu Tank)
+        _syncMasterDataFromServer();
+      } else {
+        Get.offAllNamed(Routes.LOGIN);
       }
-
-      _checkDraftForHomeCard();
-      _updateFcmToken();
     });
   }
 
-  Future<void> reloadTransactions() async {
-    await _loadOutstandingTransactions();
-  }
+  Future<void> _syncMasterDataFromServer() async {
+    try {
+      final authData = _loginService.getCurrentAuth();
+      final unitCode = authData?.user.userKaryawan.unit.kodeUnit;
 
-  Future<void> _checkDraftForHomeCard() async {
-    final authData = _loginService.getCurrentAuth();
-    if (authData == null) return;
+      if (unitCode != null && unitCode.isNotEmpty) {
+        final apiStorages = await _masterDataService.getStorageFromUnit(unitId: unitCode);
 
-    final draftService = DraftPenerimaanService(authData.user.username);
+        if (apiStorages.isNotEmpty) {
+          await _fuelDataService.saveLocalStorages(apiStorages);
+          _cachedStorages = apiStorages;
+          loadStorageLocations(unitCode);
 
-    // GANTI: getDraft() -> getDraftBefore()
-    final draft = await draftService.getDraftBefore();
-
-    if (draft != null && draft.manualTankDetailsJson != null) {
-      totalVolumeDisplay.value = draft.totalVolumeManual ?? 0.0;
-
-      List<dynamic> manualList = jsonDecode(draft.manualTankDetailsJson!);
-      List<Map<String, String>> displayList = [];
-
-      for (var item in manualList) {
-        displayList.add({
-          'code': item['tank_code'].toString().replaceAll('_', ' '),
-          'volume': "${item['volume_manual']} Ltr",
-          'height': "${item['height_manual']} cm",
-        });
+          if (storageLocations.isNotEmpty) {
+            final firstStorageString = storageLocations.first;
+            changeStorageLocation(firstStorageString);
+          }
+        }
       }
-      tankListDisplay.assignAll(displayList);
-
-      if (draft.storageCode != null) {
-        selectedStorage.value = draft.storageCode!;
-      }
-
-    } else {
-      // Logic else tetap sama
-      if (selectedStorage.value != 'Pilih Lokasi Storage') {
-        _updateUiWithManualData(selectedStorage.value);
-      } else {
-        totalVolumeDisplay.value = 0.0;
-        tankListDisplay.clear();
-      }
+    } catch (e) {
+      print("⚠️ [HomeController] Sync Error: $e");
     }
   }
 
-  void _updateFcmToken() {
+  Future<bool> _loadDataForActiveUser() async {
+    final authData = await _loginService.getAuthOrLoad();
+
+    if (authData == null) return false;
+    final username = authData.user.username;
+
+    // Init Box
+    await _sensorService.initSensorBox(username); // Sensor box tetap di init (jika perlu)
+    await _fuelDataService.openFuelDataBox(username); // Manual box
+
+    loadUserData(authData: authData);
+
+    _cachedStorages = _fuelDataService.getLocalStorages();
+    if (_cachedStorages.isNotEmpty) {
+      loadStorageLocations(selectedUnitCode.value);
+    }
+
+    final cachedTanks = _fuelDataService.getApiManualTanks();
+    if (cachedTanks.isNotEmpty) {
+      manualTanksList.assignAll(cachedTanks);
+      _updateUiFromManualData();
+    }
+
+    return true;
+  }
+
+  void _updateUiFromManualData() {
+    double totalVol = 0.0;
+    List<Map<String, String>> tempList = [];
+
+    final currentStorageCode = _getStorageCode(selectedStorage.value);
+
+    final activeTanks = manualTanksList.where((t) {
+      if (t.masterStorage != null) {
+        return t.masterStorage!.kodeStorage == currentStorageCode;
+      }
+      return true;
+    }).toList();
+
+    // Sorting
+    activeTanks.sort((a, b) {
+      String codeA = a.masterSolarTank?.kodeTank ?? '';
+      String codeB = b.masterSolarTank?.kodeTank ?? '';
+      return codeA.compareTo(codeB);
+    });
+
+    for (var tank in activeTanks) {
+      final tankCode = tank.masterSolarTank?.kodeTank ?? 'Unknown';
+
+      double vol = (tank.volume ?? 0).toDouble();
+      double h = (tank.height ?? 0).toDouble();
+
+      totalVol += vol;
+
+      tempList.add({
+        'code': tankCode.replaceAll('_', ' '),
+        'volume': "${vol.toStringAsFixed(0)} Ltr",
+        'height': "${h.toStringAsFixed(0)} cm",
+      });
+    }
+
+    totalVolumeDisplay.value = totalVol;
+    tankListDisplay.assignAll(tempList);
+  }
+
+  Future<void> _initNotificationPermission() async {
     try {
-      final notifService = Get.find<NotificationService>();
-      notifService.syncTokenToServer();
+      await _notificationService.init();
+      _notificationService.syncTokenToServer();
     } catch (e) {
-      print("Notification Service belum siap: $e");
+      print("Gagal inisialisasi notifikasi: $e");
     }
   }
 
@@ -128,42 +188,74 @@ class HomeController extends GetxController {
 
     final username = authData.user.username;
     final outstandingService = OutstandingService(username);
-    final List<TransactionModel> dataList = await outstandingService.getAllTransactions();
+
+    // Ambil data gabungan
+    final List<dynamic> dataList = await outstandingService.getAllCombinedTransactions();
 
     final List<Map<String, dynamic>> tempOngoing = [];
     final List<Map<String, dynamic>> tempHistory = [];
 
     for (var trx in dataList) {
-      // Akses detail dari property dataSebelum
-      final detail = trx.dataSebelum;
+      String title = '';
+      String iconPath = '';
+      String typeCode = '';
+      String noBast = '';
+      String noIO = '';
+      String dateCreated = '';
+      String status = '';
+      String amountStr = '';
+      String platStr = '';
+      String unitStr = '';
+      Color iconColor = AppColors.primary; // Default Color
 
-      String typeCode = detail?.docTypeCode ?? 'FIN';
-      String title = 'Transaksi Solar';
-      String iconPath = AppIcons.icTransaction;
-
-      if (typeCode == 'FIN') {
+      if (trx is TransactionModel) {
+        // --- PENERIMAAN (FIN) ---
+        final detail = trx.dataSebelum;
+        noBast = trx.noBast;
+        status = trx.status;
+        dateCreated = trx.dateCreated;
+        typeCode = 'FIN';
         title = 'Penerimaan Solar';
         iconPath = AppIcons.icPenerimaan;
-      } else if (typeCode == 'FOT') {
+        iconColor = AppColors.primary;
+
+        amountStr = "${(detail?.volumeVendor ?? 0).toInt()} Ltr";
+        platStr = (detail?.nopolVendor ?? 'Tidak Ada Plat').toUpperCase();
+        unitStr = (detail?.kodeUnit ?? '-').toString();
+
+      } else if (trx is TransactionPengeluaranModel) {
+        // --- PENGELUARAN (FOT) ---
+        final detail = trx.dataPengeluaran;
+        noBast = trx.noBast;
+        status = trx.status;
+        noIO = detail?.noIo ?? '-';
+        dateCreated = trx.dateCreated;
+        typeCode = 'FOT';
         title = 'Pengeluaran Solar';
         iconPath = AppIcons.icPengeluaran;
+        iconColor = AppColors.primaryOrange;
+
+        amountStr = "${(detail?.jumlahPengisianSolar ?? 0).toInt()} Ltr";
+        platStr = (detail?.nopolCheck ?? 'Tidak Ada Plat').toUpperCase();
+        unitStr = (detail?.unitIO ?? '-').toString();
       }
 
       final mapData = {
-        'id': trx.noBast,
+        'noIO': noIO,
+        'noBast': noBast,
         'title': title,
         'type': typeCode,
-        'date': StringHelper().formatDate(trx.dateCreated),
-        'amount': "${(detail?.volumeVendor ?? 0).toInt()} Ltr",
-        'plat': (detail?.nopolVendor ?? 'Tidak Ada Plat').toUpperCase(),
-        'status': trx.status, // Ambil dari Header
-        'unit': (detail?.kodeUnit ?? '-').toString(),
+        'date': TextConvertHelper().formatDate(dateCreated),
+        'amount': amountStr,
+        'plat': platStr,
+        'status': status,
+        'unit': unitStr,
         'icon': iconPath,
-        'desc': (detail?.kodeUnit ?? '-').toString(),
+        'desc': unitStr,
+        'color': iconColor,
       };
 
-      String statusLower = trx.status.toLowerCase();
-
+      String statusLower = status.toLowerCase();
       if (statusLower == 'selesai') {
         tempHistory.add(mapData);
       } else {
@@ -181,175 +273,240 @@ class HomeController extends GetxController {
     return storageString;
   }
 
-  void changeStorageLocation(String? newLocation) {
-    if (newLocation != null && newLocation != selectedStorage.value) {
+  Future<void> changeStorageLocation(String? newLocation) async {
+    if (newLocation != null && newLocation != 'Tidak ada Storage') {
       selectedStorage.value = newLocation;
-      _updateUiWithManualData(newLocation);
+
+      final storageCode = _getStorageCode(newLocation);
+      final unitCode = selectedUnitCode.value;
+
+      // Reset UI loading state
+      totalVolumeDisplay.value = 0.0;
+      tankListDisplay.clear();
+
+      await _fetchManualTanksApi(unitCode, storageCode);
     }
   }
 
-  void navigateToTransactionDetail(Map<String, dynamic> tx) {
-    String noBast = tx['id'];
-    String status = tx['status'].toString().toLowerCase();
-    String type = tx['type'];
+  Future<void> _fetchManualTanksApi(String unitCode, String storageCode) async {
+    try {
+      final tanks = await _masterDataService.getTankDetailFromStorage(
+          unitId: unitCode,
+          storageId: storageCode
+      );
 
-    print("Navigasi Transaksi: $noBast, Status: $status");
+      manualTanksList.assignAll(tanks);
+      await _fuelDataService.saveApiManualTanks(tanks);
+
+      // Update UI
+      _updateUiFromManualData();
+
+    } catch (e) {
+      print("⚠️ Gagal fetch tank manual: $e");
+    }
+  }
+
+  Future<void> _fetchTanksForStorage(String unitCode, String storageCode) async {
+    try {
+      final tanks = await _masterDataService.getTankDetailFromStorage(
+          unitId: unitCode,
+          storageId: storageCode
+      );
+
+      if (tanks.isNotEmpty) {
+        _sensorService.iotData.assignAll(tanks);
+      } else {
+        _sensorService.iotData.clear();
+      }
+    } catch (e) {
+      print("⚠️ Gagal fetch tank: $e");
+    }
+  }
+
+  Future<void> navigateToTransactionDetail(Map<String, dynamic> tx) async {
+    String unitVal = tx['unit'] ?? '-';
+    String noBast = tx['noBast'] ?? '';
+    String status = (tx['status'] ?? '').toString().toLowerCase();
+    String type = tx['type'] ?? '';
+
+    final authData = _loginService.getCurrentAuth();
+    if (authData == null) return;
+    final outstandingService = OutstandingService(authData.user.username);
 
     if (type == 'FIN') {
+      // --- NAVIGASI PENERIMAAN ---
       switch (status) {
         case 'draft':
         case 'proses':
-          Get.toNamed(Routes.PENERIMAAN, arguments: {
-            'noBast': noBast,
-            'isResume': true
-          });
+          Get.toNamed(Routes.PENERIMAAN,
+              arguments: {'noBast': noBast, 'isResume': true});
           break;
-
         case 'setelah_pengisian':
-          Get.toNamed(Routes.PENERIMAAN_SETELAH, arguments: {
-            'noBast': noBast
-          });
+          Get.toNamed(Routes.PENERIMAAN_SETELAH, arguments: {'noBast': noBast});
           break;
-
-        case 'approval':
-        case 'verifikasi':
-          Get.toNamed(Routes.PENERIMAAN_TRACKING, arguments: {
-            'noBast': noBast
-          });
+        case 'verifikasi_bast':
+          Get.toNamed(Routes.PENERIMAAAN_VERIFIKASI_BAST,
+              arguments: {'noBast': noBast});
           break;
-
+        case 'approval_kasie':
+        case 'approval_manager':
         case 'selesai':
-          Get.toNamed(Routes.PENERIMAAN_TRACKING, arguments: {
-            'noBast': noBast
-          });
+          Get.toNamed(
+              Routes.PENERIMAAN_TRACKING, arguments: {'noBast': noBast});
           break;
-
         default:
           Get.snackbar("Info", "Status transaksi tidak dikenali: $status");
       }
     } else if (type == 'FOT') {
-      Get.snackbar("Info", "Fitur Pengeluaran dalam pengembangan");
-    }
-  }
+      final trxPengeluaran = await outstandingService
+          .getTransactionPengeluaranByNoBast(noBast);
 
-  void _updateUiWithManualData(String storageLocation) {
-    final storageCode = _getStorageCode(storageLocation);
+      if (trxPengeluaran != null) {
+        final detail = trxPengeluaran.dataPengeluaran;
 
-    final activeTanks = _sensorService.iotData.where(
-          (tank) => tank.storageCode == storageCode && tank.statusActive == 'Y',
-    ).toList();
+        switch (status) {
+          case 'pengisian_solar':
+          case 'pengisian_solar_pengeluaran':
+            Get.toNamed(
+                Routes.PENGISIAN_SOLAR_PENGELUARAN,
+                arguments: {
+                  'noDoc': noBast,
+                  'noIO': detail?.noIo,
+                  'unitIO': unitVal,
+                  'noPolisi': detail?.nopolCheck,
+                  'supir_check': detail?.supirCheck,
+                  'tanggal': TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
+                  'km_pengisian': detail?.kmPengisian?.toString(),
+                  'jumlah_pengisian_solar': detail?.jumlahPengisianSolar?.toString(),
+                  'status': status,
+                }
+            );
+            break;
 
-    activeTanks.sort((a, b) => a.tankCode.compareTo(b.tankCode));
+          case 'verifikasi_pengeluaran':
+            Get.toNamed(
+                Routes.PENGISIAN_SOLAR_PENGELUARAN,
+                arguments: {
+                  'noDoc': noBast,
+                  'noIO': detail?.noIo,
+                  'unitIO': unitVal,
+                  'noPolisi': detail?.nopolCheck,
+                  'supir_check': detail?.supirCheck,
+                  'tanggal': TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
+                  'km_pengisian': detail?.kmPengisian?.toString(),
+                  'jumlah_pengisian_solar': detail?.jumlahPengisianSolar?.toString(),
+                  'status': status,
+                }
+            );
+            break;
 
-    double totalVol = 0.0;
-    List<Map<String, String>> tempList = [];
+          case 'approval_kasie':
+          case 'approval_manager':
+          case 'selesai':
+            Get.toNamed(
+                Routes.PENGELUARAN_TRACKING,
+                arguments: {'noBast': noBast}
+            );
+            break;
 
-    for (var tank in activeTanks) {
-      final manualState = _fuelDataService.getLastManualState(tank.tankCode);
-      double vol = manualState['volume']!;
-      double h = manualState['height']!;
-
-      totalVol += vol;
-
-      tempList.add({
-        'code': tank.tankCode.replaceAll('_', ' '),
-        'volume': "${vol.toStringAsFixed(0)} Ltr", // Akan tampil "0 Ltr" jika awal
-        'height': "${h.toStringAsFixed(0)} cm",
-      });
-    }
-
-    totalVolumeDisplay.value = totalVol;
-    tankListDisplay.assignAll(tempList);
-  }
-
-  Future<void> _loadDataForActiveUser() async {
-    final authData = _loginService.getCurrentAuth();
-    if (authData == null) return;
-
-    final username = authData.user.username;
-    await _sensorService.loadInitialData(username);
-    await _fuelDataService.openFuelDataBox(username);
-    var existingStorages = _fuelDataService.getStorages();
-
-    loadUserData();
-
-    if (storageLocations.isNotEmpty) {
-      if (selectedStorage.value == 'Pilih Lokasi Storage') {
-        selectedStorage.value = storageLocations.first;
+          default:
+            Get.snackbar("Info", "Status transaksi pengeluaran tidak dikenali: $status");
+        }
+      } else {
+        Get.snackbar("Error", "Data transaksi tidak ditemukan");
       }
-      _updateUiWithManualData(selectedStorage.value);
     }
-
-    if (existingStorages.isEmpty) {
-      print('📥 Hive Kosong. Mengisi Master Data dari Dummy...');
-      List<StorageModel> storageList = masterStorageDummy.map((e) => StorageModel.fromJson(e)).toList();
-      List<TankModel> tankList = mappingMasterTank.map((e) => TankModel.fromJson(e)).toList();
-      List<StorageTankModel> iotList = mappingStorageTank.map((e) => StorageTankModel.fromJson(e)).toList();
-
-      await _fuelDataService.saveMasterStorages(storageList);
-      await _fuelDataService.saveMasterTanks(tankList);
-      await _fuelDataService.saveStorageTankIotData(iotList);
-
-      existingStorages = storageList;
-      _sensorService.iotData.assignAll(iotList);
-    }
-
-    _cachedStorages = existingStorages;
-    loadUserData();
   }
 
-  void loadUserData() {
-    final authData = _loginService.getCurrentAuth();
-    if (authData != null) {
-      final name = (authData.user.firstName.isNotEmpty) ? '${authData.user.firstName} ${authData.user.lastName}' : 'User';
-      final unitId = (authData.user.userKaryawan.unit.id != 0) ? authData.user.userKaryawan.unit.id : 0;
-      final unitCode = (authData.user.userKaryawan.unit.kodeUnit.isNotEmpty) ? authData.user.userKaryawan.unit.kodeUnit : 'E021';
-      final estateAddress = (authData.user.userKaryawan.unit.namaUnit.isNotEmpty) ? authData.user.userKaryawan.unit.namaUnit : 'Estate';
-      final unitAndEstate = '$unitCode - $estateAddress';
+  void loadUserData({AuthResponseModel? authData}) {
+    final data = authData ?? _loginService.getCurrentAuth();
 
-      final masterUnit = mappingMasterUnit.firstWhereOrNull((item) => item['id'] == unitId);
-      final title = masterUnit != null ? masterUnit['title_unit'] : 'FLE';
+    if (data != null) {
+      final user = data.user;
+      final karyawan = user.userKaryawan;
+
+      final firstName = user.firstName ?? '';
+      final lastName = user.lastName ?? '';
+      final name = firstName.isNotEmpty ? '$firstName $lastName' : user.username;
+
+      final unitCode = karyawan.unit.kodeUnit.isNotEmpty ? karyawan.unit.kodeUnit : 'E000';
+      final unitName = karyawan.unit.namaUnit.isNotEmpty ? karyawan.unit.namaUnit : 'Unknown Estate';
 
       userName.value = name;
-      userAddress.value = unitAndEstate;
-      unitTitle.value = title;
+      userAddress.value = '$unitCode - $unitName';
       selectedUnitCode.value = unitCode;
 
-      loadStorageLocations(unitCode);
-
-      if (storageLocations.isNotEmpty) {
-        selectedStorage.value = storageLocations.first;
-        _updateUiWithManualData(selectedStorage.value);
-      }
-
       final nameParts = name.trim().split(RegExp(r'\s+'));
-      String initials = 'UU';
       if (nameParts.isNotEmpty) {
-        initials = nameParts[0][0].toUpperCase();
-        if (nameParts.length > 1) initials += nameParts[1][0].toUpperCase();
+        profileInitials.value = (nameParts.length > 1)
+            ? "${nameParts[0][0]}${nameParts[1][0]}".toUpperCase()
+            : nameParts[0][0].toUpperCase();
       }
-      profileInitials.value = initials;
+
+      // Load Dropdown dari Cache
+      loadStorageLocations(unitCode);
+    } else {
+      print("❌ [HomeController] loadUserData gagal: Auth Data null");
     }
   }
 
   void loadStorageLocations(String unitCode) {
     storageLocations.clear();
-    final List<String>? codes = unitToStorageCodes[unitCode];
-    if (codes != null && codes.isNotEmpty) {
-      final List<String> availableStorages = [];
-      for (var code in codes) {
-        final storageItem = _cachedStorages.firstWhereOrNull((model) => model.storageCode == code);
-        if (storageItem != null && storageItem.storageActive == 'Y') {
-          availableStorages.add(storageItem.storageName);
+    List<String> formattedList = [];
+
+    // Loop List<UnitToStorageModel>
+    for (var unitData in _cachedStorages) {
+      for (MasterStorageModel storage in unitData.masterStorage) {
+        if (storage.storageStatus == 'Y') {
+          formattedList.add("${storage.namaStorage} - ${storage.kodeStorage}");
         }
       }
-      storageLocations.addAll(availableStorages);
+    }
+
+    if (formattedList.isNotEmpty) {
+      storageLocations.addAll(formattedList);
+
+      if (selectedStorage.value == 'Pilih Lokasi Storage' || selectedStorage.value.isEmpty) {
+        Future.delayed(Duration.zero, () {
+          changeStorageLocation(storageLocations.first);
+        });
+      } else if (!storageLocations.contains(selectedStorage.value)) {
+        changeStorageLocation(storageLocations.first);
+      }
+
+    } else {
+      selectedStorage.value = 'Tidak ada Storage';
+      _sensorService.iotData.clear();
     }
   }
 
   void openAppSettingsPage() async {
     await openAppSettings();
     checkAndRequestPermissions();
+  }
+
+  void logout() {
+    Get.dialog(
+      DialogFlexible(
+        logo: Lottie.asset(AppLotties.question, width: 120, height: 120, repeat: true),
+        title: "Konfirmasi Keluar",
+        message: "Apakah Anda yakin ingin keluar dari aplikasi? Sesi Anda akan diakhiri.",
+
+        // Tombol Batal
+        secondaryButtonText: "Batal",
+        onSecondaryPressed: () => Get.back(),
+
+        primaryButtonText: "Ya, Keluar",
+        onPrimaryPressed: () async {
+          Get.back();
+
+          // Proses Logout
+          await _loginService.clearAuthData();
+          Get.offAllNamed(Routes.LOGIN);
+        },
+      ),
+      barrierDismissible: false,
+    );
   }
 
   Future<void> checkAndRequestPermissions() async {

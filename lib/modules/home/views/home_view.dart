@@ -133,12 +133,47 @@ class HomeView extends GetView<HomeController> {
               icon: const Icon(Icons.notifications_none, color: AppColors.white),
               onPressed: () {},
             ),
-            CircleAvatar(
-              backgroundColor: AppColors.white,
-              radius: 18,
-              child: Text(
-                controller.profileInitials.value,
-                style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary),
+
+            PopupMenuButton<String>(
+              offset: const Offset(0, 40),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (value) {
+                if (value == 'logout') {
+                  controller.logout();
+                } else if (value == 'info') {
+                  _showDevelopmentModal(Get.context!);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'info',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline, color: AppColors.darkText, size: 20),
+                      const SizedBox(width: 12),
+                      Text('Info Profile', style: AppFonts.fUrbanistMedium14),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.logout, color: AppColors.alertSoftRed, size: 20),
+                      const SizedBox(width: 12),
+                      Text('Keluar', style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.alertSoftRed)),
+                    ],
+                  ),
+                ),
+              ],
+              child: CircleAvatar(
+                backgroundColor: AppColors.white,
+                radius: 18,
+                child: Text(
+                  controller.profileInitials.value,
+                  style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary),
+                ),
               ),
             ),
           ],
@@ -166,38 +201,59 @@ class HomeView extends GetView<HomeController> {
   }
 
   Widget _buildMenuSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, right: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Menu',
-            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.darkText),
+    final List<Map<String, dynamic>> menus = [
+      {
+        'icon': AppIcons.icPenerimaan,
+        'label': 'Penerimaan',
+        'onTap': () => Get.toNamed(Routes.PENERIMAAN_SEBELUM_FORM)
+      },
+      {
+        'icon': AppIcons.icPengeluaran,
+        'label': 'Pengeluaran',
+        'onTap': () => Get.toNamed(Routes.PENGELUARAN)
+      },
+      {
+        'icon': AppIcons.icPenerimaan2,
+        'label': 'Transaksi Penerimaan',
+        'onTap': () => _showDevelopmentModal(context)
+      },
+      {
+        'icon': AppIcons.icPenerimaan2,
+        'label': 'Transaksi Pengeluaran',
+        'onTap': () => _showDevelopmentModal(context)
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Menu Utama',
+            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMenuItem(AppIcons.icPenerimaan, 'Penerimaan',
-                  onTap: () => Get.toNamed(
-                      Routes.PENERIMAAN,
-                      arguments: controller.selectedStorage.value
-                  )
-              ),
-              _buildMenuItem(AppIcons.icPengeluaran, 'Pengeluaran',
-                  onTap: () => _showDevelopmentModal(context)
-              ),
-              _buildMenuItem(AppIcons.icTransaction, 'Transaksi',
-                  onTap: () => _showDevelopmentModal(context)
-              ),
-              _buildMenuItem(AppIcons.icLogout, 'Logout',
-                onTap: () => _showDevelopmentModal(context)
-              ),
-            ],
+        ),
+        const SizedBox(height: 16),
+
+        SizedBox(
+          height: 110,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            scrollDirection: Axis.horizontal,
+            itemCount: menus.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final menu = menus[index];
+              return _buildMenuItem(
+                  menu['icon'],
+                  menu['label'],
+                  onTap: menu['onTap']
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -205,30 +261,50 @@ class HomeView extends GetView<HomeController> {
     return GestureDetector(
       onTap: onTap,
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(36)
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.fieldBackground),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryText.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
             ),
             child: Center(
               child: SizedBox(
-                width: 26,
-                height: 26,
+                width: 28,
+                height: 28,
                 child: Image.asset(
                   iconPath,
-                  color: AppColors.primary,
+                  color: AppColors.primaryText,
                   fit: BoxFit.contain,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.darkText),
+          const SizedBox(height: 10),
+
+          SizedBox(
+            width: 70,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.fUrbanistMedium12.copyWith(
+                  color: AppColors.darkText,
+                  height: 1.2,
+                  fontSize: 11
+              ),
+            ),
           ),
         ],
       ),
@@ -248,7 +324,7 @@ class HomeView extends GetView<HomeController> {
               children: [
                 Text(
                   'Riwayat Transaksi',
-                  style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.darkText),
+                  style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
                 ),
               ],
             ),

@@ -3,7 +3,6 @@ import '../../../datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan
 
 class DraftPenerimaanService {
   final String userName;
-
   DraftPenerimaanService(this.userName);
 
   String get _draftSebelumBoxName => 'draft_penerimaan_sebelum_$userName';

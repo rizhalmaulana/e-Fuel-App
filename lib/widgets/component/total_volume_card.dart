@@ -29,10 +29,10 @@ class TotalVolumeCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: Image.asset(
-        AppIcons.icTank,
+        AppIcons.icTank2,
         width: 24,
         height: 24,
-        color: AppColors.primary,
+        color: AppColors.primaryText,
       ),
     );
   }
@@ -111,7 +111,7 @@ class TotalVolumeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15.0),
       decoration: const BoxDecoration(
-        color: Color(0xFFE0E0FF),
+        color: AppColors.primary,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
@@ -121,17 +121,34 @@ class TotalVolumeCard extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: storageLocations.contains(selectedStorage) ? selectedStorage : null,
-          hint: Text(selectedStorage, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary)),
-          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+          hint: Text(selectedStorage, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.white)),
+          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.white),
           isExpanded: true,
-          style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary),
-          onChanged: onStorageChanged,
+          dropdownColor: Colors.white,
           items: storageLocations.map<DropdownMenuItem<String>>((String value) {
             return DropdownMenuItem<String>(
               value: value,
-              child: Text(value, overflow: TextOverflow.ellipsis),
+              child: Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary),
+              ),
             );
           }).toList(),
+          selectedItemBuilder: (BuildContext context) {
+            return storageLocations.map<Widget>((String value) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.white),
+                ),
+              );
+            }).toList();
+          },
+
+          onChanged: onStorageChanged,
         ),
       ),
     );

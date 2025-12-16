@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
@@ -7,18 +8,20 @@ import '../../../configs/app_colors.dart';
 import '../../../datas/models/filling/filling_model.dart';
 import '../../../datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan_sebelum_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
-import '../../../helpers/string_helper.dart';
+import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../auth/services/login_service.dart';
 import '../../fuel/services/fuel_sensor_service.dart';
+import '../../fuel/services/master_data_service.dart';
 import '../../home/controllers/home_controller.dart';
-import '../../transactions/penerimaan/services/outstanding_service.dart';
+import '../../transactions/outstanding_service.dart';
 import '../services/draft_penerimaan_service.dart';
 
 class PenerimaanSetelahController extends GetxController {
   // Services
   final _loginService = Get.find<LoginService>();
   final _sensorService = Get.find<FuelSensorService>();
+  final MasterDataService _masterDataService = MasterDataService();
 
   // Data Transaksi
   TransactionModel? currentTransaction;
@@ -42,6 +45,7 @@ class PenerimaanSetelahController extends GetxController {
   final Map<String, double> _manualBeforeHeightMap = {};
   final Map<String, double> _iotBeforeVolMap = {};
   final Map<String, double> _iotBeforeHeightMap = {};
+  final Map<String, Timer> _debounceTimers = {};
 
   // --- DATA SESUDAH (INPUT MANUAL + IOT LIVE) ---
   final activeTankCodes = <String>[].obs;
@@ -82,145 +86,187 @@ class PenerimaanSetelahController extends GetxController {
     activeNoBast = noBast;
     isLoadingData.value = true;
 
+    // Pastikan session auth siap
     final auth = await _loginService.getAuthOrLoad();
-    _currentUsername = auth?.user.username ?? ""; // Simpan username
+    _currentUsername = auth?.user.username ?? "";
 
     if (_currentUsername.isNotEmpty && activeNoBast.isNotEmpty) {
       try {
         final outstandingService = OutstandingService(_currentUsername);
+
+        // 1. Coba ambil Transaksi dari Hive Lokal
         final trx = await outstandingService.getTransactionByNoBast(activeNoBast);
+        currentTransaction = trx;
 
-        if (trx != null) {
-          currentTransaction = trx;
-          final dataSebelum = trx.dataSebelum;
+        String? jsonManualString;
+        String? jsonIoTString;
 
-          if (dataSebelum != null) {
-            if (dataSebelum.manualTankDetailsJson != null) {
-              List<dynamic> list = jsonDecode(dataSebelum.manualTankDetailsJson!);
-              double tempTotal = 0;
-              List<Map<String, dynamic>> tempList = [];
+        // 2. Prioritas 1: Ambil JSON dari Hive (jika sudah tersimpan)
+        if (trx != null && trx.dataSebelum != null) {
+          jsonManualString = trx.dataSebelum!.manualTankDetailsJson;
+          jsonIoTString = trx.dataSebelum!.iotTankDetailsJson;
 
-              // Set untuk mencegah duplikasi
-              Set<String> processedCodes = {};
-
-              for (var item in list) {
-                String code = item['tank_code'];
-                if (processedCodes.contains(code)) continue;
-                processedCodes.add(code);
-
-                // FIX: Pakai num.toDouble() untuk safety int -> double
-                double vol = (item['volume_manual'] as num).toDouble();
-                double h = (item['height_manual'] as num).toDouble();
-
-                tempTotal += vol;
-                tempList.add({
-                  'code': code.replaceAll('_', ' '),
-                  'volume': vol,
-                  'height': h
-                });
-
-                _manualBeforeVolMap[code] = vol;
-                _manualBeforeHeightMap[code] = h;
-              }
-              manualBeforeList.assignAll(tempList);
-              totalManualBefore.value = tempTotal;
-            }
-
-            // 2. PARSE IOT DATA (SEBELUM - SNAPSHOT)
-            if (dataSebelum.iotTankDetailsJson != null) {
-              List<dynamic> list = jsonDecode(dataSebelum.iotTankDetailsJson!);
-              double tempTotal = 0;
-              List<Map<String, dynamic>> tempList = [];
-              Set<String> processedIoTCodes = {};
-
-              for (var item in list) {
-                String code = item['tank_code'];
-                if (processedIoTCodes.contains(code)) continue;
-                processedIoTCodes.add(code);
-
-                // FIX: Pakai num.toDouble()
-                num volNum = item['volume_iot'] ?? item['volume'] ?? 0;
-                num hNum = item['height_iot'] ?? item['height'] ?? 0;
-
-                double vol = volNum.toDouble();
-                double h = hNum.toDouble();
-
-                tempTotal += vol;
-                tempList.add({
-                  'code': code.replaceAll('_', ' '),
-                  'volume': vol,
-                  'height': h
-                });
-
-                _iotBeforeVolMap[code] = vol;
-                _iotBeforeHeightMap[code] = h;
-              }
-              iotBeforeList.assignAll(tempList);
-              totalIotBefore.value = tempTotal;
-            }
-
-            // 3. INIT FORM INPUT SESUDAH
-            if (dataSebelum.storageCode != null) {
-              _initializeTankUI(dataSebelum.storageCode!);
-            }
-          }
-
-          final draftService = DraftPenerimaanService(_currentUsername);
-          final draftData = await draftService.getDraftSesudah(activeNoBast);
-
-          if (draftData != null) {
-            print("📦 Draft ditemukan, merestore data...");
-            draftData.forEach((tankCode, values) {
-              if (manualInputControllers.containsKey(tankCode)) {
-                if (values is Map) {
-                  manualInputControllers[tankCode]?['volume']?.text = values['volume'] ?? '';
-                  manualInputControllers[tankCode]?['height']?.text = values['height'] ?? '';
-                }
-              }
-            });
-            // Update total manual setelah restore
-            _updateTotalManual();
+          // Init UI Tangki (Sesudah) berdasarkan storage code di Hive
+          if (trx.dataSebelum!.storageCode != null) {
+            _initializeTankUI(trx.dataSebelum!.storageCode!);
           }
         }
+
+        // 3. Prioritas 2 (BACKUP): Ambil JSON dari Arguments (jika Hive kosong/belum sync)
+        // Ini solusi agar data langsung tampil setelah flow pengisian
+        if ((jsonManualString == null || jsonManualString.isEmpty) && Get.arguments is Map) {
+          jsonManualString = Get.arguments['manual_json_backup'];
+        }
+        if ((jsonIoTString == null || jsonIoTString.isEmpty) && Get.arguments is Map) {
+          jsonIoTString = Get.arguments['iot_json_backup'];
+        }
+
+        // 4. PARSE MANUAL DATA (SEBELUM) -> Masukkan ke List & Map Helper
+        if (jsonManualString != null && jsonManualString.isNotEmpty) {
+          try {
+            List<dynamic> list = jsonDecode(jsonManualString);
+            double tempTotal = 0;
+            List<Map<String, dynamic>> tempList = [];
+
+            // Bersihkan map helper
+            _manualBeforeVolMap.clear();
+            _manualBeforeHeightMap.clear();
+
+            for (var item in list) {
+              String code = item['tank_code'];
+              // Parsing aman (handle int/double)
+              double vol = (item['volume_manual'] as num).toDouble();
+              double h = (item['height_manual'] as num).toDouble();
+
+              tempTotal += vol;
+              tempList.add({
+                'code': code.replaceAll('_', ' '),
+                'volume': vol,
+                'height': h
+              });
+
+              // Simpan ke Map untuk perhitungan Varian nanti
+              _manualBeforeVolMap[code] = vol;
+              _manualBeforeHeightMap[code] = h;
+            }
+
+            // Update Observable UI
+            manualBeforeList.assignAll(tempList);
+            totalManualBefore.value = tempTotal;
+          } catch (e) {
+            print("Error parsing Manual JSON: $e");
+          }
+        }
+
+        // 5. PARSE IOT DATA (SEBELUM) -> Masukkan ke List & Map Helper
+        if (jsonIoTString != null && jsonIoTString.isNotEmpty) {
+          try {
+            List<dynamic> list = jsonDecode(jsonIoTString);
+            double tempTotal = 0;
+            List<Map<String, dynamic>> tempList = [];
+
+            _iotBeforeVolMap.clear();
+            _iotBeforeHeightMap.clear();
+
+            for (var item in list) {
+              String code = item['tank_code'];
+              // Parsing aman (handle keys yang mungkin beda dari API vs Lokal)
+              num volNum = item['volume_iot'] ?? item['volume'] ?? 0;
+              num hNum = item['height_iot'] ?? item['height'] ?? 0;
+
+              double vol = volNum.toDouble();
+              double h = hNum.toDouble();
+
+              tempTotal += vol;
+              tempList.add({
+                'code': code.replaceAll('_', ' '),
+                'volume': vol,
+                'height': h
+              });
+
+              _iotBeforeVolMap[code] = vol;
+              _iotBeforeHeightMap[code] = h;
+            }
+
+            // Update Observable UI
+            iotBeforeList.assignAll(tempList);
+            totalIotBefore.value = tempTotal;
+          } catch (e) {
+            print("Error parsing IoT JSON: $e");
+          }
+        }
+
+        // 6. Restore Draft Inputan User (Jika user pernah input data "Sesudah" sebelumnya)
+        final draftService = DraftPenerimaanService(_currentUsername);
+        final draftData = await draftService.getDraftSesudah(activeNoBast);
+
+        if (draftData != null) {
+          print("📦 Draft ditemukan, merestore data inputan sesudah...");
+          draftData.forEach((tankCode, values) {
+            if (manualInputControllers.containsKey(tankCode)) {
+              if (values is Map) {
+                manualInputControllers[tankCode]?['volume']?.text = values['volume'] ?? '';
+                manualInputControllers[tankCode]?['height']?.text = values['height'] ?? '';
+              }
+            }
+          });
+          _updateTotalManual();
+        }
+
       } catch (e) {
-        print("Error loading transaction: $e");
+        print("Error loading transaction data: $e");
+        Get.snackbar("Error", "Gagal memuat data transaksi: $e");
       }
     }
+
+    // Selesai loading
     isLoadingData.value = false;
   }
 
   void _initializeTankUI(String storageName) {
     String storageCode = storageName.split(' - ').length > 1 ? storageName.split(' - ').last : storageName;
 
+    // Filter IoT Data (StorageToTankModel)
     final activeTanks = _sensorService.iotData.where(
-          (tank) => tank.storageCode == storageCode && tank.statusActive == 'Y',
+          (tank) => tank.masterStorage?.kodeStorage == storageCode,
     ).toList();
-    activeTanks.sort((a, b) => a.tankCode.compareTo(b.tankCode));
+
+    // Sort
+    activeTanks.sort((a, b) => (a.masterSolarTank?.kodeTank ?? '').compareTo(b.masterSolarTank?.kodeTank ?? ''));
 
     List<String> tempCodes = [];
 
     for (var tank in activeTanks) {
-      String code = tank.tankCode;
+      String code = tank.masterSolarTank?.kodeTank ?? '';
+      if (code.isEmpty) continue;
+
       tempCodes.add(code);
+
+      // int tankCapacity = tank.masterSolarTank?.capacity ?? 10000
+      int tankCapacity = 10000; // Sementara
 
       iotSesudahMap[code] = {
         'volume': tank.volume,
         'height': tank.height,
-        'display_code': tank.tankCode.replaceAll('_', ' ')
+        'display_code': code.replaceAll('_', ' ')
       };
 
       if (!manualInputControllers.containsKey(code)) {
         final volCtrl = TextEditingController();
         final heightCtrl = TextEditingController();
 
+        // Listener Total & Draft (Existing)
         volCtrl.addListener(() {
           _updateTotalManual();
           refreshTrigger.value++;
           _saveCurrentProgressToDraft();
         });
 
+        // [UPDATE] Listener Height -> Trigger API Kalibrasi
         heightCtrl.addListener(() {
           refreshTrigger.value++;
+
+          _onHeightInputChanged(code, heightCtrl.text, volCtrl, tankCapacity);
           _saveCurrentProgressToDraft();
         });
 
@@ -232,6 +278,36 @@ class PenerimaanSetelahController extends GetxController {
     }
     activeTankCodes.assignAll(tempCodes);
     _updateTotalManual();
+  }
+
+  void _onHeightInputChanged(String tankCode, String heightText, TextEditingController volCtrl, int capacity) {
+    if (_debounceTimers.containsKey(tankCode)) {
+      _debounceTimers[tankCode]?.cancel();
+    }
+
+    _debounceTimers[tankCode] = Timer(const Duration(milliseconds: 800), () async {
+      String cleanHeight = heightText.replaceAll('.', '').replaceAll(',', '.');
+
+      if (cleanHeight.isEmpty) {
+        volCtrl.text = "";
+        return;
+      }
+
+      double? heightMm = double.tryParse(cleanHeight);
+
+      if (heightMm != null && heightMm > 0) {
+        // Panggil API
+        final literResult = await _masterDataService.getLiterFromCalibration(
+            kapasitas: capacity,
+            tinggiMm: heightMm
+        );
+
+        if (literResult != null) {
+          volCtrl.text = TextConvertHelper().formatNumber(literResult);
+          _updateTotalManual();
+        }
+      }
+    });
   }
 
   void _saveCurrentProgressToDraft() {
@@ -253,7 +329,7 @@ class PenerimaanSetelahController extends GetxController {
     double total = 0.0;
     manualInputControllers.forEach((key, ctrls) {
       String txt = ctrls['volume']?.text ?? '0';
-      total += double.tryParse(StringHelper().cleanNumber(txt)) ?? 0.0;
+      total += double.tryParse(TextConvertHelper().cleanNumber(txt)) ?? 0.0;
     });
     totalVolumeManualSesudah.value = total;
   }
@@ -263,12 +339,12 @@ class PenerimaanSetelahController extends GetxController {
 
   double getVolumeManualSesudah(String code) {
     String txt = manualInputControllers[code]?['volume']?.text ?? '0';
-    return double.tryParse(StringHelper().cleanNumber(txt)) ?? 0.0;
+    return double.tryParse(TextConvertHelper().cleanNumber(txt)) ?? 0.0;
   }
 
   double getHeightManualSesudah(String code) {
     String txt = manualInputControllers[code]?['height']?.text ?? '0';
-    return double.tryParse(StringHelper().cleanNumber(txt)) ?? 0.0;
+    return double.tryParse(TextConvertHelper().cleanNumber(txt)) ?? 0.0;
   }
 
   double getVarianVolume(String code) => getVolumeManualSesudah(code) - getVolumeManualSebelum(code);
@@ -279,7 +355,13 @@ class PenerimaanSetelahController extends GetxController {
     isRefreshing.value = true;
     try {
       String storage = currentTransaction?.dataSebelum?.storageCode ?? "";
-      await _sensorService.refreshData(targetStorageCode: storage);
+      final auth = _loginService.getCurrentAuth();
+      final unitId = auth?.user.userKaryawan.unit.kodeUnit ?? '';
+
+      await _sensorService.refreshData(
+          unitId: unitId,
+          targetStorageCode: storage
+      );
 
       _initializeTankUI(storage);
       _setInitialSyncTime();
@@ -358,8 +440,8 @@ class PenerimaanSetelahController extends GetxController {
         break;
       }
 
-      double? volVal = double.tryParse(StringHelper().cleanNumber(volTxt));
-      double? heightVal = double.tryParse(StringHelper().cleanNumber(heightTxt));
+      double? volVal = double.tryParse(TextConvertHelper().cleanNumber(volTxt));
+      double? heightVal = double.tryParse(TextConvertHelper().cleanNumber(heightTxt));
 
       if (volVal == null || heightVal == null) {
         isValid = false;
@@ -401,8 +483,8 @@ class PenerimaanSetelahController extends GetxController {
     Map<String, dynamic> dataSesudahLegacy = {};
     manualInputControllers.forEach((code, ctrls) {
       dataSesudahLegacy[code] = {
-        'volume': double.tryParse(StringHelper().cleanNumber(ctrls['volume']!.text)) ?? 0.0,
-        'height': double.tryParse(StringHelper().cleanNumber(ctrls['height']!.text)) ?? 0.0,
+        'volume': double.tryParse(TextConvertHelper().cleanNumber(ctrls['volume']!.text)) ?? 0.0,
+        'height': double.tryParse(TextConvertHelper().cleanNumber(ctrls['height']!.text)) ?? 0.0,
       };
     });
 
@@ -419,6 +501,7 @@ class PenerimaanSetelahController extends GetxController {
 
   @override
   void onClose() {
+    _debounceTimers.forEach((key, timer) => timer.cancel()); // Cleanup Timer
     manualInputControllers.forEach((key, value) {
       value['volume']?.dispose();
       value['height']?.dispose();

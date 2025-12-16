@@ -5,6 +5,7 @@ abstract class Routes {
   static const LOGIN = _Paths.LOGIN;
   static const HOME = _Paths.HOME;
 
+  // Penerimaan
   static const PENERIMAAN = _Paths.PENERIMAAN;
   static const PENERIMAAN_SEBELUM_FORM = _Paths.PENERIMAAN_SEBELUM_FORM;
 
@@ -14,7 +15,13 @@ abstract class Routes {
   static const PENERIMAAAN_VERIFIKASI_BAST = _Paths.PENERIMAAN_VERIFIKASI_BAST;
   static const PENERIMAAN_TRACKING = _Paths.PENERIMAAN_TRACKING;
 
+  // Pengeluaran
   static const PENGELUARAN = _Paths.PENGELUARAN;
+  static const PENGISIAN_SOLAR_PENGELUARAN = _Paths.PENGISIAN_SOLAR_PENGELUARAN;
+  static const PENGELUARAN_VERIFIKASI_DOC = _Paths.PENGELUARAN_VERIFIKASI_DOC;
+  static const PENGELUARAN_TRACKING = _Paths.PENGELUARAN_TRACKING;
+
+  // Approval
   static const APPROVAL = _Paths.APPROVAL;
 }
 
@@ -25,13 +32,15 @@ abstract class _Paths {
 
   static const PENERIMAAN = '/penerimaan';
   static const PENERIMAAN_SEBELUM_FORM = '/penerimaan-sebelum-form';
-
   static const PENGISIAN_SOLAR = '/pengisian-solar';
-
   static const PENERIMAAN_SETELAH = '/penerimaan-setelah';
   static const PENERIMAAN_VERIFIKASI_BAST = '/penerimaan-verifikasi-bast';
   static const PENERIMAAN_TRACKING = '/penerimaan-tracking';
 
   static const PENGELUARAN = '/pengeluaran';
+  static const PENGISIAN_SOLAR_PENGELUARAN = '/pengisian-solar-pengeluaran';
+  static const PENGELUARAN_VERIFIKASI_DOC = '/pengeluaran-verifikasi-doc';
+  static const PENGELUARAN_TRACKING = '/pengeluaran-tracking';
+
   static const APPROVAL = '/approval';
 }

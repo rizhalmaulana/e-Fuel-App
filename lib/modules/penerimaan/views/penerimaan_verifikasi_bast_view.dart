@@ -54,108 +54,53 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
 
           const SizedBox(height: 24),
 
-          Text("Detail Perubahan Volume", style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary)),
-          const SizedBox(height: 12),
-
-          // LOOPING FILLING MODEL (Perbandingan)
-          Obx(() {
-            if (controller.fillingDataList.isEmpty) {
-              return const Text("Tidak ada data pengukuran.");
-            }
-
-            return Column(
-              children: controller.fillingDataList.map((item) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.fieldBackground),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item.tankCode.replaceAll('_', ' '), style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText)),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildMiniColumn("Sebelum", "${item.volumeBefore.toStringAsFixed(0)} L"),
-                          const Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
-                          _buildMiniColumn("Sesudah", "${item.volumeAfter.toStringAsFixed(0)} L"),
-
-                          // Badge Varian
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8)
-                            ),
-                            child: Text("+${item.volumeVariant.toStringAsFixed(0)} L",
-                                style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primary)),
-                          )
-                        ],
-                      )
-                    ],
-                  ),
-                );
-              }).toList(),
-            );
-          }),
-
-          const SizedBox(height: 24),
-
-          // 2. JUDUL SECTION
+          // [TITLE]
           Text("Pemeriksaan dan Pengukuran di Tangki Kebun",
               style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary)),
 
           const SizedBox(height: 16),
 
-          // 3. UKURAN STANDAR (3 KOLOM)
+          // =======================================================
+          // SECTION 1: UKURAN STANDAR (READONLY)
+          // =======================================================
           Text("Ukuran Standar Tangki Kebun 10.000 Ltr",
               style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
           const SizedBox(height: 8),
+
           Row(
             children: [
-              _buildDimensionField("Panjang (cm)", controller.stdPanjangController),
+              // Tinggi Fix 1605
+              _buildDimensionField("Tinggi (mm)", controller.stdTinggiController, readOnly: true),
               const SizedBox(width: 12),
-              _buildDimensionField("Lebar (cm)", controller.stdLebarController),
-              const SizedBox(width: 12),
-              _buildDimensionField("Tinggi (cm)", controller.stdTinggiController),
+              // Liter Hasil API
+              _buildDimensionField("Liter", controller.stdLiterController, readOnly: true),
             ],
           ),
 
           const SizedBox(height: 16),
 
-          // 4. UKURAN ACTUAL / DITERIMA (3 KOLOM)
-          Text("Volume Solar yang Diterima (Cm)",
+          // =======================================================
+          // [UPDATED UI] SECTION 2: VOLUME DITERIMA (INPUT)
+          // =======================================================
+          Text("Volume Solar yang Diterima (mm)",
               style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
           const SizedBox(height: 8),
+
           Row(
             children: [
-              _buildDimensionField("Panjang (cm)", controller.actPanjangController),
+              // User Input Tinggi Disini
+              _buildDimensionField("Tinggi (mm)", controller.actTinggiController, readOnly: false),
               const SizedBox(width: 12),
-              _buildDimensionField("Lebar (cm)", controller.actLebarController),
-              const SizedBox(width: 12),
-              _buildDimensionField("Tinggi (cm)", controller.actTinggiController),
+              // Liter Hasil Hitung API (Readonly)
+              _buildDimensionField("Liter", controller.volumeDiterimaLtrController, readOnly: true),
             ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // 5. VOLUME TOTAL DITERIMA (READ ONLY)
-          // Mengambil dari total data pengisian
-          _buildTextField(
-              "Volume Solar yang Diterima (Ltr)",
-              controller.volumeDiterimaLtrController,
-              readOnly: true
           ),
 
           const SizedBox(height: 24),
 
-          // 6. PERBANDINGAN VOLUME (VARIAN)
+          // =======================================================
+          // SECTION 3: PERBANDINGAN VOLUME (VARIAN)
+          // =======================================================
           Text("Volume Tangki Kendaraan vs Tangki Kebun",
               style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary)),
           const SizedBox(height: 16),
@@ -166,10 +111,11 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
               onChanged: (val) => controller.hitungVarian()
           ),
 
+          // Auto Fill dari hasil hitung Liter Aktual diatas
           _buildTextField(
               "Volume Tangki Kebun (Ltr)",
               controller.volumeKebunController,
-              readOnly: true // Sesuai request: Disable/ReadOnly
+              readOnly: true
           ),
 
           _buildTextField(
@@ -266,12 +212,12 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   _buildSectionTitle("Pemeriksaan dan Pengukuran di Tangki Kebun"),
 
                   _buildSummaryRow(
-                      "Ukuran Standart Tangki Kebun (Cm)",
-                      "${controller.stdPanjangController.text} x ${controller.stdLebarController.text} x ${controller.stdTinggiController.text}"
+                      "Ukuran Standart Tangki Kebun (mm)",
+                      controller.stdTinggiController.text
                   ),
                   _buildSummaryRow(
                       "Volume Solar yang Diterima (Dimensi)",
-                      "${controller.actPanjangController.text} x ${controller.actLebarController.text} x ${controller.actTinggiController.text}"
+                      controller.actTinggiController.text
                   ),
                   _buildSummaryRow(
                       "Volume Solar yang Diterima",

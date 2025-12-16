@@ -23,6 +23,10 @@ class ValueKeyStatic {
 
   // 🔑 Static Keys untuk Nama Box Fuel Data (Prefix per user)
   static const String FUEL_DATA_BOX = 'fuelDataBox'; // Prefix nama box
+  static const String FUEL_DATA_IOT_BOX = 'fuelDataIoTBox'; // Prefix nama box
+
+  // Key baru untuk menyimpan list tangki manual dari API
+  static const String API_MANUAL_TANKS_KEY = 'api_manual_tanks_list';
 
   static String CODE_TRANSACTION_PENERIMAAN = "FIN";
   static String CODE_TRANSACTION_PENGELUARAN = "FOT";

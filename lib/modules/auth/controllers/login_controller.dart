@@ -2,12 +2,13 @@ import 'package:e_fuel/helpers/lotties_helper.dart';
 import 'package:e_fuel/modules/auth/services/login_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
 
-import '../../../configs/app_lotties.dart';
 import '../../../helpers/connectivity_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
+
+import '../../fuel/services/fuel_data_service.dart';
+import '../../fuel/services/master_data_service.dart';
 
 class LoginController extends GetxController {
   final GlobalKey<FormState> loginFormKey = GlobalKey<FormState>();
@@ -17,9 +18,11 @@ class LoginController extends GetxController {
 
   var isPasswordHidden = true.obs;
   var isLoading = false.obs;
+  var loadingMessage = 'Sedang masuk...'.obs;
 
   final LoginService _loginService = Get.find<LoginService>();
   final ConnectivityHelper _connectivityHelper = Get.find<ConnectivityHelper>();
+  final FuelDataService _fuelDataService = Get.find<FuelDataService>();
 
   @override
   void onInit() {
@@ -35,13 +38,10 @@ class LoginController extends GetxController {
     super.onClose();
   }
 
+  // --- VALIDATORS ---
   String? validateUsername(String? value) {
     if (value == null || value.isEmpty) {
       return 'Username tidak boleh kosong';
-    }
-
-    if (GetUtils.isEmail(value)) {
-      return 'Username tidak valid, terindikasi Email!';
     }
     return null;
   }
@@ -56,6 +56,7 @@ class LoginController extends GetxController {
     return null;
   }
 
+  // --- ACTIONS ---
   void forgotPassword() {
     Get.dialog(
       DialogFlexible(
@@ -74,9 +75,7 @@ class LoginController extends GetxController {
   }
 
   void _showErrorDialog(String title, String message) {
-    if (Get.isDialogOpen ?? false) {
-      return;
-    }
+    if (Get.isDialogOpen ?? false) return;
     Get.dialog(
       DialogFlexible(
         logo: LottiesHelper().getLottieFailed(),
@@ -90,18 +89,14 @@ class LoginController extends GetxController {
   }
 
   Future<void> login() async {
-    if (!loginFormKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!loginFormKey.currentState!.validate()) return;
     FocusManager.instance.primaryFocus?.unfocus();
 
     final hasConnection = await _connectivityHelper.checkConnection();
-    if (!hasConnection) {
-      return;
-    }
+    if (!hasConnection) return;
 
     isLoading.value = true;
+    loadingMessage.value = 'Sedang verifikasi akun...';
 
     try {
       await _loginService.login(
@@ -109,11 +104,11 @@ class LoginController extends GetxController {
         passwordController.text,
       );
 
+      await _syncMasterData();
       Get.offAllNamed(Routes.HOME);
 
     } on DioCustomException catch (e) {
       String title = 'Login Gagal';
-
       if (e.statusCode == 400 || e.statusCode == 401) {
         title = 'Kredensial Salah';
       } else if (e.statusCode == 500 || e.statusCode == 502) {
@@ -121,13 +116,40 @@ class LoginController extends GetxController {
       } else if (e.statusCode == null) {
         title = 'Koneksi Terputus';
       }
-
       _showErrorDialog(title, e.message);
 
     } catch (e) {
       _showErrorDialog('Terjadi Kesalahan', e.toString());
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _syncMasterData() async {
+    try {
+      loadingMessage.value = 'Mengunduh data master...';
+
+      final authData = _loginService.getCurrentAuth();
+      final unitId = authData?.user.userKaryawan.unit.kodeUnit;
+      final username = authData?.user.username;
+
+      if (unitId != null && unitId.isNotEmpty && username != null) {
+        final masterService = MasterDataService();
+
+        // 1. Get Storage Data
+        final storages = await masterService.getStorageFromUnit(unitId: unitId);
+
+        if (storages.isNotEmpty) {
+          await _fuelDataService.openFuelDataBox(username);
+          await _fuelDataService.saveLocalStorages(storages);
+
+          print("✅ [LoginController] Berhasil sync ${storages.length} master storage");
+        } else {
+          print("ℹ️ [LoginController] Data storage kosong dari server.");
+        }
+      }
+    } catch (e) {
+      print("⚠️ [LoginController] Gagal sync master data: $e");
     }
   }
 }
