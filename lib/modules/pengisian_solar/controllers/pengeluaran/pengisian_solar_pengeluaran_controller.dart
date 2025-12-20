@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-
 import '../../../../routes/app_pages.dart';
 import '../../../auth/services/login_service.dart';
 import '../../../transactions/outstanding_service.dart';
@@ -29,11 +28,18 @@ class PengisianSolarPengeluaranController extends GetxController {
     noIO.value = args['noIO'] ?? '-';
     unitIO.value = args['unitIO'] ?? '-';
     noPolisi.value = args['noPolisi'] ?? '-';
-    namaSupir.value = args['supir_check'] ?? '-';
+    namaSupir.value = args['nama_supir'] ?? '-';
     tanggal.value = args['tanggal'] ?? '-';
-    KmPengisian.value = (args['km_pengisian'] ?? '-').toString();
-    jumlahSolar.value = (args['jumlah_pengisian_solar'] ?? '-').toString();
+
+    KmPengisian.value = (args['km_pengisian'] ?? '0').toString();
+    jumlahSolar.value = (args['jumlah_pengisian_solar'] ?? '0').toString();
     status.value = args['status'] ?? 'pengisian_solar';
+  }
+
+  double _parseToDouble(String value) {
+    if (value == '-' || value.isEmpty) return 0.0;
+    String cleanValue = value.replaceAll(',', '.');
+    return double.tryParse(cleanValue) ?? 0.0;
   }
 
   Future<void> saveAndExit() async {
@@ -43,6 +49,14 @@ class PengisianSolarPengeluaranController extends GetxController {
     if (username.isNotEmpty && noDoc.value != '-') {
       try {
         final outstandingService = OutstandingService(username);
+
+        double solarVal = _parseToDouble(jumlahSolar.value);
+        double kmVal = _parseToDouble(KmPengisian.value);
+
+        if (solarVal > 0 && kmVal > 0) {
+          await outstandingService.updateDetailPengeluaran(noDoc.value, solarVal, kmVal);
+        }
+
         await outstandingService.updateStatusPengeluaran(
             noDoc.value,
             'pengisian_solar_pengeluaran'
@@ -61,6 +75,12 @@ class PengisianSolarPengeluaranController extends GetxController {
     if (username.isNotEmpty && noDoc.value != '-') {
       try {
         final outstandingService = OutstandingService(username);
+
+        double solarVal = _parseToDouble(jumlahSolar.value);
+        double kmVal = _parseToDouble(KmPengisian.value);
+
+        await outstandingService.updateDetailPengeluaran(noDoc.value, solarVal, kmVal);
+
         await outstandingService.updateStatusPengeluaran(
             noDoc.value,
             'verifikasi_pengeluaran'

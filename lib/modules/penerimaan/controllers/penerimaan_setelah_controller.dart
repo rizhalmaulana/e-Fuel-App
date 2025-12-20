@@ -356,7 +356,9 @@ class PenerimaanSetelahController extends GetxController {
     try {
       String storage = currentTransaction?.dataSebelum?.storageCode ?? "";
       final auth = _loginService.getCurrentAuth();
-      final unitId = auth?.user.userKaryawan.unit.kodeUnit ?? '';
+      if (auth == null) throw "Sesi user berakhir.";
+
+      final unitId = auth.currentKodeUnit ?? '';
 
       await _sensorService.refreshData(
           unitId: unitId,

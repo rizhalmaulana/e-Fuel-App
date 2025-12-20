@@ -10,10 +10,10 @@ class JabatanModel extends HiveObject {
   final int id;
 
   @HiveField(1)
-  final String kodeJabatan;
+  final String? kodeJabatan;
 
   @HiveField(2)
-  final String namaJabatan;
+  final String? namaJabatan;
 
   @HiveField(3)
   final bool isMandor;
@@ -26,8 +26,8 @@ class JabatanModel extends HiveObject {
 
   JabatanModel({
     required this.id,
-    required this.kodeJabatan,
-    required this.namaJabatan,
+    this.kodeJabatan,
+    this.namaJabatan,
     required this.isMandor,
     required this.isActive,
     required this.isAsisten,

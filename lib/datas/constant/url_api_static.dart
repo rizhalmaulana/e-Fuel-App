@@ -12,6 +12,7 @@ class UrlApiStatic {
   static String API_CREATE_TRANSACTION_APPROVAL = '/e_fuel/transaksi-approval/create';
   static String API_POST_FCM_TOKEN = '/absensi/user-devices';
   static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
+  static String API_POST_IMAGE_PENGELUARAN = '/e_fuel/inbound-open/upload-photos/{no_doc}';
 
   // GET
   static String API_GET_UNIT = '/unit-list/';
@@ -19,6 +20,7 @@ class UrlApiStatic {
   static String API_GET_KONFIGURASI_APPROVAL_LIST = '/e_fuel/konfigurasi-approval/list';
   static String API_GET_TRANSACTION_APPROVAL_LIST = '/e_fuel/transaksi-approval/list';
   static String API_GET_LITER_KABLIBRASI = '/e_fuel/master-kalibrasi/get-liter';
+  static String API_GET_INBOUND_OPEN_DETAIL = '/e_fuel/fuel-inbound-open/detail/{no_doc}';
 
   static String API_GET_MASTER_STORAGE = '/e_fuel/masterstorage';
   static String API_GET_MASTER_TANK = '/e_fuel/mastersolartank';

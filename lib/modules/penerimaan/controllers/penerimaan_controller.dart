@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
+import '../../../configs/app_fonts.dart';
 import '../../../datas/constant/value_key_static.dart';
 import '../../../datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan_sebelum_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
@@ -135,8 +136,17 @@ class PenerimaanController extends GetxController {
     if (isRefreshing.value) return;
     isRefreshing.value = true;
 
-    final auth = _loginService.getCurrentAuth();
-    final unitId = auth?.user.userKaryawan.unit.kodeUnit ?? '';
+    final authData = _loginService.getCurrentAuth();
+    if (authData == null) {
+      print("⚠️ [LoginController] Auth Data null, skip sync.");
+      return;
+    }
+
+    final unitId = authData.currentKodeUnit;
+    if (unitId == null) {
+      print("⚠️ [LoginController] Data Unit Id null, skip Refresh.");
+      return;
+    }
 
     await _sensorService.refreshData(
         unitId: unitId,
@@ -149,8 +159,18 @@ class PenerimaanController extends GetxController {
 
   Future<void> _calculateAllData(String storageName) async {
     String storageCode = _getStorageCode(storageName);
-    final auth = _loginService.getCurrentAuth();
-    final unitId = auth?.user.userKaryawan.unit.kodeUnit ?? '';
+    final authData = _loginService.getCurrentAuth();
+
+    if (authData == null) {
+      print("⚠️ [LoginController] Auth Data null, skip sync.");
+      return;
+    }
+
+    final unitId = authData.currentKodeUnit;
+    if (unitId == null) {
+      print("⚠️ [LoginController] Data Unit Id null, skip Refresh.");
+      return;
+    }
 
     var activeTanks = _sensorService.iotData.where(
           (tank) => tank.masterStorage?.kodeStorage == storageCode,
@@ -379,14 +399,30 @@ class PenerimaanController extends GetxController {
     isSubmitting.value = true;
 
     Get.dialog(
-      DialogFlexible(
-        logo: const SizedBox(
-            height: 80,
-            width: 80,
-            child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 6)
+      Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppColors.primary),
+              const SizedBox(height: 24),
+              Text(
+                "Mengirim Data Penerimaan...",
+                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Mohon jangan tutup aplikasi saat proses upload",
+                style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
-        title: "Memproses Transaksi",
-        message: "Mohon tunggu, data sedang dikirim ke server...",
       ),
       barrierDismissible: false,
     );
@@ -428,7 +464,7 @@ class PenerimaanController extends GetxController {
 
       final Map<String, dynamic> formMap = {
         'doc_type_code': ValueKeyStatic.CODE_TRANSACTION_PENERIMAAN,
-        'kode_unit': auth.user.userKaryawan.unit.kodeUnit ?? "",
+        'kode_unit': auth.currentKodeUnit ?? "",
         'storage_code': finalStorageCode,
 
         'purch_no': adminData['purch_no'],

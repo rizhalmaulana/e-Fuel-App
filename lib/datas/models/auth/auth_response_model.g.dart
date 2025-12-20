@@ -19,7 +19,7 @@ class AuthResponseModelAdapter extends TypeAdapter<AuthResponseModel> {
     return AuthResponseModel(
       refresh: fields[0] as String,
       access: fields[1] as String,
-      otorisasiData: fields[2] as dynamic,
+      otorisasiData: fields[2] as OtorisasiDataModel?,
       daftarKemandoran: (fields[3] as List).cast<KemandoranModel>(),
       user: fields[4] as UserModel,
     );
@@ -60,7 +60,10 @@ AuthResponseModel _$AuthResponseModelFromJson(Map<String, dynamic> json) =>
     AuthResponseModel(
       refresh: json['refresh'] as String,
       access: json['access'] as String,
-      otorisasiData: json['otorisasi_data'],
+      otorisasiData: json['otorisasi_data'] == null
+          ? null
+          : OtorisasiDataModel.fromJson(
+              json['otorisasi_data'] as Map<String, dynamic>),
       daftarKemandoran: (json['daftar_kemandoran'] as List<dynamic>)
           .map((e) => KemandoranModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -71,7 +74,7 @@ Map<String, dynamic> _$AuthResponseModelToJson(AuthResponseModel instance) =>
     <String, dynamic>{
       'refresh': instance.refresh,
       'access': instance.access,
-      'otorisasi_data': instance.otorisasiData,
+      'otorisasi_data': instance.otorisasiData?.toJson(),
       'daftar_kemandoran':
           instance.daftarKemandoran.map((e) => e.toJson()).toList(),
       'user': instance.user.toJson(),

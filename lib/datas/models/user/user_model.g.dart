@@ -20,14 +20,14 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       id: fields[0] as int,
       username: fields[1] as String,
       firstName: fields[2] as String,
-      lastName: fields[3] as String,
-      email: fields[4] as String,
+      lastName: fields[3] as String?,
+      email: fields[4] as String?,
       isSuperuser: fields[5] as bool,
       isStaff: fields[6] as bool,
-      jabatan: fields[7] as JabatanModel,
+      jabatan: fields[7] as JabatanModel?,
       otorisasi: (fields[8] as List).cast<String>(),
-      userKaryawan: fields[9] as UserKaryawanModel,
-      appMenu: (fields[10] as List).cast<AppMenuModel>(),
+      userKaryawan: fields[9] as UserKaryawanModel?,
+      appMenu: (fields[10] as List?)?.cast<AppMenuModel>(),
     );
   }
 
@@ -78,17 +78,21 @@ UserModel _$UserModelFromJson(Map<String, dynamic> json) => UserModel(
       id: (json['id'] as num).toInt(),
       username: json['username'] as String,
       firstName: json['first_name'] as String,
-      lastName: json['last_name'] as String,
-      email: json['email'] as String,
+      lastName: json['last_name'] as String?,
+      email: json['email'] as String?,
       isSuperuser: json['is_superuser'] as bool,
       isStaff: json['is_staff'] as bool,
-      jabatan: JabatanModel.fromJson(json['jabatan'] as Map<String, dynamic>),
+      jabatan: json['jabatan'] == null
+          ? null
+          : JabatanModel.fromJson(json['jabatan'] as Map<String, dynamic>),
       otorisasi:
           (json['otorisasi'] as List<dynamic>).map((e) => e as String).toList(),
-      userKaryawan: UserKaryawanModel.fromJson(
-          json['user_karyawan'] as Map<String, dynamic>),
-      appMenu: (json['app_menu'] as List<dynamic>)
-          .map((e) => AppMenuModel.fromJson(e as Map<String, dynamic>))
+      userKaryawan: json['user_karyawan'] == null
+          ? null
+          : UserKaryawanModel.fromJson(
+              json['user_karyawan'] as Map<String, dynamic>),
+      appMenu: (json['app_menu'] as List<dynamic>?)
+          ?.map((e) => AppMenuModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
 
@@ -100,8 +104,8 @@ Map<String, dynamic> _$UserModelToJson(UserModel instance) => <String, dynamic>{
       'email': instance.email,
       'is_superuser': instance.isSuperuser,
       'is_staff': instance.isStaff,
-      'jabatan': instance.jabatan.toJson(),
+      'jabatan': instance.jabatan?.toJson(),
       'otorisasi': instance.otorisasi,
-      'user_karyawan': instance.userKaryawan.toJson(),
-      'app_menu': instance.appMenu.map((e) => e.toJson()).toList(),
+      'user_karyawan': instance.userKaryawan?.toJson(),
+      'app_menu': instance.appMenu?.map((e) => e.toJson()).toList(),
     };

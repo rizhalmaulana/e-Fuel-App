@@ -16,10 +16,12 @@ abstract class Routes {
   static const PENERIMAAN_TRACKING = _Paths.PENERIMAAN_TRACKING;
 
   // Pengeluaran
+  static const PENGELUARAN_INPUT_BON_SEMENTARA = _Paths.PENGELUARAN_INPUT_BON_SEMENTARA;
   static const PENGELUARAN = _Paths.PENGELUARAN;
   static const PENGISIAN_SOLAR_PENGELUARAN = _Paths.PENGISIAN_SOLAR_PENGELUARAN;
   static const PENGELUARAN_VERIFIKASI_DOC = _Paths.PENGELUARAN_VERIFIKASI_DOC;
   static const PENGELUARAN_TRACKING = _Paths.PENGELUARAN_TRACKING;
+  static const PENGELUARAN_BPB_HARIAN = _Paths.PENGELUARAN_BPB_HARIAN;
 
   // Approval
   static const APPROVAL = _Paths.APPROVAL;
@@ -37,10 +39,12 @@ abstract class _Paths {
   static const PENERIMAAN_VERIFIKASI_BAST = '/penerimaan-verifikasi-bast';
   static const PENERIMAAN_TRACKING = '/penerimaan-tracking';
 
+  static const PENGELUARAN_INPUT_BON_SEMENTARA = '/pengeluaran-input-bon-sementara';
   static const PENGELUARAN = '/pengeluaran';
   static const PENGISIAN_SOLAR_PENGELUARAN = '/pengisian-solar-pengeluaran';
   static const PENGELUARAN_VERIFIKASI_DOC = '/pengeluaran-verifikasi-doc';
   static const PENGELUARAN_TRACKING = '/pengeluaran-tracking';
+  static const PENGELUARAN_BPB_HARIAN = '/pengeluaran-bpb-harian';
 
   static const APPROVAL = '/approval';
 }

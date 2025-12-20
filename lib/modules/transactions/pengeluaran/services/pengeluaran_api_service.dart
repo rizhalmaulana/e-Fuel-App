@@ -319,4 +319,61 @@ class PengeluaranApiService {
       rethrow;
     }
   }
+
+  Future<dynamic> uploadImagePengeluaran({
+    required String noDoc,
+    required File foto1,
+    required File foto2,
+    required File foto3,
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    String endpoint = UrlApiStatic.API_POST_IMAGE_PENGELUARAN;
+    String url;
+
+    // Handle dynamic URL path
+    if (endpoint.contains('{no_doc}')) {
+      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
+    } else {
+      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
+    }
+
+    FormData formData = FormData.fromMap({
+      'foto1': await MultipartFile.fromFile(
+        foto1.path,
+        filename: foto1.path.split('/').last,
+      ),
+      'foto2': await MultipartFile.fromFile(
+        foto2.path,
+        filename: foto2.path.split('/').last,
+      ),
+      'foto3': await MultipartFile.fromFile(
+        foto3.path,
+        filename: foto3.path.split('/').last,
+      ),
+    });
+
+    print("🔵 [DEBUG] URL Upload Image Pengeluaran: $url");
+
+    try {
+      var response = await _dio.post(
+        url,
+        data: formData,
+        options: Options(
+          headers: {
+            "Authorization": "Bearer $token",
+          },
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [UPLOAD IMAGE ERROR] Status: ${e.response?.statusCode}");
+        print("❌ [UPLOAD IMAGE ERROR] Data: ${e.response?.data}");
+      }
+      rethrow;
+    }
+  }
 }

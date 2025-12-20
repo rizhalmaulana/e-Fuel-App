@@ -18,8 +18,8 @@ class PengeluaranTrackingController extends GetxController {
   final formattedDate = "-".obs;
   final noBast = "-".obs;
 
-  bool get isWaitingApproval => currentStepId.value == 3 || currentStepId.value == 4;
-  bool get isFinished => currentStepId.value == 5;
+  bool get isWaitingApproval => false; // Tidak ada lagi waiting approval Kasie/Manager
+  bool get isFinished => currentStepId.value >= 3;
 
   @override
   void onInit() {
@@ -32,10 +32,7 @@ class PengeluaranTrackingController extends GetxController {
     steps.assignAll([
       PenerimaanStep(id: 1, title: 'Pengisian Solar', routeName: Routes.PENGISIAN_SOLAR_PENGELUARAN),
       PenerimaanStep(id: 2, title: 'Verifikasi Dokumen', routeName: Routes.PENGELUARAN_VERIFIKASI_DOC),
-      PenerimaanStep(id: 3, title: 'Approval KRANI', routeName: Routes.HOME),
-      PenerimaanStep(id: 4, title: 'Approval KASIE', routeName: Routes.HOME),
-      PenerimaanStep(id: 5, title: 'Approval MANAGER', routeName: Routes.HOME),
-      PenerimaanStep(id: 6, title: 'Selesai', routeName: Routes.HOME),
+      PenerimaanStep(id: 3, title: 'Selesai', routeName: Routes.HOME),
     ]);
   }
 
@@ -66,7 +63,6 @@ class PengeluaranTrackingController extends GetxController {
 
     if (auth != null) {
       final outstandingService = OutstandingService(auth.user.username);
-      // FETCH MENGGUNAKAN MODEL PENGELUARAN
       final data = await outstandingService.getTransactionPengeluaranByNoBast(noDoc);
 
       if (data != null) {
@@ -99,17 +95,9 @@ class PengeluaranTrackingController extends GetxController {
         currentStepId.value = 2;
         break;
 
-      case 'approval_kasie':
-        currentStepId.value = 3;
-        break;
-
-      case 'approval_manager':
-        currentStepId.value = 4;
-        break;
-
       case 'selesai':
       case 'approved':
-        currentStepId.value = 5;
+        currentStepId.value = 3;
         break;
 
       default:
@@ -121,11 +109,9 @@ class PengeluaranTrackingController extends GetxController {
 
   void _updateStepUI() {
     for (var step in steps) {
-      if (currentStepId.value == 5) {
-        // Jika sudah selesai, semua aktif tapi yang terakhir completed
+      if (currentStepId.value >= 3) {
         step.isCompleted.value = true;
-        step.isActive.value = false;
-        if(step.id == 5) step.isActive.value = true;
+        step.isActive.value = (step.id == 3);
       } else {
         step.isCompleted.value = step.id < currentStepId.value;
         step.isActive.value = step.id == currentStepId.value;

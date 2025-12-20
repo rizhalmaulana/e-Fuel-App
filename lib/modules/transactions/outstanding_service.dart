@@ -138,7 +138,25 @@ class OutstandingService {
     }
   }
 
-  // Fungsi Update Data Full (jika diperlukan update field lain selain status)
+  Future<void> updateDetailPengeluaran(String noBast, double solar, double km) async {
+    final box = await _getBoxPengeluaran();
+    var transaction = box.get(noBast);
+
+    if (transaction == null) {
+      try { transaction = box.values.firstWhere((e) => e.noBast == noBast); } catch (_) {}
+    }
+
+    if (transaction != null) {
+      if (transaction.dataPengeluaran != null) {
+        transaction.dataPengeluaran!.jumlahPengisianSolar = solar;
+        transaction.dataPengeluaran!.kmPengisian = km;
+      }
+
+      await transaction.save();
+      print("💾 [Pengeluaran] Data Detail Updated: Solar $solar Ltr, KM $km");
+    }
+  }
+
   Future<void> updateDataPengeluaran(TransactionPengeluaranModel newData) async {
     final box = await _getBoxPengeluaran();
     await box.put(newData.noBast, newData);

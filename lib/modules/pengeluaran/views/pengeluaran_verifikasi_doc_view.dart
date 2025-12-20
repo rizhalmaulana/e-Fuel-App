@@ -1,22 +1,30 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:signature/signature.dart';
 
 import '../../../configs/app_colors.dart';
 import '../../../configs/app_fonts.dart';
+import '../../../datas/models/widgets/capture_image_detail.dart';
 import '../controllers/pengeluaran_verifikasi_doc_controller.dart';
 
-class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocController> {
+class PengeluaranVerifikasiDocView
+    extends GetView<PengeluaranVerifikasiDocController> {
   const PengeluaranVerifikasiDocView({super.key});
 
   Widget _buildDashedDivider() {
     return Row(
-      children: List.generate(150 ~/ 5, (index) => Expanded(
-        child: Container(
-          color: index % 2 == 0 ? Colors.transparent : AppColors.secondaryText.withOpacity(0.3),
-          height: 1,
-        ),
-      )),
+      children: List.generate(
+          150 ~/ 5,
+          (index) => Expanded(
+                child: Container(
+                  color: index % 2 == 0
+                      ? Colors.transparent
+                      : AppColors.secondaryText.withOpacity(0.3),
+                  height: 1,
+                ),
+              )),
     );
   }
 
@@ -25,16 +33,23 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+            style: AppFonts.fUrbanistRegular12
+                .copyWith(color: AppColors.secondaryText),
           ),
-          Text(
-            value,
-            style: isBold
-                ? AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText)
-                : AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: isBold
+                  ? AppFonts.fUrbanistBold12.copyWith(color: AppColors.darkText)
+                  : AppFonts.fUrbanistSemiBold12
+                      .copyWith(color: AppColors.darkText),
+            ),
           ),
         ],
       ),
@@ -49,13 +64,15 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
         children: [
           Text(
             label,
-            style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryOrange),
+            style: AppFonts.fUrbanistRegular12
+                .copyWith(color: AppColors.primaryOrange),
           ),
           Text(
             value,
             style: isBold
                 ? AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText)
-                : AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText),
+                : AppFonts.fUrbanistSemiBold12
+                    .copyWith(color: AppColors.darkText),
           ),
         ],
       ),
@@ -84,14 +101,125 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
     );
   }
 
-  // --- WIDGET STEP 1: SUMMARY ---
-  Widget _buildStep1Summary() {
+  Widget _buildPhotoBox({
+    required int index,
+    required String label,
+    required IconData iconData,
+  }) {
+    final CapturedImageDetail? imageDetail = controller.photoSlots[index];
+    final bool hasImage = imageDetail != null;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: controller.isTakingPhoto.value
+            ? null
+            : () {
+                if (!hasImage) {
+                  controller.takeSpecificPhoto(index);
+                }
+              },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4.0),
+          height: 100,
+          decoration: BoxDecoration(
+            color: AppColors.fieldBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.secondaryText.withOpacity(0.3),
+              width: 1,
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: hasImage
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: Image.file(
+                        File(imageDetail.tempPath),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => controller.removeImage(index),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: AppColors.alertSoftRed,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 14, color: AppColors.white),
+                        ),
+                      ),
+                    )
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(iconData, size: 28, color: AppColors.secondaryText),
+                    const SizedBox(height: 8),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: AppFonts.fUrbanistRegular10
+                          .copyWith(color: AppColors.secondaryText),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+// --- WIDGET STEP 1: FOTO & SUMMARY ---
+  Widget _buildStep1PhotoAndSummary() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card Summary
+          // Foto Section
+          Text(
+            'Foto Bukti Pengeluaran',
+            style:
+                AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Silahkan ambil foto sesuai instruksi.',
+            style: AppFonts.fUrbanistRegular12
+                .copyWith(color: AppColors.secondaryText),
+          ),
+          const SizedBox(height: 20),
+
+          Obx(() {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildPhotoBox(
+                    index: 0,
+                    label: 'Speedometer Pom',
+                    iconData: Icons.receipt_long_outlined),
+                _buildPhotoBox(
+                    index: 1,
+                    label: 'Tampak Depan',
+                    iconData: Icons.local_shipping_outlined),
+                _buildPhotoBox(
+                    index: 2,
+                    label: 'Tampak Samping',
+                    iconData: Icons.local_shipping),
+              ],
+            );
+          }),
+          const SizedBox(height: 32),
+
+          // Summary Section
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: BoxDecoration(
@@ -109,25 +237,28 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
               children: [
                 Text(
                   "Doc. ${controller.noDoc.value}",
-                  style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
+                  style:
+                      AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
                 ),
                 const SizedBox(height: 16),
-
                 _buildDashedDivider(),
-
                 const SizedBox(height: 16),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
-                      _buildSummaryRow("Hari, Tanggal", controller.tanggal.value),
+                      _buildSummaryRow(
+                          "Hari, Tanggal", controller.tanggal.value),
                       _buildSummaryRow("No. IO", controller.noIO.value),
                       _buildSummaryRow("Nama Unit", controller.unitIO.value),
                       _buildSummaryRow("No. Polisi", controller.noPolisi.value),
-                      _buildSummaryRow("Nama Sopir", controller.namaSupir.value),
-                      _buildSummaryRow("Km Pengisian", controller.kmPengisian.value),
-                      _buildSummaryRow("Jumlah Pengisian (Ltr)", controller.jumlahSolar.value, isBold: true),
+                      _buildSummaryRow(
+                          "Nama Sopir", controller.namaSupir.value),
+                      _buildSummaryRow(
+                          "Km Pengisian", controller.kmPengisian.value),
+                      _buildSummaryRow("Jumlah Pengisian (Ltr)",
+                          controller.jumlahSolar.value,
+                          isBold: true),
                     ],
                   ),
                 ),
@@ -150,12 +281,14 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             children: [
               Text(
                 "Doc. ${controller.noDoc.value}",
-                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
+                style:
+                    AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
               ),
               const SizedBox(height: 12),
               _buildDashedDivider(),
               const SizedBox(height: 12),
-              _buildInfoRow("Nama Verifikator", controller.userName.value, isBold: true),
+              _buildInfoRow("Nama Verifikator", controller.userName.value,
+                  isBold: true),
               _buildInfoRow("Jabatan", controller.userJabatan.value),
             ],
           ),
@@ -171,7 +304,8 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             style: AppFonts.fUrbanistRegular12,
             decoration: InputDecoration(
               hintText: "Tambahkan catatan jika perlu...",
-              hintStyle: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+              hintStyle: AppFonts.fUrbanistRegular12
+                  .copyWith(color: AppColors.secondaryText),
               filled: true,
               fillColor: AppColors.fieldBackground,
               contentPadding: const EdgeInsets.all(12),
@@ -181,7 +315,8 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primaryOrange, width: 1),
+                borderSide:
+                    const BorderSide(color: AppColors.primaryOrange, width: 1),
               ),
             ),
           ),
@@ -193,16 +328,18 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             children: [
               Text("Tanda Tangan Gudang", style: AppFonts.fUrbanistSemiBold14),
               GestureDetector(
-                onTap: () => controller.clearSignature(controller.warehouseSignatureController),
+                onTap: () => controller
+                    .clearSignature(controller.warehouseSignatureController),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                       color: AppColors.alertSoftRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6)
-                  ),
+                      borderRadius: BorderRadius.circular(6)),
                   child: Text(
                     "Hapus",
-                    style: AppFonts.fUrbanistSemiBold10.copyWith(color: AppColors.alertSoftRed),
+                    style: AppFonts.fUrbanistSemiBold10
+                        .copyWith(color: AppColors.alertSoftRed),
                   ),
                 ),
               )
@@ -216,7 +353,8 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             decoration: BoxDecoration(
               color: AppColors.fieldBackground.withOpacity(0.3),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.secondaryText.withOpacity(0.3), width: 1),
+              border: Border.all(
+                  color: AppColors.secondaryText.withOpacity(0.3), width: 1),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
@@ -231,7 +369,8 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
               padding: const EdgeInsets.only(top: 8.0),
               child: Text(
                 "Area Tanda Tangan",
-                style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.secondaryText),
+                style: AppFonts.fUrbanistRegular10
+                    .copyWith(color: AppColors.secondaryText),
               ),
             ),
           ),
@@ -252,12 +391,14 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             children: [
               Text(
                 "Doc. ${controller.noDoc.value}",
-                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
+                style:
+                    AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
               ),
               const SizedBox(height: 12),
               _buildDashedDivider(),
               const SizedBox(height: 12),
-              _buildInfoRow("Nama Lengkap", controller.namaSupir.value, isBold: true),
+              _buildInfoRow("Nama Lengkap", controller.namaSupir.value,
+                  isBold: true),
             ],
           ),
 
@@ -268,16 +409,18 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             children: [
               Text("Tanda Tangan Supir", style: AppFonts.fUrbanistSemiBold14),
               GestureDetector(
-                onTap: () => controller.clearSignature(controller.driverSignatureController),
+                onTap: () => controller
+                    .clearSignature(controller.driverSignatureController),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                       color: AppColors.alertSoftRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6)
-                  ),
+                      borderRadius: BorderRadius.circular(6)),
                   child: Text(
                     "Hapus",
-                    style: AppFonts.fUrbanistSemiBold10.copyWith(color: AppColors.alertSoftRed),
+                    style: AppFonts.fUrbanistSemiBold10
+                        .copyWith(color: AppColors.alertSoftRed),
                   ),
                 ),
               )
@@ -289,7 +432,8 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
             decoration: BoxDecoration(
               color: AppColors.fieldBackground.withOpacity(0.3),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.secondaryText.withOpacity(0.3), width: 1),
+              border: Border.all(
+                  color: AppColors.secondaryText.withOpacity(0.3), width: 1),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
@@ -302,7 +446,8 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
                   Center(
                     child: Text(
                       "Tanda Tangan Supir Disini",
-                      style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText.withOpacity(0.3)),
+                      style: AppFonts.fUrbanistRegular12.copyWith(
+                          color: AppColors.secondaryText.withOpacity(0.3)),
                     ),
                   )
                 ],
@@ -316,109 +461,158 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: Obx(() {
-          // Dynamic Title
-          String title = "Verifikasi Dokumen";
-          if (controller.currentPage.value == 1) title = "Verifikasi Gudang";
-          if (controller.currentPage.value == 2) title = "Tanda Tangan Supir";
+    return Obx(() {
+      final isTakingPhoto = controller.isTakingPhoto.value;
 
-          return Text(
-            title,
-            style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.primaryOrange),
-          );
-        }),
-        centerTitle: true,
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20),
-          onPressed: controller.prevPage,
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: PageView(
-              controller: controller.pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: controller.onPageChanged,
-              children: [
-                _buildStep1Summary(),
-                _buildStep2Warehouse(),
-                _buildStep3Driver(),
-              ],
-            ),
-          ),
+      return WillPopScope(
+        onWillPop: isTakingPhoto
+            ? () async => false
+            : () async {
+                if (controller.currentPage.value > 0) {
+                  controller.prevPage();
+                  return false;
+                }
+                return true;
+              },
+        child: Stack(
+          children: [
+            Scaffold(
+              backgroundColor: AppColors.white,
+              appBar: AppBar(
+                title: Obx(() {
+                  // Dynamic Title
+                  String title = "Foto & Verifikasi";
+                  if (controller.currentPage.value == 1) {
+                    title = "Verifikasi Gudang";
+                  }
 
-          // Bottom Buttons Area
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Obx(() {
-              if (controller.currentPage.value == 0) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 12.0),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.alertSoftRed,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 0,
-                          ),
-                          onPressed: () => Get.back(),
-                          child: Text(
-                            "Batal",
-                            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryOrange,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          elevation: 0,
-                        ),
-                        onPressed: controller.nextPage,
-                        child: Text(
-                          "Selanjutnya",
-                          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              } else {
-                String label = controller.currentPage.value == 2 ? "Submit Dokumen" : "Selanjutnya";
+                  if (controller.currentPage.value == 2) {
+                    title = "Tanda Tangan Supir";
+                  }
 
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryOrange,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
-                    ),
-                    onPressed: controller.nextPage,
-                    child: Text(
-                      label,
-                      style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
+                  return Text(
+                    title,
+                    style: AppFonts.fUrbanistBold18
+                        .copyWith(color: AppColors.primaryOrange),
+                  );
+                }),
+                centerTitle: true,
+                backgroundColor: AppColors.white,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios,
+                      color: AppColors.primaryOrange, size: 20),
+                  onPressed: controller.prevPage,
+                ),
+              ),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: PageView(
+                      controller: controller.pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      onPageChanged: controller.onPageChanged,
+                      children: [
+                        _buildStep1PhotoAndSummary(), // Step 1: Foto + Summary
+                        _buildStep2Warehouse(), // Step 2: Gudang Signature
+                        _buildStep3Driver(), // Step 3: Driver Signature
+                      ],
                     ),
                   ),
-                );
-              }
-            }),
-          )
-        ],
-      ),
-    );
+
+                  // Bottom Buttons Area
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Obx(() {
+                      if (controller.currentPage.value == 0) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12.0),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.alertSoftRed,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => Get.back(),
+                                  child: Text(
+                                    "Batal",
+                                    style: AppFonts.fUrbanistBold16
+                                        .copyWith(color: AppColors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryOrange,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  elevation: 0,
+                                ),
+                                onPressed: controller.nextPage,
+                                child: Text(
+                                  "Selanjutnya",
+                                  style: AppFonts.fUrbanistBold16
+                                      .copyWith(color: AppColors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        String label = controller.currentPage.value == 2
+                            ? "Submit Dokumen"
+                            : "Selanjutnya";
+
+                        return SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryOrange,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 0,
+                            ),
+                            onPressed: controller.nextPage,
+                            child: Text(
+                              label,
+                              style: AppFonts.fUrbanistBold16
+                                  .copyWith(color: AppColors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    }),
+                  )
+                ],
+              ),
+            ),
+
+// Loading overlay saat ambil foto
+            if (isTakingPhoto)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black54,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.primaryOrange),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
 }

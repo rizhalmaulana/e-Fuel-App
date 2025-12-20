@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 class DraftPengeluaranService {
   final String userName;
   DraftPengeluaranService(this.userName);
+
   String get _boxName => 'draft_pengeluaran_$userName';
 
   Future<void> saveDraft(Map<String, dynamic> data) async {

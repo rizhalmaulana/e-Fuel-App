@@ -5,7 +5,7 @@ class PengeluaranBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<PengeluaranController>(
-          () => PengeluaranController(),
+      () => PengeluaranController(),
     );
   }
 }

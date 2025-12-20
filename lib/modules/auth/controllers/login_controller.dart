@@ -130,13 +130,19 @@ class LoginController extends GetxController {
       loadingMessage.value = 'Mengunduh data master...';
 
       final authData = _loginService.getCurrentAuth();
-      final unitId = authData?.user.userKaryawan.unit.kodeUnit;
-      final username = authData?.user.username;
 
-      if (unitId != null && unitId.isNotEmpty && username != null) {
+      if (authData == null) {
+        print("⚠️ [LoginController] Auth Data null, skip sync.");
+        return;
+      }
+
+      final unitId = authData.currentKodeUnit;
+      final username = authData.user.username;
+
+      print("ℹ️ [LoginController] Syncing data for User: $username, Unit: $unitId");
+
+      if (unitId != null && unitId.isNotEmpty) {
         final masterService = MasterDataService();
-
-        // 1. Get Storage Data
         final storages = await masterService.getStorageFromUnit(unitId: unitId);
 
         if (storages.isNotEmpty) {
@@ -147,6 +153,8 @@ class LoginController extends GetxController {
         } else {
           print("ℹ️ [LoginController] Data storage kosong dari server.");
         }
+      } else {
+        print("⚠️ [LoginController] Unit ID tidak ditemukan untuk user ini.");
       }
     } catch (e) {
       print("⚠️ [LoginController] Gagal sync master data: $e");

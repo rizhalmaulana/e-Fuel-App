@@ -1,11 +1,8 @@
-import 'package:e_fuel/configs/app_icons.dart';
-import 'package:e_fuel/widgets/dialog/dialog_on_development.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 
-import '../../../routes/app_pages.dart';
 import '../../../widgets/component/total_volume_card.dart';
 import '../../../widgets/component/transaction_card.dart';
 import '../controllers/home_controller.dart';
@@ -13,23 +10,12 @@ import '../controllers/home_controller.dart';
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
 
-  void _showDevelopmentModal(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return const DialogOnDevelopment();
-      },
-    );
-  }
-
   Widget _buildPermissionWarning() {
     return Obx(() {
       if (controller.isPermissionComplete) {
         return const SizedBox.shrink();
       }
 
-      // Logic membuat kalimat: "Kamera, Lokasi dan Penyimpanan"
       final list = controller.deniedPermissionsList;
       String deniedText = '';
 
@@ -54,7 +40,6 @@ class HomeView extends GetView<HomeController> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  // Teks Dinamis
                   'Aplikasi membutuhkan izin $deniedText. Ketuk untuk mengizinkan atau tekan ikon pengaturan.',
                   style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.alertSoftRed),
                   maxLines: 3,
@@ -115,80 +100,66 @@ class HomeView extends GetView<HomeController> {
     return Obx(() => Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: () { _showDevelopmentModal(Get.context!); },
+        controller.availableUnits.length > 1
+            ? PopupMenuButton<Map<String, dynamic>>(
+          offset: const Offset(0, 30),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onSelected: (unit) => controller.switchUnit(unit),
+          itemBuilder: (context) => controller.availableUnits.map((u) {
+            return PopupMenuItem(
+              value: u,
+              child: Text("${u['kode_unit']} - ${u['nama_unit']}", style: AppFonts.fUrbanistMedium12),
+            );
+          }).toList(),
           child: Row(
             children: [
-              Text(
-                controller.unitTitle.value,
-                style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.white),
-              ),
-              const Icon(Icons.keyboard_arrow_down, color: AppColors.white),
+              Text(controller.unitTitle.value, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.white)),
+              const Icon(Icons.keyboard_arrow_down, color: AppColors.white, size: 20),
             ],
           ),
-        ),
+        )
+            : Text(controller.unitTitle.value, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.white)),
+
         Row(
           children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none, color: AppColors.white),
-              onPressed: () {},
-            ),
-
-            PopupMenuButton<String>(
-              offset: const Offset(0, 40),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              onSelected: (value) {
-                if (value == 'logout') {
-                  controller.logout();
-                } else if (value == 'info') {
-                  _showDevelopmentModal(Get.context!);
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: 'info',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_outline, color: AppColors.darkText, size: 20),
-                      const SizedBox(width: 12),
-                      Text('Info Profile', style: AppFonts.fUrbanistMedium14),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                PopupMenuItem<String>(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.logout, color: AppColors.alertSoftRed, size: 20),
-                      const SizedBox(width: 12),
-                      Text('Keluar', style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.alertSoftRed)),
-                    ],
-                  ),
-                ),
-              ],
-              child: CircleAvatar(
-                backgroundColor: AppColors.white,
-                radius: 18,
-                child: Text(
-                  controller.profileInitials.value,
-                  style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.primary),
-                ),
-              ),
-            ),
+            IconButton(icon: const Icon(Icons.notifications_none, color: AppColors.white), onPressed: () {}),
+            const SizedBox(width: 4),
+            _buildProfileAvatar(),
           ],
         ),
       ],
     ));
   }
 
+  Widget _buildProfileAvatar() {
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 45),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (val) => val == 'logout' ? controller.logout() : null,
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'info', child: _popItem(Icons.person_outline, 'Info Profile')),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'logout', child: _popItem(Icons.logout, 'Keluar', color: AppColors.alertSoftRed)),
+      ],
+      child: CircleAvatar(
+        backgroundColor: AppColors.white,
+        radius: 18,
+        child: Text(controller.profileInitials.value, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary)),
+      ),
+    );
+  }
+
+  Widget _popItem(IconData icon, String label, {Color color = AppColors.darkText}) {
+    return Row(children: [Icon(icon, color: color, size: 20), const SizedBox(width: 12), Text(label, style: AppFonts.fUrbanistMedium14.copyWith(color: color))]);
+  }
+
   Widget _buildTotalVolumeCardSection(BuildContext context) {
     return Transform.translate(
       offset: const Offset(0.0, -60.0),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 30.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Obx(() => TotalVolumeCard(
-          totalVolume: controller.totalVolumeDisplay.value.toString(),
+          totalVolume: controller.totalVolumeDisplay.value.toStringAsFixed(0),
           tankList: controller.tankListDisplay,
           storageLocations: controller.storageLocations,
           selectedStorage: controller.selectedStorage.value,
@@ -201,111 +172,40 @@ class HomeView extends GetView<HomeController> {
   }
 
   Widget _buildMenuSection(BuildContext context) {
-    final List<Map<String, dynamic>> menus = [
-      {
-        'icon': AppIcons.icPenerimaan,
-        'label': 'Penerimaan',
-        'onTap': () => Get.toNamed(Routes.PENERIMAAN_SEBELUM_FORM)
-      },
-      {
-        'icon': AppIcons.icPengeluaran,
-        'label': 'Pengeluaran',
-        'onTap': () => Get.toNamed(Routes.PENGELUARAN)
-      },
-      {
-        'icon': AppIcons.icPenerimaan2,
-        'label': 'Transaksi Penerimaan',
-        'onTap': () => _showDevelopmentModal(context)
-      },
-      {
-        'icon': AppIcons.icPenerimaan2,
-        'label': 'Transaksi Pengeluaran',
-        'onTap': () => _showDevelopmentModal(context)
-      },
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            'Menu Utama',
-            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-          ),
-        ),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: Text('Menu Utama', style: AppFonts.fUrbanistBold16)),
         const SizedBox(height: 16),
-
         SizedBox(
           height: 110,
-          child: ListView.separated(
+          child: Obx(() => ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             scrollDirection: Axis.horizontal,
-            itemCount: menus.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 16),
+            itemCount: controller.menuList.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 16),
             itemBuilder: (context, index) {
-              final menu = menus[index];
-              return _buildMenuItem(
-                  menu['icon'],
-                  menu['label'],
-                  onTap: menu['onTap']
-              );
+              final menu = controller.menuList[index];
+              return _menuItem(menu['icon'], menu['label'], () => controller.handleMenuTap(menu['action'], context));
             },
-          ),
+          )),
         ),
       ],
     );
   }
 
-  Widget _buildMenuItem(String iconPath, String label, {VoidCallback? onTap}) {
+  Widget _menuItem(String icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.fieldBackground),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryText.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: Image.asset(
-                  iconPath,
-                  color: AppColors.primaryText,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+            child: Center(child: Image.asset(icon, width: 28, height: 28)),
           ),
-          const SizedBox(height: 10),
-
-          SizedBox(
-            width: 70,
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.fUrbanistMedium12.copyWith(
-                  color: AppColors.darkText,
-                  height: 1.2,
-                  fontSize: 11
-              ),
-            ),
-          ),
+          const SizedBox(height: 8),
+          SizedBox(width: 75, child: Text(label, textAlign: TextAlign.center, style: AppFonts.fUrbanistMedium10, maxLines: 2)),
         ],
       ),
     );

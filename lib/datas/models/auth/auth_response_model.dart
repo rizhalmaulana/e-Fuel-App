@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
+import '../otorisasi_data_model/otorisasi_data_model.dart';
 import '../user/user_model.dart';
 import '../karyawan/kemandoran/kemandoran_model.dart';
 
@@ -15,7 +16,7 @@ class AuthResponseModel extends HiveObject {
   final String access;
 
   @HiveField(2)
-  final dynamic otorisasiData;
+  final OtorisasiDataModel? otorisasiData;
 
   @HiveField(3)
   final List<KemandoranModel> daftarKemandoran;
@@ -35,4 +36,53 @@ class AuthResponseModel extends HiveObject {
       _$AuthResponseModelFromJson(json);
 
   Map<String, dynamic> toJson() => _$AuthResponseModelToJson(this);
+
+  String? get currentKodeUnit {
+    final karyawan = user.userKaryawan;
+    if (karyawan != null) {
+      return karyawan.unit.kodeUnit;
+    }
+
+    final authData = otorisasiData;
+    if (authData?.unit != null && authData!.unit!.isNotEmpty) {
+      return authData.unit!.first.kodeUnit;
+    }
+
+    return null;
+  }
+
+  String? get currentNamaUnit {
+    final karyawan = user.userKaryawan;
+    if (karyawan != null) {
+      return karyawan.unit.namaUnit;
+    }
+
+    final authData = otorisasiData;
+    if (authData?.unit != null && authData!.unit!.isNotEmpty) {
+      return authData.unit!.first.namaUnit;
+    }
+
+    return null;
+  }
+
+  String? get currentKodeArea {
+    final authData = otorisasiData;
+    if (authData?.area != null && authData!.area!.isNotEmpty) {
+      return authData.area!.first.kodeArea;
+    }
+    return null;
+  }
+
+  String get currentFullName {
+    final karyawan = user.userKaryawan;
+    if (karyawan != null) {
+      return karyawan.firstName;
+    }
+
+    String name = user.firstName;
+    if (user.lastName != null && user.lastName!.isNotEmpty) {
+      name += " ${user.lastName}";
+    }
+    return name;
+  }
 }

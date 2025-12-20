@@ -11,86 +11,6 @@ import '../controllers/pengeluaran_controller.dart';
 class PengeluaranView extends GetView<PengeluaranController> {
   const PengeluaranView({super.key});
 
-  Widget _buildPhotoBox({
-    required int index,
-    required String label,
-    required IconData iconData, // Menggunakan IconData agar fleksibel
-  }) {
-    final CapturedImageDetail? imageDetail = controller.photoSlots[index];
-    final bool hasImage = imageDetail != null;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: controller.isTakingPhoto.value
-            ? null
-            : () {
-          if (!hasImage) {
-            controller.takeSpecificPhoto(index);
-          } else {
-            // Logic preview/hapus bisa ditambahkan, saat ini remove on tap close
-          }
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4.0), // Spacing antar kotak
-          height: 100, // Tinggi fix sesuai referensi
-          decoration: BoxDecoration(
-            color: AppColors.fieldBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.secondaryText.withOpacity(0.3),
-              width: 1,
-              style: BorderStyle.solid,
-            ),
-          ),
-          child: hasImage
-              ? Stack(
-            fit: StackFit.expand,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(11), // Radius inner dikurangi sedikit
-                child: Image.file(
-                  File(imageDetail.tempPath),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: GestureDetector(
-                  onTap: () => controller.removeImage(index),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: AppColors.alertSoftRed,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close, size: 14, color: AppColors.white),
-                  ),
-                ),
-              )
-            ],
-          ) : Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                  iconData,
-                  size: 28,
-                  color: AppColors.secondaryText
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                // Menggunakan font size 10 sesuai referensi agar muat
-                style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.secondaryText),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, top: 10.0),
@@ -244,8 +164,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
   }
 
   void _showManualInternalInput(BuildContext context) {
-    controller.manualNamaC.clear();
     controller.manualNipC.clear();
+    controller.manualNamaC.clear();
     controller.manualJabatanC.clear();
     controller.manualUnitC.clear();
 
@@ -421,226 +341,222 @@ class PengeluaranView extends GetView<PengeluaranController> {
     );
   }
 
-  // --- STEP 1: FORM INPUT ---
-  Widget _buildStepOneForm(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildLabel("Nama Unit"),
-          Obx(() => _buildSearchableDropdown(
-            hint: "Pilih Unit",
-            value: controller.selectedUnit.value?.namaUnit,
-            onTap: () => _showUnitSearchSheet(context),
-          )),
-
-          _buildLabel("No. IO"),
-          _buildTextField(
-            controller: controller.ioController,
-            readOnly: true,
-            hint: "Otomatis terisi",
-          ),
-
-          _buildLabel("No. Plat Kendaraan"),
-          Obx(() => _buildTextField(
-            controller: controller.platController,
-            readOnly: controller.isPlatReadOnly.value,
-            hint: controller.isPlatReadOnly.value ? "Otomatis terisi" : "Masukkan No. Plat Manual",
-          )),
-
-          _buildLabel("Status Supir"),
-          Obx(() => _buildStandardDropdown(
-            items: controller.statusSupirList,
-            value: controller.selectedStatusSupir.value,
-            onChanged: (val) => controller.onStatusSupirChanged(val),
-            hint: "Pilih Status",
-          )),
-
-          _buildLabel("Nama Supir"),
-          Obx(() {
-            if (controller.selectedStatusSupir.value == 'Eksternal') {
-              return _buildTextField(
-                controller: controller.driverNameManualController,
-                hint: "Input Nama Supir Manual",
-              );
-            } else {
-              return _buildSearchableDropdown(
-                hint: "Pilih Supir",
-                value: controller.selectedDriver.value?.nama,
-                onTap: () {
-                  if (controller.selectedStatusSupir.value == 'Internal') {
-                    _showDriverSearchSheet(context);
-                  } else {
-                    Get.snackbar("Info", "Pilih Status Supir 'Internal' terlebih dahulu");
-                  }
-                },
-              );
-            }
-          }),
-
-          _buildLabel("Km Pengisian"),
-          _buildTextField(
-            controller: controller.kmPengisianC,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            hint: "Input KM saat ini",
-            customFormatters: [
-              SeparatorInputFormatter(),
-            ],
-          ),
-
-          _buildLabel("Pengisian Solar (Ltr)"),
-          _buildTextField(
-            controller: controller.pengisianSolarC,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            hint: "Jumlah liter",
-            customFormatters: [
-              SeparatorInputFormatter(),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  // --- STEP 2: FOTO ---
-  Widget _buildStepTwoPhotos() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Foto Bukti Pengeluaran',
-            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Silahkan ambil foto sesuai instruksi.',
-            style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
-          ),
-          const SizedBox(height: 20),
-
-          // Layout 3 Kotak Foto Berjajar (Sama seperti PenerimaanSebelumForm)
-          Obx(() => Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildPhotoBox(
-                index: 0,
-                label: 'Bon Solar',
-                iconData: Icons.receipt_long_outlined, // Icon Bon
-              ),
-              _buildPhotoBox(
-                index: 1,
-                label: 'Tampak Depan',
-                iconData: Icons.local_shipping_outlined, // Icon Truk Depan
-              ),
-              _buildPhotoBox(
-                index: 2,
-                label: 'Tampak Samping',
-                iconData: Icons.local_shipping, // Icon Truk Samping
-              ),
-            ],
-          )),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final isTakingPhoto = controller.isTakingPhoto.value;
-
-      // Handle back button hardware
-      return WillPopScope(
-        onWillPop: isTakingPhoto ? () async => false : () async {
-          if (controller.currentPage.value > 0) {
-            controller.previousStep();
-            return false;
-          }
-          return true;
-        },
-        child: Stack(
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: Text(
+          'Form Pengeluaran Solar',
+          style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.primaryOrange),
+        ),
+        centerTitle: true,
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20),
+          onPressed: () => Get.back(),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Scaffold(
-              backgroundColor: AppColors.white,
-              appBar: AppBar(
-                title: Text(
-                  'Form Pengeluaran Solar',
-                  style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.primaryOrange),
-                ),
-                centerTitle: true,
-                backgroundColor: AppColors.white,
-                elevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20),
-                  onPressed: () {
-                    if (isTakingPhoto) return;
-                    controller.previousStep();
-                  },
-                ),
-              ),
-              body: Column(
-                children: [
-                  // Content PageView
-                  Expanded(
-                    child: PageView(
-                      controller: controller.pageController,
-                      physics: const NeverScrollableScrollPhysics(), // Disable swipe manual
-                      onPageChanged: controller.onPageChanged,
-                      children: [
-                        _buildStepOneForm(context), // Halaman 1: Input Data
-                        _buildStepTwoPhotos(),      // Halaman 2: Foto
-                      ],
-                    ),
-                  ),
+            _buildLabel("Nama Unit"),
+            Obx(() => _buildSearchableDropdown(
+              hint: "Pilih Unit",
+              value: controller.selectedUnit.value?.namaUnit,
+              onTap: () => _showUnitSearchSheet(context),
+            )),
 
-                  // Button Navigasi
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 40,
-                      child: Obx(() {
-                        // Logic Label
-                        String label = controller.currentPage.value == 0 ? "Selanjutnya" : "Submit Data";
+            _buildLabel("No. IO"),
+            _buildTextField(controller: controller.ioController, readOnly: true),
 
-                        return ElevatedButton(
-                          onPressed: controller.nextStep,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryOrange,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
-                          ),
-                        );
-                      }),
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Satuan"),
+                      _buildTextField(
+                          controller: controller.satuanC,
+                          readOnly: true,
+                          hint: "-"
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Tipe Unit"),
+                      _buildTextField(
+                          controller: controller.tipeUnitC,
+                          readOnly: true,
+                          hint: "-"
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // HM/KM Awal & Akhir
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("HM/KM Awal"),
+                      _buildTextField(controller: controller.hmKmAwalC, readOnly: true, hint: "0"),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("HM/KM Akhir"),
+                      _buildTextField(controller: controller.hmKmAkhirC, readOnly: true, hint: "0"),
+                    ],
+                  ),
+                ),
+              ],
             ),
 
-            // Loading overlay saat ambil foto
-            if (isTakingPhoto)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: const Center(
-                    child: CircularProgressIndicator(color: AppColors.primaryOrange),
+            // Tanggal Awal & Akhir
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Tanggal Awal"),
+                      Obx(() => _buildTextField(initialValue: controller.dateAwal.value, readOnly: true, hint: "-")),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Tanggal Akhir"),
+                      Obx(() => _buildTextField(initialValue: controller.dateAkhir.value, readOnly: true, hint: "-")),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Varian"),
+                      _buildTextField(controller: controller.varianC, readOnly: true, hint: "0"),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Ratio"),
+                      _buildTextField(controller: controller.ratioC, readOnly: true, hint: "0"),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            _buildLabel("No. Plat Kendaraan"),
+            Obx(() => _buildTextField(
+              controller: controller.platController,
+              readOnly: controller.isPlatReadOnly.value,
+            )),
+
+            _buildLabel("Status Supir"),
+            Obx(() => _buildStandardDropdown(
+              items: controller.statusSupirList,
+              value: controller.selectedStatusSupir.value,
+              onChanged: (val) => controller.onStatusSupirChanged(val),
+              hint: "Pilih Status",
+            )),
+
+            _buildLabel("Nama Supir"),
+            Obx(() {
+              if (controller.selectedStatusSupir.value == 'Eksternal') {
+                return _buildTextField(
+                  controller: controller.driverNameManualController,
+                  hint: "Input Nama Supir Manual",
+                );
+              } else {
+                return _buildSearchableDropdown(
+                  hint: "Pilih Supir",
+                  value: controller.selectedDriver.value?.nama,
+                  onTap: () {
+                    if (controller.selectedStatusSupir.value == 'Internal') {
+                      _showDriverSearchSheet(context);
+                    } else {
+                      Get.snackbar("Info", "Pilih Status Supir 'Internal' terlebih dahulu");
+                    }
+                  },
+                );
+              }
+            }),
+
+            _buildLabel("Km Pengisian"),
+            _buildTextField(
+              controller: controller.kmPengisianC,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              hint: "Input KM saat ini",
+              customFormatters: [
+                SeparatorInputFormatter(),
+              ],
+            ),
+
+            _buildLabel("Pengisian Solar (Ltr)"),
+            _buildTextField(
+              controller: controller.pengisianSolarC,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              hint: "Jumlah liter",
+              customFormatters: [
+                SeparatorInputFormatter(),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Submit Button
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: ElevatedButton(
+                onPressed: controller.validateAndProceed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  "Selanjutnya",
+                  style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
+                ),
               ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
-      );
-    });
+      ),
+    );
   }
 }

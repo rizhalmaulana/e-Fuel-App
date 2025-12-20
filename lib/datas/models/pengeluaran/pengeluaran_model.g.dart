@@ -30,13 +30,25 @@ class PengeluaranModelAdapter extends TypeAdapter<PengeluaranModel> {
       pathFoto1: fields[10] as String?,
       pathFoto2: fields[11] as String?,
       pathFoto3: fields[12] as String?,
+      keterangan: fields[13] as String?,
+      docType: fields[14] as String?,
+      hmKmAkhi: fields[15] as double?,
+      liter: fields[16] as double?,
+      hmKmAwak: fields[17] as double?,
+      costCenter: fields[18] as String?,
+      ratio: fields[19] as double?,
+      tipeUnitIo: fields[20] as String?,
+      varian: fields[21] as double?,
+      tanggalAkhir: fields[22] as String?,
+      tanggalAwal: fields[23] as String?,
+      satuan: fields[24] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PengeluaranModel obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(25)
       ..writeByte(0)
       ..write(obj.noDoc)
       ..writeByte(1)
@@ -62,7 +74,31 @@ class PengeluaranModelAdapter extends TypeAdapter<PengeluaranModel> {
       ..writeByte(11)
       ..write(obj.pathFoto2)
       ..writeByte(12)
-      ..write(obj.pathFoto3);
+      ..write(obj.pathFoto3)
+      ..writeByte(13)
+      ..write(obj.keterangan)
+      ..writeByte(14)
+      ..write(obj.docType)
+      ..writeByte(15)
+      ..write(obj.hmKmAkhi)
+      ..writeByte(16)
+      ..write(obj.liter)
+      ..writeByte(17)
+      ..write(obj.hmKmAwak)
+      ..writeByte(18)
+      ..write(obj.costCenter)
+      ..writeByte(19)
+      ..write(obj.ratio)
+      ..writeByte(20)
+      ..write(obj.tipeUnitIo)
+      ..writeByte(21)
+      ..write(obj.varian)
+      ..writeByte(22)
+      ..write(obj.tanggalAkhir)
+      ..writeByte(23)
+      ..write(obj.tanggalAwal)
+      ..writeByte(24)
+      ..write(obj.satuan);
   }
 
   @override

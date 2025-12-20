@@ -42,6 +42,22 @@ class LoginService extends GetxService {
         },
       );
 
+      final responseData = response.data;
+
+      if (responseData['user'] != null) {
+        final userMap = responseData['user'];
+        final userKaryawan = userMap['user_karyawan'];
+        final List<dynamic> otorisasi = userMap['otorisasi'] ?? [];
+
+        bool isApprover = otorisasi.contains('fuel_level_2') || otorisasi.contains('fuel_level_3');
+        if (userKaryawan == null && !isApprover) {
+          throw DioCustomException(
+            statusCode: 422,
+            message: "Akun belum memiliki Data Karyawan (Unit/Jabatan). Silakan hubungi Administrator.",
+          );
+        }
+      }
+
       final authResponse = AuthResponseModel.fromJson(response.data);
       await _loginUserService.openUserBoxes(username);
 
@@ -57,17 +73,21 @@ class LoginService extends GetxService {
       return authResponse;
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;
-
       String serverMessage = 'Terjadi kesalahan jaringan atau koneksi.';
+
       if (e.response?.data != null && e.response!.data is Map) {
         serverMessage = e.response!.data['detail'] ??
             e.response!.data['message'] ??
             serverMessage;
       }
-
       throw DioCustomException(statusCode: statusCode, message: serverMessage);
 
+    } on DioCustomException catch (e) {
+      rethrow;
     } catch (e) {
+      if (e.toString().contains("Null") && e.toString().contains("subtype of type")) {
+        throw Exception('Terjadi kesalahan format data akun. Mohon hubungi IT Support.');
+      }
       throw Exception('Terjadi kesalahan tak terduga: ${e.toString()}');
     }
   }

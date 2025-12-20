@@ -34,7 +34,6 @@ class PengeluaranModel extends HiveObject {
   @HiveField(9)
   String? dateOutbound;
 
-  // Path foto lokal (Opsional, jika ingin ditampilkan di history/detail)
   @HiveField(10)
   String? pathFoto1;
 
@@ -43,6 +42,42 @@ class PengeluaranModel extends HiveObject {
 
   @HiveField(12)
   String? pathFoto3;
+
+  @HiveField(13)
+  String? keterangan;
+
+  @HiveField(14)
+  String? docType;
+
+  @HiveField(15)
+  double? hmKmAkhi;
+
+  @HiveField(16)
+  double? liter;
+
+  @HiveField(17)
+  double? hmKmAwak;
+
+  @HiveField(18)
+  String? costCenter;
+
+  @HiveField(19)
+  double? ratio;
+
+  @HiveField(20)
+  String? tipeUnitIo;
+
+  @HiveField(21)
+  double? varian;
+
+  @HiveField(22)
+  String? tanggalAkhir;
+
+  @HiveField(23)
+  String? tanggalAwal;
+
+  @HiveField(24)
+  String? satuan;
 
   PengeluaranModel({
     this.noDoc,
@@ -58,5 +93,17 @@ class PengeluaranModel extends HiveObject {
     this.pathFoto1,
     this.pathFoto2,
     this.pathFoto3,
+    this.keterangan,
+    this.docType,
+    this.hmKmAkhi,
+    this.liter,
+    this.hmKmAwak,
+    this.costCenter,
+    this.ratio,
+    this.tipeUnitIo,
+    this.varian,
+    this.tanggalAkhir,
+    this.tanggalAwal,
+    this.satuan,
   });
 }

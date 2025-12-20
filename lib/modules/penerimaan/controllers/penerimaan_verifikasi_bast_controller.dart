@@ -13,6 +13,7 @@ import 'package:lottie/lottie.dart';
 import 'package:signature/signature.dart';
 
 import '../../../configs/app_colors.dart';
+import '../../../configs/app_fonts.dart';
 import '../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../datas/models/filling/filling_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
@@ -408,7 +409,34 @@ class PenerimaanVerifikasiBastController extends GetxController {
   }
 
   Future<void> _processSubmit() async {
-    Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppColors.primary),
+              const SizedBox(height: 24),
+              Text(
+                "Memproses Verifikasi...",
+                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Mengunggah tanda tangan & update status",
+                style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
 
     try {
       // =======================================================================

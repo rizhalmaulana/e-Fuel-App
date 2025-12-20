@@ -170,4 +170,21 @@ class MasterDataService {
       return null;
     }
   }
+
+  Future<List<Map<String, dynamic>>> getAllUnits() async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_UNIT,
+        options: _getAuthOptionsJson(),
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+      return [];
+    } catch (e) {
+      print("⚠️ Error Get Unit: $e");
+      return [];
+    }
+  }
 }

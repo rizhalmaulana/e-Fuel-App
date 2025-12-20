@@ -127,14 +127,22 @@ class PengeluaranTrackingView extends GetView<PengeluaranTrackingController> {
       padding: EdgeInsets.only(bottom: isLast ? 0 : 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
           ),
-          Text(
-            value,
-            style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText),
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText),
+              overflow: TextOverflow.visible,
+            ),
           ),
         ],
       ),

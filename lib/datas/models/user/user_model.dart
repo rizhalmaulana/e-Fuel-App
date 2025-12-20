@@ -19,10 +19,10 @@ class UserModel extends HiveObject {
   final String firstName;
 
   @HiveField(3)
-  final String lastName;
+  final String? lastName;
 
   @HiveField(4)
-  final String email;
+  final String? email;
 
   @HiveField(5)
   final bool isSuperuser;
@@ -31,33 +31,37 @@ class UserModel extends HiveObject {
   final bool isStaff;
 
   @HiveField(7)
-  final JabatanModel jabatan;
+  final JabatanModel? jabatan;
 
   @HiveField(8)
-  final List<String> otorisasi; // Penting untuk cek hak akses approval solar
+  final List<String> otorisasi;
 
   @HiveField(9)
-  final UserKaryawanModel userKaryawan;
+  final UserKaryawanModel? userKaryawan;
 
   @HiveField(10)
-  final List<AppMenuModel> appMenu; // Penting untuk menentukan menu di Home
+  final List<AppMenuModel>? appMenu;
 
   UserModel({
     required this.id,
     required this.username,
     required this.firstName,
-    required this.lastName,
-    required this.email,
+    this.lastName,
+    this.email,
     required this.isSuperuser,
     required this.isStaff,
-    required this.jabatan,
+    this.jabatan,
     required this.otorisasi,
-    required this.userKaryawan,
-    required this.appMenu,
+    this.userKaryawan,
+    this.appMenu,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) =>
       _$UserModelFromJson(json);
 
   Map<String, dynamic> toJson() => _$UserModelToJson(this);
+
+  // Helper
+  bool get isKrani => otorisasi.contains('fuel_level_1');
+  bool get isApprover => otorisasi.contains('fuel_level_2') || otorisasi.contains('fuel_level_3');
 }

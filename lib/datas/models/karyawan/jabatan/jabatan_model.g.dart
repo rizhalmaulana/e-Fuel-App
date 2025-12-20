@@ -18,8 +18,8 @@ class JabatanModelAdapter extends TypeAdapter<JabatanModel> {
     };
     return JabatanModel(
       id: fields[0] as int,
-      kodeJabatan: fields[1] as String,
-      namaJabatan: fields[2] as String,
+      kodeJabatan: fields[1] as String?,
+      namaJabatan: fields[2] as String?,
       isMandor: fields[3] as bool,
       isActive: fields[4] as bool,
       isAsisten: fields[5] as bool,
@@ -61,8 +61,8 @@ class JabatanModelAdapter extends TypeAdapter<JabatanModel> {
 
 JabatanModel _$JabatanModelFromJson(Map<String, dynamic> json) => JabatanModel(
       id: (json['id'] as num).toInt(),
-      kodeJabatan: json['kode_jabatan'] as String,
-      namaJabatan: json['nama_jabatan'] as String,
+      kodeJabatan: json['kode_jabatan'] as String?,
+      namaJabatan: json['nama_jabatan'] as String?,
       isMandor: json['is_mandor'] as bool,
       isActive: json['is_active'] as bool,
       isAsisten: json['is_asisten'] as bool,
