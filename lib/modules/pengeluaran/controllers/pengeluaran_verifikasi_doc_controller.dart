@@ -36,7 +36,11 @@ class PengeluaranVerifikasiDocController extends GetxController {
       RxList<CapturedImageDetail?>([null, null, null]);
   final ImagePicker _picker = ImagePicker();
 
-  // Signature Controllers
+  var photoDispenser = Rxn<CapturedImageDetail>();
+  File? hiddenPhotoSupir;
+  File? hiddenPhotoTruk;
+
+// Signature Controllers
   late SignatureController warehouseSignatureController;
   late SignatureController driverSignatureController;
   final warehouseNoteController = TextEditingController();
@@ -50,6 +54,16 @@ class PengeluaranVerifikasiDocController extends GetxController {
   final kmPengisian = '-'.obs;
   final jumlahSolar = '-'.obs;
   final tanggal = '-'.obs;
+  final tipeUnit = '-'.obs;
+  final satuan = '-'.obs;
+  final hmKmAwal = '-'.obs;
+  final hmKmAkhir = '-'.obs;
+  final varian = '-'.obs;
+  final ratio = '-'.obs;
+  final keterangan = '-'.obs;
+  final docType = '-'.obs;
+  final aktualSolarC = TextEditingController();
+  final statusSupir = 'Internal'.obs;
 
   // User Info (Internal)
   final userName = '-'.obs;
@@ -62,7 +76,6 @@ class PengeluaranVerifikasiDocController extends GetxController {
     _loadArguments();
     _loadUserInfo();
 
-    // Init Signature
     warehouseSignatureController = SignatureController(
       penStrokeWidth: 3,
       penColor: Colors.black,
@@ -81,12 +94,14 @@ class PengeluaranVerifikasiDocController extends GetxController {
     warehouseSignatureController.dispose();
     driverSignatureController.dispose();
     warehouseNoteController.dispose();
+    aktualSolarC.dispose();
     pageController.dispose();
     super.onClose();
   }
 
   void _loadArguments() {
     final Map<String, dynamic> args = Get.arguments ?? {};
+
     noDoc.value = args['noDoc'] ?? '-';
     noIO.value = args['noIO'] ?? '-';
     unitIO.value = args['unitIO'] ?? '-';
@@ -95,6 +110,28 @@ class PengeluaranVerifikasiDocController extends GetxController {
     kmPengisian.value = (args['km_pengisian'] ?? '-').toString();
     jumlahSolar.value = (args['jumlah_pengisian_solar'] ?? '-').toString();
     tanggal.value = args['tanggal'] ?? DateFormat('dd/MM/yyyy').format(DateTime.now());
+
+    tipeUnit.value = (args['tipe_unit'] ?? '-').toString();
+    satuan.value = args['satuan'] ?? '-';
+    hmKmAwal.value = (args['hm_km_awal'] ?? '-').toString();
+    hmKmAkhir.value = (args['hm_km_akhir'] ?? '-').toString();
+    varian.value = (args['varian'] ?? '-').toString();
+    ratio.value = (args['ratio'] ?? '-').toString();
+    keterangan.value = args['keterangan'] ?? '-';
+    docType.value = args['doc_type'] ?? 'FOT';
+
+    // Load Status Supir (Default Internal jika null)
+    statusSupir.value = args['status_supir'] ?? 'Internal';
+    aktualSolarC.text = jumlahSolar.value;
+
+    if (args['foto_supir'] != null) {
+      File f = File(args['foto_supir']);
+      if (f.existsSync()) hiddenPhotoSupir = f;
+    }
+    if (args['foto_truk'] != null) {
+      File f = File(args['foto_truk']);
+      if (f.existsSync()) hiddenPhotoTruk = f;
+    }
   }
 
   void _loadUserInfo() {
@@ -114,10 +151,15 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
   void nextPage() {
     if (currentPage.value == 0) {
-      // Validasi foto di step 1
-      if (photoSlots.any((element) => element == null)) {
+      if (photoDispenser.value == null) {
         Get.snackbar("Foto Belum Lengkap",
-            "Harap lengkapi 3 foto bukti (Bon, Depan, Samping)!",
+            "Harap ambil Foto Dispenser Pom (Jumlah Liter)",
+            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+        return;
+      }
+      if (aktualSolarC.text.isEmpty) {
+        Get.snackbar("Data Belum Lengkap",
+            "Harap isi Aktual Pengeluaran Solar!",
             backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
         return;
       }
@@ -127,19 +169,16 @@ class PengeluaranVerifikasiDocController extends GetxController {
         curve: Curves.easeInOut,
       );
     } else if (currentPage.value == 1) {
-      // Validasi tanda tangan gudang di step 2
       if (warehouseSignatureController.isEmpty) {
         Get.snackbar("Informasi", "Tanda tangan bagian gudang wajib diisi",
             backgroundColor: Colors.orange, colorText: Colors.white);
         return;
       }
-
       pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
-// Step 3: Konfirmasi submit akhir
       _confirmAndSubmit();
     }
   }
@@ -160,12 +199,9 @@ class PengeluaranVerifikasiDocController extends GetxController {
   }
 
   // --- PHOTO FUNCTIONS ---
-  Future<void> takeSpecificPhoto(int index) async {
+  Future<void> takeDispenserPhoto() async {
     try {
       isTakingPhoto.value = true;
-      double currentLat = 0;
-      double currentLong = 0;
-
       final XFile? imageFile = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
@@ -184,10 +220,10 @@ class PengeluaranVerifikasiDocController extends GetxController {
       final String tempPath = compressedFile.path;
       final String tempFileName = p.basename(tempPath);
 
-      photoSlots[index] = CapturedImageDetail(
+      photoDispenser.value = CapturedImageDetail(
         tempPath: tempPath,
-        latitude: currentLat,
-        longitude: currentLong,
+        latitude: 0,
+        longitude: 0,
         fileName: tempFileName,
       );
     } catch (e) {
@@ -224,12 +260,12 @@ class PengeluaranVerifikasiDocController extends GetxController {
     }
   }
 
-  void removeImage(int index) {
-    if (index >= 0 && index < photoSlots.length && photoSlots[index] != null) {
+  void removeDispenserImage() {
+    if (photoDispenser.value != null) {
       try {
-        File(photoSlots[index]!.tempPath).deleteSync();
+        File(photoDispenser.value!.tempPath).deleteSync();
       } catch (e) {}
-      photoSlots[index] = null;
+      photoDispenser.value = null;
     }
   }
 
@@ -246,7 +282,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
           logo: LottiesHelper().getLottieQuestion(),
           title: "Konfirmasi Submit",
           message:
-              "Pastikan semua tanda tangan dan foto sudah sesuai. Lanjutkan proses?",
+          "Pastikan semua tanda tangan dan foto sudah sesuai. Lanjutkan proses?",
           primaryColor: AppColors.primaryOrange,
           secondaryColor: AppColors.secondaryOrange,
           secondaryButtonText: "Cek Lagi",
@@ -261,12 +297,6 @@ class PengeluaranVerifikasiDocController extends GetxController {
   }
 
   Future<void> submitVerification() async {
-    if (driverSignatureController.isEmpty) {
-      Get.snackbar("Peringatan", "Tanda tangan supir wajib diisi",
-          backgroundColor: Colors.red, colorText: Colors.white);
-      return;
-    }
-
     Get.dialog(
       Dialog(
         backgroundColor: Colors.white,
@@ -278,19 +308,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
             children: [
               const CircularProgressIndicator(color: AppColors.primaryOrange),
               const SizedBox(height: 24),
-              Text(
-                "Memproses Verifikasi...",
-                style:
-                    AppFonts.fUrbanistBold16.copyWith(color: AppColors.black),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Mengunggah tanda tangan & foto bukti",
-                style: AppFonts.fUrbanistRegular12
-                    .copyWith(color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
-              ),
+              Text("Memproses Verifikasi...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black), textAlign: TextAlign.center),
             ],
           ),
         ),
@@ -299,27 +317,29 @@ class PengeluaranVerifikasiDocController extends GetxController {
     );
 
     try {
-      List<File?> photos =
-      photoSlots.map((e) => e != null ? File(e.tempPath) : null).toList();
+      File? f1 = photoDispenser.value != null ? File(photoDispenser.value!.tempPath) : null;
+      File? f2 = hiddenPhotoTruk;
+      File? f3 = hiddenPhotoSupir;
 
-      final File? whSignFile = await _exportSignatureToFile(
-          warehouseSignatureController, "sign_gudang");
-      final File? driverSignFile =
-      await _exportSignatureToFile(driverSignatureController, "sign_supir");
+      if (f1 == null || f2 == null || f3 == null) {
+        throw "Data foto tidak lengkap (Dispenser/Truk/Supir Missing).";
+      }
+
+      final File? whSignFile = await _exportSignatureToFile(warehouseSignatureController, "sign_gudang");
+      final File? driverSignFile = await _exportSignatureToFile(driverSignatureController, "sign_supir");
 
       if (whSignFile == null || driverSignFile == null) {
-        throw Exception("Gagal memproses gambar tanda tangan.");
+        throw "Gagal memproses gambar tanda tangan.";
       }
 
       final auth = _loginService.getCurrentAuth();
-      if (auth == null) throw "Data user atau transaksi tidak valid.";
+      if (auth == null) throw "Data user tidak valid.";
 
       String userLevel = auth.user.otorisasi.first;
       String kodeUnit = auth.currentKodeUnit ?? "";
 
-      List<KonfigurasiApprovalModel> configList =
-      await _apiService.getKonfigurasiApproval(
-        transactionType: 'FOT',
+      List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
+        transactionType: 'FOT', // Config biasanya tetap FOT untuk modul ini
         kodeUnit: kodeUnit,
         statusActive: true,
       );
@@ -330,30 +350,26 @@ class PengeluaranVerifikasiDocController extends GetxController {
       );
 
       String finalNoDoc = noDoc.value;
+      double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
 
-      if (finalNoDoc == '-' || finalNoDoc.isEmpty) {
-        throw "Nomor Dokumen tidak valid / hilang.";
-      }
-
+      // Map untuk Local Hive
       Map<String, dynamic> payload = {
         "no_io": noIO.value,
         "unit_io": unitIO.value,
         "nopol_check": noPolisi.value,
-        "status_supir": "Internal",
+        "status_supir": statusSupir.value,
         "supir_check": namaSupir.value,
-        "km_pengisian":
-        double.tryParse(kmPengisian.value.replaceAll(',', '')) ?? 0,
-        "jumlah_pengisian_solar":
-        double.tryParse(jumlahSolar.value.replaceAll(',', '')) ?? 0,
+        "km_pengisian": double.tryParse(kmPengisian.value.replaceAll(',', '')) ?? 0,
+        "jumlah_pengisian_solar": finalSolar,
       };
 
       await _apiService.createTransactionApproval(
           noDoc: finalNoDoc,
           kodeUnit: _currentUserUnitCode,
-          transactionType: 'FOT');
+          transactionType: docType.value
+      );
 
-      print("⏳ Menunggu server commit data...");
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(seconds: 1));
 
       await _apiService.updateStatusTransactionApproval(
         noDoc: finalNoDoc,
@@ -373,21 +389,17 @@ class PengeluaranVerifikasiDocController extends GetxController {
         imageSign2: driverSignFile,
       );
 
-      print("⏳ Menunggu upload tanda tangan...");
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(seconds: 1));
 
-      if (photos[0] != null && photos[1] != null && photos[2] != null) {
-        await _apiService.uploadImagePengeluaran(
-          noDoc: finalNoDoc,
-          foto1: photos[0]!,
-          foto2: photos[1]!,
-          foto3: photos[2]!,
-        );
-      } else {
-        throw "File foto tidak lengkap ketika di Upload.";
-      }
+      // Upload 3 Foto
+      await _apiService.uploadImagePengeluaran(
+        noDoc: finalNoDoc,
+        foto1: f1,
+        foto2: f2,
+        foto3: f3,
+      );
 
-      await _updateLocalStatus(finalNoDoc, payload);
+      await _updateLocalStatus(finalNoDoc, payload, f1.path, f2.path, f3.path);
 
       if (Get.isDialogOpen ?? false) Get.back();
 
@@ -395,26 +407,21 @@ class PengeluaranVerifikasiDocController extends GetxController {
         DialogFlexible(
           logo: LottiesHelper().getLottieSuccess(),
           title: "Verifikasi Berhasil",
-          message: "Dokumen berhasil disetujui oleh Kerani.",
+          message: "Data pengeluaran berhasil disubmit!",
           primaryColor: AppColors.primaryOrange,
           secondaryColor: AppColors.secondaryOrange,
-          primaryButtonText: "Lihat Status",
+          primaryButtonText: "Kembali ke Beranda",
           onPrimaryPressed: () {
             Get.back();
-            Get.offAllNamed(Routes.PENGELUARAN_TRACKING,
-                arguments: {'noBast': finalNoDoc});
+            Get.offAllNamed(Routes.HOME);
           },
         ),
         barrierDismissible: false,
       );
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back(); // Close Loading
-
-      print("Error Submit Verification: $e");
-      Get.snackbar("Gagal Verifikasi", "Terjadi kesalahan: ${e.toString()}",
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 4));
+      if (Get.isDialogOpen ?? false) Get.back();
+      print("Error: $e");
+      Get.snackbar("Gagal Verifikasi", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
@@ -422,27 +429,20 @@ class PengeluaranVerifikasiDocController extends GetxController {
     try {
       if (controller.isEmpty) return null;
       final Uint8List? data = await controller.toPngBytes();
-
       if (data == null) return null;
-
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/$fileName.png');
       await file.writeAsBytes(data);
-
       return file;
     } catch (e) {
-      print("Error converting signature: $e");
       return null;
     }
   }
 
-  Future<void> _updateLocalStatus(String noDoc, Map<String, dynamic> payload) async {
+  Future<void> _updateLocalStatus(String noDoc, Map<String, dynamic> payload, String p1, String p2, String p3) async {
     final auth = _loginService.getCurrentAuth();
-
     if (auth != null) {
       final outstandingService = OutstandingService(auth.user.username);
-
-      // Create pengeluaran model
       final pengeluaranDetail = PengeluaranModel(
         noDoc: noDoc,
         noIo: payload['no_io'],
@@ -454,18 +454,16 @@ class PengeluaranVerifikasiDocController extends GetxController {
         unitIO: payload['unit_io'],
         userName: auth.user.username,
         dateOutbound: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
-        pathFoto1: photoSlots[0]?.tempPath,
-        pathFoto2: photoSlots[1]?.tempPath,
-        pathFoto3: photoSlots[2]?.tempPath,
+        pathFoto1: p1,
+        pathFoto2: p2,
+        pathFoto3: p3,
       );
-
       final trx = TransactionPengeluaranModel(
         noBast: noDoc,
         status: 'selesai',
         dateCreated: DateTime.now().toIso8601String(),
         dataPengeluaran: pengeluaranDetail,
       );
-
       await outstandingService.saveTransactionPengeluaran(trx);
     }
   }

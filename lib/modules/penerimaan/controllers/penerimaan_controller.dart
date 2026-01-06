@@ -355,12 +355,12 @@ class PenerimaanController extends GetxController {
       DialogFlexible(
         logo: LottiesHelper().getLottieConfirmation(),
         title: "Konfirmasi Submit",
-        message: "Apakah Anda yakin data pengukuran tangki sudah benar? Data tidak dapat diubah setelah proses ini.",
+        message: "Apakah Anda yakin data pengukuran tangki sudah benar?",
 
-        secondaryButtonText: "Periksa Kembali",
+        secondaryButtonText: "Batal",
         onSecondaryPressed: () => Get.back(),
 
-        primaryButtonText: "Ya, Submit",
+        primaryButtonText: "Submit",
         onPrimaryPressed: () {
           Get.back();
           submitFinalTransaction();
@@ -410,13 +410,13 @@ class PenerimaanController extends GetxController {
               const CircularProgressIndicator(color: AppColors.primary),
               const SizedBox(height: 24),
               Text(
-                "Mengirim Data Penerimaan...",
+                "Mengirim Data",
                 style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                "Mohon jangan tutup aplikasi saat proses upload",
+                "Mohon jangan tutup aplikasi saat proses upload...",
                 style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
                 textAlign: TextAlign.center,
               ),
@@ -584,30 +584,17 @@ class PenerimaanController extends GetxController {
       await _draftService.deleteDraftBefore();
       Get.back();
 
-      Get.dialog(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieSuccess(),
-          title: "Berhasil Disimpan",
-          message: "Transaksi berhasil dibuat.\nNo. Dokumen: $noBastResult",
-          primaryButtonText: "Lanjut Pengisian",
-          onPrimaryPressed: () {
-            Get.back();
-
-            Get.offNamed(
-                Routes.PENGISIAN_SOLAR,
-                arguments: {
-                  'noBast': noBastResult,
-                  'noPO': adminData['purch_no'],
-                  'noPolisi': adminData['nopol_vendor'],
-                  'manual_json_backup': jsonEncode(manualDataToSubmit),
-                  'iot_json_backup': jsonEncode(currentIotSnapshot),
-                  'tanggal': adminData['date_inbound'],
-                  'status': 'pengisian_solar',
-                }
-            );
-          },
-        ),
-        barrierDismissible: false,
+      Get.offNamed(
+          Routes.PENGISIAN_SOLAR,
+          arguments: {
+            'noBast': noBastResult,
+            'noPO': adminData['purch_no'],
+            'noPolisi': adminData['nopol_vendor'],
+            'manual_json_backup': jsonEncode(manualDataToSubmit),
+            'iot_json_backup': jsonEncode(currentIotSnapshot),
+            'tanggal': adminData['date_inbound'],
+            'status': 'pengisian_solar',
+          }
       );
 
     } catch (e) {

@@ -13,16 +13,18 @@ class TotalVolumeCard extends StatelessWidget {
   final ValueChanged<String?> onStorageChanged;
   final bool showDropdown;
   final bool showTotalVolume;
+  final bool showTankList;
 
   const TotalVolumeCard({
     super.key,
     required this.totalVolume,
-    required this.tankList, // Wajib List
+    required this.tankList,
     required this.storageLocations,
     required this.selectedStorage,
     required this.onStorageChanged,
     this.showDropdown = true,
     this.showTotalVolume = true,
+    this.showTankList = true,
   });
 
   Widget get _tankIcon {
@@ -197,7 +199,6 @@ class TotalVolumeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final bool hasHeader = showDropdown || showTotalVolume;
     final bool hasHeader = showDropdown;
 
     return Card(
@@ -213,7 +214,6 @@ class TotalVolumeCard extends StatelessWidget {
               color: AppColors.secondaryText.withOpacity(0.1),
               thickness: 1,
             ),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
             child: Column(
@@ -234,20 +234,20 @@ class TotalVolumeCard extends StatelessWidget {
                             color: AppColors.primary
                         ),
                       ),
-                      const SizedBox(height: 15),
+                      if (showTankList) const SizedBox(height: 15),
                     ],
                   ),
-
-                if (tankList.isEmpty)
-                  Text("Tidak ada data tangki", style: AppFonts.fUrbanistMedium12)
-                else
-                  Row(
-                    mainAxisAlignment: tankList.length == 1
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.spaceAround,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _buildDynamicTankList(),
-                  ),
+                if (showTankList)
+                  if (tankList.isEmpty)
+                    Text("Tidak ada data tangki", style: AppFonts.fUrbanistMedium12)
+                  else
+                    Row(
+                      mainAxisAlignment: tankList.length == 1
+                          ? MainAxisAlignment.center
+                          : MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _buildDynamicTankList(),
+                    ),
               ],
             ),
           ),

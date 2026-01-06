@@ -166,6 +166,7 @@ class HomeView extends GetView<HomeController> {
           onStorageChanged: controller.changeStorageLocation,
           showDropdown: true,
           showTotalVolume: true,
+          showTankList: true,
         )),
       ),
     );

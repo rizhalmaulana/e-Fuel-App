@@ -13,6 +13,7 @@ class UrlApiStatic {
   static String API_POST_FCM_TOKEN = '/absensi/user-devices';
   static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
   static String API_POST_IMAGE_PENGELUARAN = '/e_fuel/inbound-open/upload-photos/{no_doc}';
+  static String API_CREATE_TRANSACTION_BPB = '/e_fuel/transaksi-bpb/create';
 
   // GET
   static String API_GET_UNIT = '/unit-list/';
@@ -21,12 +22,14 @@ class UrlApiStatic {
   static String API_GET_TRANSACTION_APPROVAL_LIST = '/e_fuel/transaksi-approval/list';
   static String API_GET_LITER_KABLIBRASI = '/e_fuel/master-kalibrasi/get-liter';
   static String API_GET_INBOUND_OPEN_DETAIL = '/e_fuel/fuel-inbound-open/detail/{no_doc}';
+  static String API_GET_ALL_TRANSACTION_LIST = '/e_fuel/inbound-open/list-by-date'; // Tampilkan Semua Transaksi FIN atau FOT
 
   static String API_GET_MASTER_STORAGE = '/e_fuel/masterstorage';
   static String API_GET_MASTER_TANK = '/e_fuel/mastersolartank';
   static String API_GET_CHILD_UNIT_TO_STORAGE = '/e_fuel/cunitstorage';
   static String API_GET_CHILD_STORAGE_TO_TANK = '/e_fuel/cstoragetank';
   static String API_GET_CHILD_DETAIL_STORAGE_TANK = '/e_fuel/cdetailstoragetank';
+  static String API_GET_TRANSACTION_PENGELUARAN_DAILY = '/e_fuel/transaksi-fot/daily';
 
   static String API_GET_MASTER_IO_LIST = '/e_fuel/master-io/list';
   static String API_GET_MASTER_IO_DETAIL = '/e_fuel/master-io/{internal_order}';

@@ -11,23 +11,6 @@ import '../../controllers/penerimaan/pengisian_solar_penerimaan_controller.dart'
 class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanController> {
   const PengisianSolarPenerimaanView({super.key});
 
-  void _showPengisianDialog() {
-    Get.dialog(
-      DialogFlexible(
-        logo: LottiesHelper().getLottieConfirmation(),
-        title: 'Informasi',
-        message: 'Pengisian bahan bakar solar sudah dapat dilakukan sekarang!',
-        primaryButtonText: 'Mengerti',
-        onPrimaryPressed: () {
-          Get.back();
-        },
-        secondaryButtonText: null,
-        onSecondaryPressed: null,
-      ),
-      barrierDismissible: false,
-    );
-  }
-
   void _showExitConfirmation() {
     Get.dialog(
       DialogFlexible(
@@ -86,12 +69,6 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.isDialogOpen == false || Get.isDialogOpen == null) {
-        _showPengisianDialog();
-      }
-    });
-
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) {

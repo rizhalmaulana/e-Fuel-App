@@ -7,6 +7,7 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/models/master_io/master_io_model.dart';
+import '../../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
 import '../../../../datas/network/api_client_network.dart';
 import '../../../auth/services/login_service.dart';
 
@@ -101,6 +102,66 @@ class PengeluaranApiService {
     }
   }
 
+  Future<List<KonfigurasiApprovalModel>> getKonfigurasiApproval({
+    required String transactionType,
+    required String kodeUnit,
+    required bool statusActive,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
+        queryParameters: {
+          'transaction_type': transactionType,
+          'kode_unit': kodeUnit,
+          'status_active': statusActive,
+        },
+        options: _getOptions(),
+      );
+
+      List data = response.data;
+      return data.map((e) => KonfigurasiApprovalModel.fromJson(e)).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> createInboundOpen({
+    required Map<String, dynamic> formMap,
+    required List<File?> photos,
+  }) async {
+    try {
+      String jsonPayload = jsonEncode(formMap);
+
+      FormData formData = FormData.fromMap({
+        'payload': jsonPayload
+      });
+
+      for (int i = 0; i < photos.length; i++) {
+        if (photos[i] != null && photos[i]!.existsSync()) {
+          formData.files.add(MapEntry(
+            'foto${i + 1}',
+            await MultipartFile.fromFile(photos[i]!.path),
+          ));
+        }
+      }
+
+      final response = await _dio.post(
+        UrlApiStatic.API_CREATE_INBOUND_OPEN,
+        data: formData,
+        options: _getOptions(),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      } else {
+        throw Exception(response.data['message'] ?? "Respon server sukses namun status false");
+      }
+
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> createInboundFot({
     required Map<String, dynamic> payloadMap,
     required List<File?> photos,
@@ -148,29 +209,6 @@ class PengeluaranApiService {
       }
     } catch (e) {
       rethrow; // Lempar error ke Controller untuk dihandle
-    }
-  }
-
-  Future<List<KonfigurasiApprovalModel>> getKonfigurasiApproval({
-    required String transactionType,
-    required String kodeUnit,
-    required bool statusActive,
-  }) async {
-    try {
-      final response = await _dio.get(
-        UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
-        queryParameters: {
-          'transaction_type': transactionType,
-          'kode_unit': kodeUnit,
-          'status_active': statusActive,
-        },
-        options: _getOptions(),
-      );
-
-      List data = response.data;
-      return data.map((e) => KonfigurasiApprovalModel.fromJson(e)).toList();
-    } catch (e) {
-      rethrow;
     }
   }
 
@@ -373,6 +411,57 @@ class PengeluaranApiService {
         print("❌ [UPLOAD IMAGE ERROR] Status: ${e.response?.statusCode}");
         print("❌ [UPLOAD IMAGE ERROR] Data: ${e.response?.data}");
       }
+      rethrow;
+    }
+  }
+
+  Future<List<PengeluaranDailyModel>> getDailyTransactions({
+    required String dateInbound,
+    required String kodeUnit,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TRANSACTION_PENGELUARAN_DAILY,
+        queryParameters: {
+          'date_inbound': dateInbound,
+          'kode_unit': kodeUnit,
+        },
+        options: _getOptions(),
+      );
+
+      if (response.statusCode == 200) {
+        List dataRaw = response.data;
+        return dataRaw.map((e) => PengeluaranDailyModel.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print("Error fetching daily transactions: $e");
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> createTransactionBpb({
+    required Map<String, dynamic> payload,
+  }) async {
+    try {
+      final response = await _dio.post(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_BPB,
+        data: payload,
+        options: _getOptions(),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+          error: response.data['message'] ?? 'Gagal membuat BPB',
+        );
+      }
+    } catch (e) {
       rethrow;
     }
   }

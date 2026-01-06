@@ -16,6 +16,14 @@ class PenerimaanView extends GetView<PenerimaanController> {
   Widget _buildSwipeableHeader() {
     return Column(
       children: [
+        Center(
+          child: Obx(() => Text(
+            controller.selectedStorage.value,
+            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.darkText),
+            textAlign: TextAlign.center,
+          )),
+        ),
+        const SizedBox(height: 20),
         SizedBox(
           height: 240,
           child: PageView(
@@ -216,15 +224,6 @@ class PenerimaanView extends GetView<PenerimaanController> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(
-          child: Obx(() => Text(
-            controller.selectedStorage.value,
-            style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.darkText),
-            textAlign: TextAlign.center,
-          )),
-        ),
-        const SizedBox(height: 20),
-
         Text("Pengukuran Sebelum Pengisian", style: AppFonts.fUrbanistBold16),
         Text("Input manual untuk Volume dan Tinggi solar", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
         const SizedBox(height: 20),

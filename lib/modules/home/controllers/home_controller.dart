@@ -504,7 +504,7 @@ class HomeController extends GetxController {
                 'noIO': detail?.noIo,
                 'unitIO': unitVal,
                 'noPolisi': detail?.nopolCheck,
-                'supir_check': detail?.supirCheck,
+                'nama_supir': detail?.supirCheck,
                 'tanggal':
                     TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
                 'km_pengisian': detail?.kmPengisian?.toString(),
@@ -618,43 +618,50 @@ class HomeController extends GetxController {
       'action': 'input_pengeluaran',
     };
 
-    final menuInputBPB = {
+    final menuEBPB = {
       'icon': AppIcons.icBpbHarian,
-      'label': 'BPB Harian',
-      'action': 'bpb_harian',
+      'label': 'E-BPB',
+      'action': 'input_e_bpb',
     };
-
-    final menuInputBonSementara = {
-      'icon': AppIcons.icKalibrasi,
-      'label': 'Bon Sementara',
-      'action': 'bon_sementara',
-    };
+    // final menuInputBonSementara = {
+    //   'icon': AppIcons.icKalibrasi,
+    //   'label': 'Bon Sementara',
+    //   'action': 'bon_sementara',
+    // };
 
     final menuRiwayatPenerimaan = {
       'icon': AppIcons.icTransactionPenerimaan,
-      'label': 'Transaksi Penerimaan',
+      'label': 'Report Penerimaan',
       'action': 'riwayat_penerimaan',
     };
 
     final menuRiwayatPengeluaran = {
       'icon': AppIcons.icPenerimaan2,
-      'label': 'Transaksi Pengeluaran',
+      'label': 'Report Pengeluaran',
       'action': 'riwayat_pengeluaran',
+    };
+
+    final menuRiwayatEBPB = {
+      'icon': AppIcons.icKalibrasi,
+      'label': 'Report E-BPB',
+      'action': 'riwayat_e_bpb',
     };
 
     if (user.isKrani) {
       menuList.addAll([
         menuInputPenerimaan,
         menuInputPengeluaran,
-        menuInputBPB,
-        menuInputBonSementara,
+        menuEBPB,
+        // menuInputBonSementara,
         menuRiwayatPenerimaan,
         menuRiwayatPengeluaran,
+        menuRiwayatEBPB,
       ]);
     } else if (user.isApprover) {
       menuList.addAll([
         menuRiwayatPenerimaan,
         menuRiwayatPengeluaran,
+        menuRiwayatEBPB,
       ]);
     }
   }
@@ -667,16 +674,19 @@ class HomeController extends GetxController {
       case 'input_pengeluaran':
         Get.toNamed(Routes.PENGELUARAN);
         break;
-      case 'bpb_harian':
+      case 'input_e_bpb':
         Get.toNamed(Routes.PENGELUARAN_BPB_HARIAN);
         break;
-      case 'bon_sementara':
-        Get.toNamed(Routes.PENGELUARAN_INPUT_BON_SEMENTARA);
-        break;
+      // case 'bon_sementara':
+      //   Get.toNamed(Routes.PENGELUARAN_INPUT_BON_SEMENTARA);
+      //   break;
       case 'riwayat_penerimaan':
-        _showDevelopmentModal(context);
+        Get.toNamed(Routes.REPORT_PENERIMAAN);
         break;
       case 'riwayat_pengeluaran':
+        Get.toNamed(Routes.REPORT_PENGELUARAN);
+        break;
+      case 'riwayat_e_bpb':
         _showDevelopmentModal(context);
         break;
       default:

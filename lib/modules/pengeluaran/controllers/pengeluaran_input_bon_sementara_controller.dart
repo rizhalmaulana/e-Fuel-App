@@ -95,6 +95,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -111,6 +114,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "5,5"
         },
         {
@@ -127,6 +133,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 6962,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "13,2"
         },
         {
@@ -143,6 +152,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "12,5"
         },
         {
@@ -159,6 +171,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 2772,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "13,2"
         },
         {
@@ -175,6 +190,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 2733,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "5,5"
         },
         {
@@ -191,6 +209,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 944,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -207,6 +228,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 10317,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -223,6 +247,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 8138,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "12,8"
         },
         {
@@ -239,6 +266,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 132220,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "3,7"
         },
         {
@@ -255,6 +285,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 129557,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "3,5"
         },
         {
@@ -271,6 +304,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 127343,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": 4
         },
         {
@@ -287,6 +323,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 100021,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "3,3"
         },
         {
@@ -303,6 +342,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 22013,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": 8
         },
         {
@@ -319,6 +361,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 3439,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "7,8"
         },
         {
@@ -335,6 +380,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 109895,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -351,6 +399,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 116525,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "7,5"
         },
         {
@@ -367,6 +418,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "",
           "OPL": "",
           "HM/KM Awal": 4181,
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "3,7"
         },
         {
@@ -383,6 +437,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "9 Jam/hari",
           "OPL": "+2",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -399,6 +456,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "9 Jam/hari",
           "OPL": "+2",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "6,8"
         },
         {
@@ -415,6 +475,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "12 jam/hari",
           "OPL": -2,
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -431,6 +494,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "12 jam/hari",
           "OPL": -2,
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "2,5"
         },
         {
@@ -447,6 +513,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "7 jam/hari",
           "OPL": -2,
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -463,6 +532,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "7 jam/hari",
           "OPL": "+2",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": "1,5"
         },
         {
@@ -479,6 +551,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "7 jam/hari",
           "OPL": "",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -495,6 +570,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "7 jam/hari",
           "OPL": "",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         },
         {
@@ -511,6 +589,9 @@ class PengeluaranInputBonSementaraController extends GetxController {
           "OPR": "7 jam/hari",
           "OPL": "",
           "HM/KM Awal": "",
+          "HM/KM Akhir": "",
+          "Tanggal Awal": "",
+          "Tanggal Akhir": "",
           "Ratio": ""
         }
       ];

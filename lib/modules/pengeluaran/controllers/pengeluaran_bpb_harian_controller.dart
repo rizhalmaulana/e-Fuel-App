@@ -1,18 +1,34 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:signature/signature.dart';
+import '../../../configs/app_colors.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
+import '../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
+import '../../../helpers/lotties_helper.dart';
+import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
+import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import '../services/bon_sementara_local_service.dart';
 
 class PengeluaranBpbHarianController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
   final BonSementaraLocalService _localService = BonSementaraLocalService();
+  final PengeluaranApiService _apiService = PengeluaranApiService();
+
+  // --- Page Control ---
+  final PageController pageController = PageController();
+  var currentStep = 0.obs; // 0: Data Table, 1: Signature
 
   var bpbList = <BonSementaraModel>[].obs;
   var filteredBpbList = <BonSementaraModel>[].obs;
-  final searchTextC = TextEditingController();
+  var dailyTransactionList = <PengeluaranDailyModel>[].obs;
+
   final Map<String, TextEditingController> costCenterControllers = {};
   final Map<String, TextEditingController> noteControllers = {};
+
+  final searchTextC = TextEditingController();
 
   var isLoading = false.obs;
   var selectedUnitCode = 'E000'.obs;
@@ -20,47 +36,125 @@ class PengeluaranBpbHarianController extends GetxController {
   var totalVolume = 0.0.obs;
   var totalQty = 0.obs;
 
-  TextEditingController getCostCenterController(String io) {
-    return costCenterControllers.putIfAbsent(io, () => TextEditingController());
+  var selectedDateDisplay = "".obs;
+  var selectedDateApi = "".obs;
+
+  late SignatureController signatureController;
+  var userName = "-".obs;
+  var userJabatan = "-".obs;
+
+  TextEditingController getCostCenterController(String id) {
+    return costCenterControllers.putIfAbsent(id, () => TextEditingController());
   }
 
-  TextEditingController getNoteController(String io) {
-    return noteControllers.putIfAbsent(io, () => TextEditingController());
+  TextEditingController getNoteController(String id) {
+    return noteControllers.putIfAbsent(id, () => TextEditingController());
   }
 
   @override
   void onInit() {
     super.onInit();
-    _loadUserUnitCode();
-    loadBpbData();
+    _loadUserInfo();
+
+    signatureController = SignatureController(
+      penStrokeWidth: 3,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.transparent,
+    );
+
+    DateTime now = DateTime.now();
+    selectedDateDisplay.value = DateFormat('dd/MM/yyyy').format(now);
+    selectedDateApi.value = DateFormat('yyyy-MM-dd').format(now);
+
+    fetchDailyTransactions();
   }
 
-  void _loadUserUnitCode() {
+  @override
+  void onClose() {
+    signatureController.dispose();
+    pageController.dispose();
+    super.onClose();
+  }
+
+  void _loadUserInfo() {
     final authData = _loginService.getCurrentAuth();
     if (authData != null) {
       selectedUnitCode.value = authData.currentKodeUnit ?? 'Unknown';
+      userName.value = "${authData.user.firstName} ${authData.user.lastName}";
+      userJabatan.value = authData.user.jabatan?.namaJabatan ?? "Asst. Traksi";
     }
   }
 
+  void clearSignature() {
+    signatureController.clear();
+  }
+
+  void nextStep() {
+    if (dailyTransactionList.isEmpty) {
+      Get.snackbar("Data Kosong", "Tidak ada transaksi untuk diproses.", backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      return;
+    }
+
+    bool isValid = true;
+    for (var item in dailyTransactionList) {
+      String key = item.id.toString();
+      String costCenter = costCenterControllers[key]?.text ?? "";
+      if (costCenter.trim().isEmpty) {
+        isValid = false;
+        break;
+      }
+    }
+
+    if (!isValid) {
+      Get.snackbar("Data Belum Lengkap", "Cost Center wajib diisi pada semua item.", backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      return;
+    }
+
+    currentStep.value = 1;
+    pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+  }
+
+  void prevStep() {
+    currentStep.value = 0;
+    pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+  }
+
   Future<void> pickDate(BuildContext context) async {
+    DateTime initialDate = DateTime.now();
+    try {
+      if (selectedDateApi.value.isNotEmpty) initialDate = DateFormat('yyyy-MM-dd').parse(selectedDateApi.value);
+    } catch (e) {}
+
     DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2030),
+      context: context, initialDate: initialDate, firstDate: DateTime(2024), lastDate: DateTime(2030),
     );
+
     if (picked != null) {
-      selectedDate.value = "${picked.day}/${picked.month}/${picked.year}";
+      selectedDateDisplay.value = DateFormat('dd/MM/yyyy').format(picked);
+      selectedDateApi.value = DateFormat('yyyy-MM-dd').format(picked);
+      fetchDailyTransactions();
+    }
+  }
+
+  Future<void> fetchDailyTransactions() async {
+    isLoading.value = true;
+    try {
+      var data = await _apiService.getDailyTransactions(dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);
+      dailyTransactionList.assignAll(data);
+      _calculateTotals();
+    } catch (e) {
+      dailyTransactionList.clear();
+      _calculateTotals();
+    } finally {
+      isLoading.value = false;
     }
   }
 
   Future<void> loadBpbData() async {
     isLoading.value = true;
     try {
-      // Mengambil data dari lokal Hive
       var localData = await _localService.getMasterList();
 
-      // Filter: Hanya tampilkan data yang sudah memiliki Liter (sudah diproses)
       bpbList.value = localData.where((item) => (item.liter ?? 0) > 0).toList();
       filteredBpbList.assignAll(bpbList);
       _calculateTotals();
@@ -71,20 +165,91 @@ class PengeluaranBpbHarianController extends GetxController {
 
   void searchBpb(String query) {
     if (query.isEmpty) {
-      filteredBpbList.assignAll(bpbList);
+      fetchDailyTransactions();
     } else {
-      var result = bpbList.where((item) {
-        final io = (item.internalOrder ?? "").toLowerCase();
-        final unit = (item.namaUnit ?? "").toLowerCase();
-        return io.contains(query.toLowerCase()) || unit.contains(query.toLowerCase());
+      var filtered = dailyTransactionList.where((item) {
+        return (item.namaUnit ?? "").toLowerCase().contains(query.toLowerCase()) ||
+            (item.noIo ?? "").toLowerCase().contains(query.toLowerCase());
       }).toList();
-      filteredBpbList.assignAll(result);
+      dailyTransactionList.assignAll(filtered);
     }
-    _calculateTotals();
   }
 
   void _calculateTotals() {
-    totalQty.value = filteredBpbList.length;
-    totalVolume.value = filteredBpbList.fold(0.0, (sum, item) => sum + (item.liter ?? 0.0));
+    totalQty.value = dailyTransactionList.length;
+    totalVolume.value = dailyTransactionList.fold(0.0, (sum, item) => sum + (item.liter ?? 0.0));
+  }
+
+  Future<void> submitBpb() async {
+    if (signatureController.isEmpty) {
+      Get.snackbar("Tanda Tangan Kosong", "Harap tanda tangan terlebih dahulu sebelum submit.", backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      return;
+    }
+
+    // Prepare Payload
+    List<Map<String, dynamic>> fotPayload = [];
+    for (var item in dailyTransactionList) {
+      String key = item.id.toString();
+      fotPayload.add({
+        "no_doc": item.noIo ?? "-",
+        "cost_center": costCenterControllers[key]?.text ?? "",
+        "keterangan": noteControllers[key]?.text ?? ""
+      });
+    }
+
+    Get.dialog(
+      DialogFlexible(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: "Konfirmasi BPB",
+        message: "Buat E-BPB untuk ${dailyTransactionList.length} item?",
+        primaryColor: AppColors.primaryOrange,
+        secondaryButtonText: "Batal",
+        onSecondaryPressed: () => Get.back(),
+        primaryButtonText: "Ya, Submit",
+        onPrimaryPressed: () {
+          Get.back();
+          _processSubmitApi(fotPayload);
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  void _processSubmitApi(List<Map<String, dynamic>> fotPayload) async {
+    Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange)), barrierDismissible: false);
+
+    try {
+      Map<String, dynamic> payload = {
+        "kode_unit": selectedUnitCode.value,
+        "date_inbound": selectedDateApi.value,
+        "fot": fotPayload
+      };
+
+      await _apiService.createTransactionBpb(payload: payload);
+
+      Get.back();
+
+      Get.dialog(
+        DialogFlexible(
+          logo: LottiesHelper().getLottieSuccess(),
+          title: "Berhasil",
+          message: "Dokumen E-BPB berhasil dibuat.",
+          primaryColor: AppColors.primaryOrange,
+          primaryButtonText: "OK",
+          onPrimaryPressed: () {
+            Get.back();
+            Get.back();
+          },
+        ),
+        barrierDismissible: false,
+      );
+    } catch (e) {
+      Get.back();
+      String errorMessage = "Terjadi kesalahan pada server";
+      if (e is DioException && e.response != null) {
+        errorMessage = e.response?.data['message'] ?? errorMessage;
+      }
+      Get.snackbar("Gagal", errorMessage, backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+    }
   }
 }

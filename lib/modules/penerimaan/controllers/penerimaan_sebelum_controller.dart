@@ -23,8 +23,8 @@ import '../../fuel/services/fuel_sensor_service.dart';
 import '../services/draft_penerimaan_service.dart';
 
 class PenerimaanSebelumController extends GetxController {
-  final FuelSensorService _sensorService = Get.find<FuelSensorService>(); // Service Sensor
-  final FuelDataService _fuelDataService = Get.find<FuelDataService>(); // Service Manual & Master
+  final FuelSensorService _sensorService = Get.find<FuelSensorService>();
+  final FuelDataService _fuelDataService = Get.find<FuelDataService>();
   final LoginService _loginService = Get.find<LoginService>();
 
   // Data UI
@@ -61,16 +61,9 @@ class PenerimaanSebelumController extends GetxController {
   final tinggiTeraSpbController = TextEditingController();
   final tinggiTeraSoundingController = TextEditingController();
   final selisihTinggiTeraController = TextEditingController();
-  final nilaiKapelkaanController = TextEditingController();
+  final nilaiKepekaanController = TextEditingController();
   final segelTangkiAtasController = TextEditingController();
   final segelTangkiBawahController = TextEditingController();
-
-  // Check Controllers (Hidden/Internal Logic)
-  final densityCheckObsController = TextEditingController();
-  final temperatureCheckObsController = TextEditingController();
-  final noPolisiCheckController = TextEditingController();
-  final namaSopirCheckController = TextEditingController();
-  final kapasitasTangkiCheckController = TextEditingController();
 
   final kondisiSegelSelected = 'Baik'.obs;
   final RxList<CapturedImageDetail?> photoSlots = RxList<CapturedImageDetail?>([null, null, null]);
@@ -94,6 +87,48 @@ class PenerimaanSebelumController extends GetxController {
       }
     }
     _ensureDataIsLoaded();
+
+    tinggiTeraSpbController.addListener(_calculateTerraDiff);
+    tinggiTeraSoundingController.addListener(_calculateTerraDiff);
+  }
+
+  @override
+  void onClose() {
+    tinggiTeraSpbController.removeListener(_calculateTerraDiff);
+    tinggiTeraSoundingController.removeListener(_calculateTerraDiff);
+
+    // Dispose Controller
+    pageController.dispose();
+    dateInputController.dispose();
+    dayInputController.dispose();
+    noPoController.dispose();
+    noDoController.dispose();
+    jumlahLtrController.dispose();
+    densityObsController.dispose();
+    temperatureObsController.dispose();
+    noPolisiController.dispose();
+    namaSopirController.dispose();
+    kapasitasTangkiController.dispose();
+    tinggiTeraSpbController.dispose();
+    tinggiTeraSoundingController.dispose();
+    selisihTinggiTeraController.dispose();
+    nilaiKepekaanController.dispose();
+    segelTangkiAtasController.dispose();
+    segelTangkiBawahController.dispose();
+
+    super.onClose();
+  }
+
+  void _calculateTerraDiff() {
+    double spb = double.tryParse(TextConvertHelper().cleanNumber(tinggiTeraSpbController.text)) ?? 0;
+    double check = double.tryParse(TextConvertHelper().cleanNumber(tinggiTeraSoundingController.text)) ?? 0;
+
+    // Menghitung Selisih (SPB - Sounding Actual)
+    // Jika hasilnya negatif, berarti Actual lebih besar dari SPB
+    double diff = spb - check;
+
+    // Set hasil ke controller selisih dengan format angka yang benar
+    selisihTinggiTeraController.text = TextConvertHelper().formatNumber(diff);
   }
 
   Future<void> _ensureDataIsLoaded() async {
@@ -102,11 +137,10 @@ class PenerimaanSebelumController extends GetxController {
       _activeUsername = auth.user.username;
 
       await _fuelDataService.openFuelDataBox(_activeUsername);
-      await _sensorService.initSensorBox(_activeUsername); // Init Sensor Bo
+      await _sensorService.initSensorBox(_activeUsername);
 
       final List<UnitToStorageModel> rawStorages = _fuelDataService.getLocalStorages();
 
-      // Flat-kan list storage (Unit -> List<Storage>)
       List<String> formattedStorages = [];
       for (var unitData in rawStorages) {
         for (var storage in unitData.masterStorage) {
@@ -245,7 +279,7 @@ class PenerimaanSebelumController extends GetxController {
     tinggiTeraSoundingController.text = formatVal(draft.terraCheck);
     selisihTinggiTeraController.text = formatVal(draft.terraVar);
 
-    nilaiKapelkaanController.text = draft.tangkiPeka ?? "";
+    nilaiKepekaanController.text = draft.tangkiPeka ?? "";
     segelTangkiAtasController.text = draft.segelTangkiAtas ?? "";
     segelTangkiBawahController.text = draft.segelTangkiBawah ?? "";
     if (draft.segelKondisi != null) kondisiSegelSelected.value = draft.segelKondisi!;
@@ -257,6 +291,8 @@ class PenerimaanSebelumController extends GetxController {
     if (draft.storageCode != null && storageLocations.contains(draft.storageCode)) {
       selectedStorage.value = draft.storageCode!;
     }
+
+    _calculateTerraDiff();
   }
 
   void _restorePhoto(int index, String path) {
@@ -264,7 +300,7 @@ class PenerimaanSebelumController extends GetxController {
       photoSlots[index] = CapturedImageDetail(
           tempPath: path,
           fileName: p.basename(path),
-          latitude: 0, longitude: 0 // Koordinat dummy jika tidak disimpan detailnya
+          latitude: 0, longitude: 0
       );
     }
   }
@@ -286,7 +322,7 @@ class PenerimaanSebelumController extends GetxController {
       'terra_vendor': TextConvertHelper().cleanNumber(tinggiTeraSpbController.text),
       'terra_check': TextConvertHelper().cleanNumber(tinggiTeraSoundingController.text),
       'terra_var': TextConvertHelper().cleanNumber(selisihTinggiTeraController.text),
-      'tangki_peka': nilaiKapelkaanController.text,
+      'tangki_peka': nilaiKepekaanController.text,
       'segel_tangki_atas': segelTangkiAtasController.text,
       'segel_tangki_bawah': segelTangkiBawahController.text,
       'segel_kondisi': kondisiSegelSelected.value,
@@ -331,8 +367,8 @@ class PenerimaanSebelumController extends GetxController {
     } else if (currentPage.value == 2) {
       if (tinggiTeraSpbController.text.isEmpty) errorMessage = "Tinggi Tera SPB harus diisi";
       else if (tinggiTeraSoundingController.text.isEmpty) errorMessage = "Tinggi Zounding harus diisi";
-      else if (selisihTinggiTeraController.text.isEmpty) errorMessage = "Selisih Tinggi Tera harus diisi";
-      else if (nilaiKapelkaanController.text.isEmpty) errorMessage = "Nilai Kapelkaan harus diisi";
+      // Selisih tidak perlu divalidasi manual karena auto-calc, kecuali harus > 0 (opsional)
+      else if (nilaiKepekaanController.text.isEmpty) errorMessage = "Nilai Kapelkaan harus diisi";
       else if (segelTangkiAtasController.text.isEmpty) errorMessage = "Segel Atas harus diisi";
       else if (segelTangkiBawahController.text.isEmpty) errorMessage = "Segel Bawah harus diisi";
     }
@@ -437,7 +473,6 @@ class PenerimaanSebelumController extends GetxController {
       final splitted = file.path.substring(0, (lastIndex));
       final outPath = "${splitted}_compressed.jpg";
 
-      // Hapus file lama jika ada
       final outCheck = File(outPath);
       if (await outCheck.exists()) {
         await outCheck.delete();
@@ -479,16 +514,9 @@ class PenerimaanSebelumController extends GetxController {
       pageController.nextPage(
           duration: const Duration(milliseconds: 800), curve: Curves.easeIn);
     } else {
-      // Step Terakhir: Lanjut ke Pengukuran Tangki (PenerimaanController)
       proceedToTankMeasurement();
     }
   }
 
   void onPageChanged(int index) { currentPage.value = index; }
-
-  @override
-  void onClose() {
-    pageController.dispose();
-    super.onClose();
-  }
 }

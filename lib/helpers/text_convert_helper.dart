@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class TextConvertHelper {
@@ -90,8 +91,14 @@ class TextConvertHelper {
       }
     }
 
-    // 2. Error Code/Logic Aplikasi (Bukan dari Server)
-    // Contoh: Null check operator used on a null value, FormatException, dll.
     return "Terjadi kesalahan pada aplikasi. Silakan coba lagi.";
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }

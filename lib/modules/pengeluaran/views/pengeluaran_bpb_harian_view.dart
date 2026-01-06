@@ -2,270 +2,462 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
+import 'package:signature/signature.dart';
 import '../controllers/pengeluaran_bpb_harian_controller.dart';
 
 class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
   const PengeluaranBpbHarianView({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: Text(
-          'BPB Harian',
-          style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.primaryOrange),
-        ),
-        centerTitle: true,
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20),
-          onPressed: () => Get.back(),
+  Widget _buildCompactHeader(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Obx(() => Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    GestureDetector(
+                      onTap: () => controller.pickDate(context),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Tanggal Transaksi",
+                              style: AppFonts.fUrbanistMedium12
+                                  .copyWith(color: AppColors.primaryOrange)),
+                          Row(
+                            children: [
+                              Text(controller.selectedDateDisplay.value,
+                                  style: AppFonts.fUrbanistBold14.copyWith(
+                                      color: AppColors.secondaryText)),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.calendar_month,
+                                  size: 16, color: AppColors.primaryOrange),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text("Kode Unit",
+                            style: AppFonts.fUrbanistMedium12
+                                .copyWith(color: AppColors.primaryOrange)),
+                        Text(controller.selectedUnitCode.value,
+                            style: AppFonts.fUrbanistBold14
+                                .copyWith(color: AppColors.secondaryText)),
+                      ],
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1, thickness: 0.5),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Total Liter",
+                            style: AppFonts.fUrbanistMedium12
+                                .copyWith(color: AppColors.primaryOrange)),
+                        Text(
+                            "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
+                            style: AppFonts.fUrbanistBold14
+                                .copyWith(color: AppColors.secondaryText)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text("Total Transaksi",
+                            style: AppFonts.fUrbanistMedium12
+                                .copyWith(color: AppColors.primaryOrange)),
+                        Text("${controller.totalQty.value} Unit",
+                            style: AppFonts.fUrbanistBold14
+                                .copyWith(color: AppColors.secondaryText)),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            )),
+      ),
+    );
+  }
+
+  Widget _buildTableInputField(
+      {required TextEditingController controller, required String hint}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: TextFormField(
+        controller: controller,
+        style:
+            AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: AppFonts.fUrbanistLight12
+              .copyWith(color: AppColors.secondaryText),
+          isDense: true,
+          filled: true,
+          fillColor: AppColors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primaryOrange)),
         ),
       ),
-      body: Column(
-        children: [
-          // Search Bar disamakan posisinya
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
-              controller: controller.searchTextC,
-              onChanged: (value) => controller.searchBpb(value),
-              style: AppFonts.fUrbanistMedium14,
-              decoration: InputDecoration(
-                hintText: "Cari No. IO...",
-                prefixIcon: const Icon(Icons.search, color: AppColors.primaryOrange),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, size: 20),
-                  onPressed: () {
-                    controller.searchTextC.clear();
-                    controller.searchBpb("");
-                  },
-                ),
-                filled: true,
-                fillColor: AppColors.fieldBackground,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
+    );
+  }
 
-          _buildCompactHeader(),
-          const SizedBox(height: 10),
-
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+  Widget _buildDataTable() {
+    return Container(
+      height: 320, // Tinggi table disesuaikan
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondaryText.withOpacity(0.2)),
+        color: Colors.grey.shade50,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Obx(() {
+          if (controller.isLoading.value) {
+            return const Center(
+                child:
+                    CircularProgressIndicator(color: AppColors.primaryOrange));
+          }
+          if (controller.dailyTransactionList.isEmpty) {
+            return Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildDataTable(context),
-                  const SizedBox(height: 15),
+                  const Icon(Icons.folder_off_outlined,
+                      size: 48, color: AppColors.secondaryText),
+                  const SizedBox(height: 12),
+                  Text("Belum ada transaksi pengeluaran\npada tanggal ini.",
+                      textAlign: TextAlign.center,
+                      style: AppFonts.fUrbanistMedium14
+                          .copyWith(color: AppColors.secondaryText)),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                      onPressed: () => controller.fetchDailyTransactions(),
+                      icon: const Icon(Icons.refresh,
+                          size: 16, color: AppColors.primaryOrange),
+                      label: Text("Muat Ulang",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange)))
                 ],
               ),
+            );
+          }
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: DataTable(
+                headingRowColor:
+                    MaterialStateProperty.all(AppColors.backgroundField),
+                columnSpacing: 20,
+                horizontalMargin: 15,
+                dataRowHeight: 60,
+                columns: [
+                  DataColumn(
+                      label: Text("Nama Unit",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                  DataColumn(
+                      label: Text("Liter",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                  DataColumn(
+                      label: Text("No. IO",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                  DataColumn(
+                      label: Text("Cost Center",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                  DataColumn(
+                      label: Text("Keterangan",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                ],
+                rows: controller.dailyTransactionList.map((item) {
+                  String uniqueKey = item.id.toString();
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(item.namaUnit ?? "-",
+                          style: AppFonts.fUrbanistMedium12)),
+                      DataCell(Text("${item.liter?.toStringAsFixed(0)}",
+                          style: AppFonts.fUrbanistMedium12)),
+                      DataCell(Text(item.noIo ?? "-",
+                          style: AppFonts.fUrbanistMedium12)),
+                      DataCell(SizedBox(
+                          width: 140,
+                          child: _buildTableInputField(
+                              controller:
+                                  controller.getCostCenterController(uniqueKey),
+                              hint: "Cost Center"))),
+                      DataCell(SizedBox(
+                          width: 160,
+                          child: _buildTableInputField(
+                              controller:
+                                  controller.getNoteController(uniqueKey),
+                              hint: "Keterangan"))),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
+          );
+        }),
+      ),
+    );
+  }
 
-          _buildSubmitButton(),
+  Widget _buildSummaryCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryOrange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryOrange.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          Column(children: [
+            Text("Total Transaksi", style: AppFonts.fUrbanistRegular12),
+            Obx(() => Text("${controller.totalQty.value}",
+                style: AppFonts.fUrbanistBold18
+                    .copyWith(color: AppColors.primaryOrange)))
+          ]),
+          Container(
+              height: 30,
+              width: 1,
+              color: AppColors.secondaryText.withOpacity(0.3)),
+          Column(children: [
+            Text("Total Volume", style: AppFonts.fUrbanistRegular12),
+            Obx(() => Text(
+                "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
+                style: AppFonts.fUrbanistBold18
+                    .copyWith(color: AppColors.primaryOrange)))
+          ]),
         ],
       ),
     );
   }
 
-  Widget _buildCompactHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Obx(() => Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () => controller.pickDate(Get.context!),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Tanggal Transaksi", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
-                    Row(
-                      children: [
-                        Text(controller.selectedDate.value, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryOrange)),
-                        const Icon(Icons.calendar_month, size: 16, color: AppColors.primaryOrange),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              _headerItem("Kode Unit", controller.selectedUnitCode.value, cross: CrossAxisAlignment.end),
-            ],
-          )),
-        ),
-      ),
-    );
-  }
-
-  Widget _headerItem(String label, String value, {required CrossAxisAlignment cross}) {
+  Widget _buildSignatureSection() {
     return Column(
-      crossAxisAlignment: cross,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
-        const SizedBox(height: 2),
-        Text(value, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryOrange)),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: AppColors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4))
+              ],
+              border: Border.all(color: AppColors.fieldBackground)),
+          child: Column(children: [
+            Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Dibuat Oleh",
+                          style: AppFonts.fUrbanistRegular12
+                              .copyWith(color: AppColors.secondaryText)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Obx(() => Text(
+                              controller.userName.value.toUpperCase(),
+                              textAlign: TextAlign.end,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: AppFonts.fUrbanistBold12
+                                  .copyWith(color: AppColors.darkText),
+                            )),
+                      )
+                    ])),
+            Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Jabatan",
+                          style: AppFonts.fUrbanistRegular12
+                              .copyWith(color: AppColors.secondaryText)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Obx(() => Text(
+                              controller.userJabatan.value,
+                              textAlign: TextAlign.end,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: AppFonts.fUrbanistSemiBold12
+                                  .copyWith(color: AppColors.darkText),
+                            )),
+                      )
+                    ])),
+          ]),
+        ),
+        const SizedBox(height: 24),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text("Tanda Tangan Asst. Traksi",
+              style: AppFonts.fUrbanistSemiBold14),
+          GestureDetector(
+              onTap: () => controller.clearSignature(),
+              child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: AppColors.alertSoftRed.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: Text("Hapus",
+                      style: AppFonts.fUrbanistSemiBold10
+                          .copyWith(color: AppColors.alertSoftRed))))
+        ]),
+        const SizedBox(height: 12),
+        Container(
+            height: 200,
+            decoration: BoxDecoration(
+                color: AppColors.fieldBackground.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: AppColors.secondaryText.withOpacity(0.3), width: 1)),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: Signature(
+                    controller: controller.signatureController,
+                    backgroundColor: Colors.transparent))),
       ],
     );
   }
 
-  Widget _buildDataTable(BuildContext context) {
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.secondaryText.withOpacity(0.2)),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Obx(() {
-            if (controller.isLoading.value) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange));
-            }
-
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: IntrinsicWidth(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Sticky Header
-                          Container(
-                            color: AppColors.backgroundField,
-                            child: DataTable(
-                              headingRowHeight: 45,
-                              dataRowHeight: 0,
-                              columnSpacing: 20,
-                              horizontalMargin: 15,
-                              columns: [
-                                _column("Nama Unit", width: 80, isLeft: true),
-                                _column("Jumlah (Ltr)", width: 90),
-                                _column("Satuan", width: 80),
-                                _column("No. IO", width: 100),
-                                _column("Cost Center", width: 130), // Input
-                                _column("Keterangan", width: 150),  // Input
-                              ],
-                              rows: const [],
-                            ),
-                          ),
-                          // Scrollable Body
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.vertical,
-                              child: DataTable(
-                                headingRowHeight: 0,
-                                columnSpacing: 20,
-                                horizontalMargin: 15,
-                                showCheckboxColumn: false,
-                                columns: [
-                                  _column("Nama Unit", width: 80, isLeft: true),
-                                  _column("Jumlah (Ltr)", width: 90),
-                                  _column("Satuan", width: 80),
-                                  _column("No. IO", width: 100),
-                                  _column("Cost Center", width: 130),
-                                  _column("Keterangan", width: 150),
-                                ],
-                                rows: controller.filteredBpbList.map((item) {
-                                  return DataRow(
-                                    cells: [
-                                      _cellItem(item.namaUnit ?? "-", width: 80, isLeft: true),
-                                      _cellItem(item.liter?.toStringAsFixed(0) ?? "0", width: 90),
-                                      _cellItem(item.satuan ?? "LTR", width: 80),
-                                      _cellItem(item.internalOrder ?? "-", width: 100),
-                                      // Field Input Cost Center
-                                      _cellInput(controller.getCostCenterController(item.internalOrder!), width: 130, hint: "Input CC"),
-                                      // Field Input Keterangan
-                                      _cellInput(controller.getNoteController(item.internalOrder!), width: 150, hint: "Input Ket"),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            );
-          }),
-        ),
+  Widget _buildStep1Data(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          _buildCompactHeader(context),
+          const SizedBox(height: 10),
+          _buildDataTable(),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: controller.nextStep,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              child: Text("Proses Tanda Tangan",
+                  style:
+                      AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
       ),
     );
   }
 
-  DataColumn _column(String label, {double? width, bool isLeft = false}) => DataColumn(
-    label: SizedBox(
-      width: width,
-      child: Text(
-        label,
-        textAlign: isLeft ? TextAlign.left : TextAlign.center,
-        style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryOrange),
-      ),
-    ),
-  );
-
-  DataCell _cellInput(TextEditingController textController, {double? width, String? hint}) => DataCell(
-    SizedBox(
-      width: width,
-      child: TextField(
-        controller: textController,
-        style: AppFonts.fUrbanistMedium12,
-        decoration: InputDecoration(
-          hintText: hint,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          border: const UnderlineInputBorder(), // Memberikan garis bawah agar terlihat bisa diisi
-        ),
-      ),
-    ),
-  );
-
-  DataCell _cellItem(String value, {double? width, bool isLeft = false}) => DataCell(
-    SizedBox(
-      width: width,
-      child: Text(
-        value,
-        style: AppFonts.fUrbanistMedium12,
-        textAlign: isLeft ? TextAlign.left : TextAlign.center,
-      ),
-    ),
-  );
-
-  Widget _buildSubmitButton() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryOrange,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildStep2Signature(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          _buildSummaryCard(),
+          const SizedBox(height: 24),
+          _buildSignatureSection(),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: controller.submitBpb,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              child: Text("Submit E-BPB",
+                  style:
+                      AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
+            ),
           ),
-          elevation: 2,
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (controller.currentStep.value == 1) {
+          controller.prevStep();
+        } else {
+          Get.back();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        appBar: AppBar(
+          title: Obx(() => Text(
+              controller.currentStep.value == 0
+                  ? 'Pembuatan E-BPB'
+                  : 'Verifikasi E-BPB',
+              style: AppFonts.fUrbanistBold18
+                  .copyWith(color: AppColors.primaryOrange))),
+          centerTitle: true,
+          backgroundColor: AppColors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios,
+                color: AppColors.primaryOrange, size: 20),
+            onPressed: () {
+              if (controller.currentStep.value == 1) {
+                controller.prevStep();
+              } else {
+                Get.back();
+              }
+            },
+          ),
         ),
-        child: Text(
-          "Submit BPB",
-          style: AppFonts.fUrbanistBold16.copyWith(color: Colors.white),
+        body: PageView(
+          controller: controller.pageController,
+          physics: const NeverScrollableScrollPhysics(), // Disable swipe
+          children: [
+            _buildStep1Data(context),
+            _buildStep2Signature(context),
+          ],
         ),
       ),
     );

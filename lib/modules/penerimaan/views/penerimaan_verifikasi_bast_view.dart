@@ -10,21 +10,167 @@ import '../controllers/penerimaan_verifikasi_bast_controller.dart';
 class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastController> {
   const PenerimaanVerifikasiBastView({super.key});
 
+  // --- WIDGET HELPER BARU: SIGNATURE CARD ---
+  Widget _buildSignatureCard({
+    required String title,
+    required String placeholder,
+    required SignatureController signatureController,
+    TextEditingController? noteController, // Opsional (Hanya untuk Gudang)
+    String noteLabel = "Catatan",
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF000000).withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Judul & Tombol Reset
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.draw_rounded, color: AppColors.primary, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(title, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText)),
+                ],
+              ),
+              InkWell(
+                onTap: () => signatureController.clear(),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.alertSoftRed.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh, size: 14, color: AppColors.alertSoftRed),
+                      const SizedBox(width: 4),
+                      Text("Ulangi", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.alertSoftRed)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Input Catatan (Jika ada controller-nya)
+          if (noteController != null) ...[
+            Text(noteLabel, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: noteController,
+              maxLines: 2,
+              style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.darkText),
+              decoration: InputDecoration(
+                hintText: "Tulis catatan disini...",
+                hintStyle: AppFonts.fUrbanistRegular12.copyWith(color: Colors.grey.shade400),
+                filled: true,
+                fillColor: const Color(0xFFF9FAFB),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text("Area Tanda Tangan", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+            const SizedBox(height: 8),
+          ],
+
+          // Canvas Tanda Tangan
+          Container(
+            height: 220,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB), // Background abu sangat muda
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade300, width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  // Placeholder Text (Tengah)
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit, color: Colors.grey.shade300, size: 32),
+                        const SizedBox(height: 8),
+                        Text(
+                          placeholder,
+                          style: AppFonts.fUrbanistRegular12.copyWith(color: Colors.grey.shade400),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Signature Canvas
+                  Signature(
+                    controller: signatureController,
+                    backgroundColor: Colors.transparent,
+                    width: double.infinity,
+                    height: 220,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              "Pastikan tanda tangan sesuai dengan identitas.",
+              style: AppFonts.fUrbanistRegular10.copyWith(color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProgressIndicator(int index) {
+    String label = "Pembuatan BAST";
+    if (index == 2) label = "Verifikasi Gudang";
+    if (index == 3) label = "Verifikasi Supir";
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondaryText),
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.secondaryText.withOpacity(0.2)), // Border lebih soft
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))
+          ]
       ),
       child: Row(
         children: [
           const Icon(Icons.radio_button_checked, color: AppColors.primary, size: 20),
           const SizedBox(width: 12),
           Text(
-            'Pembuatan BAST',
-            style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.darkText),
+            label,
+            style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText),
           ),
         ],
       ),
@@ -34,12 +180,12 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
   // --- STEP 1: PENGECEKAN DATA ---
   Widget _buildStep1Pengecekan(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildProgressIndicator(controller.currentPage.value),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // 1. HEADER CARD (Total Volume)
           Obx(() => TotalVolumeCard(
@@ -64,15 +210,13 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           // SECTION 1: UKURAN STANDAR (READONLY)
           // =======================================================
           Text("Ukuran Standar Tangki Kebun 10.000 Ltr",
-              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
+              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
           const SizedBox(height: 8),
 
           Row(
             children: [
-              // Tinggi Fix 1605
               _buildDimensionField("Tinggi (mm)", controller.stdTinggiController, readOnly: true),
               const SizedBox(width: 12),
-              // Liter Hasil API
               _buildDimensionField("Liter", controller.stdLiterController, readOnly: true),
             ],
           ),
@@ -80,18 +224,16 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           const SizedBox(height: 16),
 
           // =======================================================
-          // [UPDATED UI] SECTION 2: VOLUME DITERIMA (INPUT)
+          // SECTION 2: VOLUME DITERIMA (INPUT)
           // =======================================================
           Text("Volume Solar yang Diterima (mm)",
-              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
+              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
           const SizedBox(height: 8),
 
           Row(
             children: [
-              // User Input Tinggi Disini
               _buildDimensionField("Tinggi (mm)", controller.actTinggiController, readOnly: false),
               const SizedBox(width: 12),
-              // Liter Hasil Hitung API (Readonly)
               _buildDimensionField("Liter", controller.volumeDiterimaLtrController, readOnly: true),
             ],
           ),
@@ -111,7 +253,6 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
               onChanged: (val) => controller.hitungVarian()
           ),
 
-          // Auto Fill dari hasil hitung Liter Aktual diatas
           _buildTextField(
               "Volume Tangki Kebun (Ltr)",
               controller.volumeKebunController,
@@ -121,7 +262,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           _buildTextField(
               "Varian Perhitungan Volume (Ltr)",
               controller.varianController,
-              readOnly: true // Auto Calc
+              readOnly: true
           ),
 
           const SizedBox(height: 24),
@@ -133,12 +274,12 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
   // --- STEP 2: PENGUKURAN ---
   Widget _buildStep2Pengukuran(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildProgressIndicator(controller.currentPage.value),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // 1. TOTAL VOLUME CARD
           Obx(() => TotalVolumeCard(
@@ -156,28 +297,32 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           // WRAPPER CONTAINER
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE3E8F0), width: 1.0),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE3E8F0), width: 1.0),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
+                ]
             ),
             child: Obx(() {
               final trx = controller.currentTransaction.value;
               final data = trx?.dataSebelum;
 
-              // Helper format null safety
-              String val(dynamic v, [String suffix = ""]) => (v != null) ? "$v $suffix" : "-";
               String valNum(double? v, [String suffix = ""]) => (v != null) ? "${v.toStringAsFixed(0)} $suffix" : "-";
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // --- HEADER ---
-                  _buildSummaryRow("No. BAST", trx?.noBast ?? "-"), // Header ada di trx
+                  _buildSummaryRow("No. BAST", trx?.noBast ?? "-"),
                   _buildSummaryRow("Hari, Tanggal", data?.dateInbound ?? "-"),
 
-                  const Divider(height: 24, thickness: 1, color: Color(0xFFE3E8F0)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(height: 1, thickness: 1, color: Color(0xFFE3E8F0)),
+                  ),
 
                   // --- DATA PENGIRIMAN ---
                   _buildSectionTitle("Data Pengiriman"),
@@ -186,7 +331,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   _buildSummaryRow("Density", valNum(data?.densityVendor)),
                   _buildSummaryRow("Tempr (Obs)", valNum(data?.tempVendor)),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
                   // --- UNIT PENGANGKUTAN ---
                   _buildSectionTitle("Unit Pengangkutan"),
@@ -194,7 +339,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   _buildSummaryRow("Nama Sopir", data?.supirVendor ?? "-"),
                   _buildSummaryRow("Kap. Tangki Angkut (Ltr)", valNum(data?.kapasitasVendor)),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
                   // --- PEMERIKSAAN ---
                   _buildSectionTitle("Pemeriksaan"),
@@ -206,32 +351,37 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   _buildSummaryRow("Segel Tangki Bawah", data?.segelTangkiBawah ?? "-"),
                   _buildSummaryRow("Kondisi Segel", data?.segelKondisi ?? "-"),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
                   // --- PEMERIKSAAN DAN PENGUKURAN DI TANGKI KEBUN ---
-                  _buildSectionTitle("Pemeriksaan dan Pengukuran di Tangki Kebun"),
+                  _buildSectionTitle("Pemeriksaan di Tangki Kebun"),
 
                   _buildSummaryRow(
-                      "Ukuran Standart Tangki Kebun (mm)",
+                      "Ukuran Standart Tangki",
                       controller.stdTinggiController.text
                   ),
                   _buildSummaryRow(
-                      "Volume Solar yang Diterima (Dimensi)",
+                      "Vol. Diterima (Dimensi)",
                       controller.actTinggiController.text
                   ),
                   _buildSummaryRow(
-                      "Volume Solar yang Diterima",
+                      "Vol. Diterima (Liter)",
                       controller.volumeDiterimaLtrController.text
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
                   // --- PERHITUNGAN FISIK / VOLUME SOLAR ---
-                  _buildSectionTitle("Perhitungan Fisik/Volume Solar"),
+                  _buildSectionTitle("Perhitungan Volume Solar"),
 
-                  _buildSummaryRow("Volume Tangki Pengirim (Ltr)", controller.volumePengirimController.text),
-                  _buildSummaryRow("Volume Tangki Kebun (Ltr)", controller.volumeKebunController.text),
-                  _buildSummaryRow("Varian Perhitungan Volume (Ltr)", controller.varianController.text),
+                  _buildSummaryRow("Vol. Tangki Pengirim", "${controller.volumePengirimController.text} Ltr"),
+                  _buildSummaryRow("Vol. Tangki Kebun", "${controller.volumeKebunController.text} Ltr"),
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
+                    child: _buildSummaryRow("Varian Perhitungan", "${controller.varianController.text} Ltr"),
+                  ),
                 ],
               );
             }),
@@ -239,7 +389,6 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
 
           const SizedBox(height: 32),
 
-          // --- TOMBOL EDIT & NEXT ---
           Row(
             children: [
               Expanded(
@@ -248,7 +397,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   child: ElevatedButton(
                     onPressed: () => controller.previousPage(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD6DFFF),
+                      backgroundColor: const Color(0xFFE8F1FF),
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -264,7 +413,8 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                     onPressed: controller.nextPage,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      elevation: 0,
+                      elevation: 2,
+                      shadowColor: AppColors.primary.withOpacity(0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text("Lanjut", style: AppFonts.fUrbanistSemiBold16.copyWith(color: Colors.white)),
@@ -273,142 +423,64 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
               ),
             ],
           ),
+          const SizedBox(height: 30),
         ],
       ),
     );
   }
 
-  // --- STEP 3: GUDANG ---
+  // --- STEP 3: GUDANG (REVISI DESIGN) ---
   Widget _buildStep3Gudang(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         children: [
           _buildProgressIndicator(controller.currentPage.value),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          Align(alignment: Alignment.centerLeft, child: Text("Catatan", style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText))),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller.catatanGudangController,
-            maxLines: 1,
-            decoration: InputDecoration(
-              hintText: "Catatan Bagian Gudang",
-              hintStyle: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.primary)),
-            ),
+          _buildSignatureCard(
+              title: "Bagian Gudang",
+              placeholder: "Tanda Tangan Penerima disini",
+              signatureController: controller.signatureGudangController,
+              noteController: controller.catatanGudangController, // Ada Catatan
+              noteLabel: "Catatan Penerimaan"
           ),
 
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Tanda Tangan", style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText)),
-              GestureDetector(
-                onTap: () => controller.signatureGudangController.clear(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text("Reset", style: AppFonts.fUrbanistSemiBold12.copyWith(color: Colors.red)),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  Center(child: Text("Tanda tangan Bagian Gudang", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText.withOpacity(0.5)))),
-                  Signature(
-                    controller: controller.signatureGudangController,
-                    backgroundColor: Colors.transparent,
-                    width: double.infinity,
-                    height: 200,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: 80), // Spacer bawah
         ],
       ),
     );
   }
 
-  // --- STEP 4: SUPIR ---
+  // --- STEP 4: SUPIR (REVISI DESIGN) ---
   Widget _buildStep4Supir(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         children: [
           _buildProgressIndicator(controller.currentPage.value),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Tanda Tangan", style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText)),
-              GestureDetector(
-                onTap: () => controller.signatureSupirController.clear(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text("Reset", style: AppFonts.fUrbanistSemiBold12.copyWith(color: Colors.red)),
-                ),
-              ),
-            ],
+          _buildSignatureCard(
+            title: "Supir / Partner",
+            placeholder: "Tanda Tangan Pengirim disini",
+            signatureController: controller.signatureSupirController,
+            // Tidak ada catatan untuk supir
           ),
 
-          const SizedBox(height: 8),
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  Center(child: Text("Tanda tangan Supir", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText.withOpacity(0.5)))),
-                  Signature(
-                    controller: controller.signatureSupirController,
-                    backgroundColor: Colors.transparent,
-                    width: double.infinity,
-                    height: 400,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: 80), // Spacer bawah
         ],
       ),
     );
   }
 
-  Widget _buildMiniColumn(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppFonts.fUrbanistRegular10.copyWith(color: Colors.grey)),
-        Text(value, style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText)),
-      ],
-    );
-  }
-
+  // --- HELPER WIDGETS ---
   Widget _buildDimensionField(String label, TextEditingController ctrl, {bool readOnly = false}) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primary)),
+          Text(label, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
           const SizedBox(height: 6),
           TextFormField(
             controller: ctrl,
@@ -417,18 +489,18 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
             textAlign: TextAlign.center,
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFFF2F6FF),
+              fillColor: readOnly ? const Color(0xFFF2F6FF) : AppColors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Color(0xFFE3E8F0), width: 1),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Color(0xFFE3E8F0), width: 1),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
               ),
             ),
@@ -445,7 +517,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary)),
+          Text(label, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
           const SizedBox(height: 6),
           TextFormField(
             controller: ctrl,
@@ -454,19 +526,18 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFFF2F6FF),
+              fillColor: readOnly ? const Color(0xFFF2F6FF) : AppColors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              // BORDER CONFIGURATION
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Color(0xFFE3E8F0), width: 1),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Color(0xFFE3E8F0), width: 1),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
               ),
             ),
@@ -479,21 +550,19 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
 
   Widget _buildSummaryRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0), // Jarak antar baris text
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label (Kiri)
           Expanded(
             flex: 6,
             child: Text(
               label,
-              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primary),
+              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
             ),
           ),
           const SizedBox(width: 8),
-          // Value (Kanan)
           Expanded(
             flex: 4,
             child: Text(
@@ -509,10 +578,10 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 12.0),
+      padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
       child: Text(
         title,
-        style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText),
+        style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
       ),
     );
   }
@@ -520,11 +589,11 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF8F9FD), // Update background agar card terlihat
       appBar: AppBar(
         title: Text('Verifikasi BAST', style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.primary)),
         centerTitle: true,
-        backgroundColor: AppColors.background,
+        backgroundColor: const Color(0xFFF8F9FD),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
@@ -547,26 +616,33 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
             ),
           ),
 
-          // Sembunyikan tombol global jika sedang di Step 2
+          // Tombol Global (Muncul di Step 1, 3, 4)
+          // Step 2 sudah punya tombol sendiri
           Obx(() {
             if (controller.currentPage.value == 1) {
               return const SizedBox.shrink();
             }
 
-            return Padding(
+            return Container(
               padding: const EdgeInsets.all(24.0),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]
+              ),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: controller.nextPage,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 3,
+                    shadowColor: AppColors.primary.withOpacity(0.4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
-                    controller.currentPage.value >= 3 ? 'Submit' : 'Lanjut',
-                    style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.white),
+                    controller.currentPage.value >= 3 ? 'Submit Verifikasi' : 'Selanjutnya',
+                    style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
                   ),
                 ),
               ),

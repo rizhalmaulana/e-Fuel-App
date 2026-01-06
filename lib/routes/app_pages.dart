@@ -29,6 +29,10 @@ import '../modules/pengeluaran/bindings/pengeluaran_binding.dart';
 import '../modules/pengeluaran/bindings/pengeluaran_verifikasi_doc_binding.dart';
 import '../modules/pengeluaran/views/pengeluaran_verifikasi_doc_view.dart';
 import '../modules/pengeluaran/views/pengeluaran_view.dart';
+import '../modules/report/bindings/report_penerimaan_binding.dart';
+import '../modules/report/bindings/report_pengeluaran_binding.dart';
+import '../modules/report/views/report_penerimaan_view.dart';
+import '../modules/report/views/report_pengeluaran_view.dart';
 
 part 'app_routes.dart';
 
@@ -55,6 +59,9 @@ class AppPages {
   static const PENGELUARAN_VERIFIKASI_DOC = Routes.PENGELUARAN_VERIFIKASI_DOC;
   static const PENGELUARAN_TRACKING = Routes.PENGELUARAN_TRACKING;
   static const APPROVAL = Routes.APPROVAL;
+
+  static const REPORT_PENERIMAAN = Routes.REPORT_PENERIMAAN;
+  static const REPORT_PENGELUARAN = Routes.REPORT_PENGELUARAN;
 
   static final routes = [
     GetPage(
@@ -163,6 +170,16 @@ class AppPages {
       binding: ApprovalBindings(),
       transition: Transition.rightToLeftWithFade,
       transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.REPORT_PENERIMAAN,
+      page: () => const ReportPenerimaanView(),
+      binding: ReportPenerimaanBinding(),
+    ),
+    GetPage(
+      name: Routes.REPORT_PENGELUARAN,
+      page: () => const ReportPengeluaranView(),
+      binding: ReportPengeluaranBinding(),
     ),
   ];
 }

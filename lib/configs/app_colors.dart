@@ -21,6 +21,7 @@ abstract class AppColors {
   static const Color fuelGreen = Color(0xFF4CAF50); // Hijau untuk penerimaan
   static const Color fuelRed = Color(0xFFF44336); // Merah untuk pengeluaran
   static const Color alertSoftRed = Color(0xFFFA6E64); // Merah untuk pengeluaran
+  static const Color alertSoftOrange = Color(0xDAFFC693); // Merah untuk pengeluaran
   static const Color white = Colors.white;
   static const Color orange = Colors.orangeAccent;
 
