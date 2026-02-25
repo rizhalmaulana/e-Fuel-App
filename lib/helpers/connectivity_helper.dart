@@ -1,39 +1,60 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:e_fuel/helpers/lotties_helper.dart';
+import 'dart:io';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
-import '../configs/app_lotties.dart';
+import '../helpers/lotties_helper.dart';
 import '../widgets/dialog/dialog_flexible.dart';
 
-class ConnectivityHelper extends GetxService {
+class ConnectivityHelper {
 
-  Future<bool> checkConnection() async {
-    final connectivityResult = await (Connectivity().checkConnectivity());
+  static Future<bool> isConnected() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
 
-    if (connectivityResult == ConnectivityResult.none) {
-      await _showNoConnectionDialog(); // 👈 Panggil dialog, bukan snackbar
+  static Future<bool> validateNetwork() async {
+    bool hasInternet = await isConnected();
+
+    if (!hasInternet) {
+      // Tunggu aksi user di dialog, lalu kembalikan hasilnya ke controller
+      return await _showNoConnectionDialog();
+    }
+
+    return true; // Koneksi berhasil
+  }
+
+  static Future<bool> _showNoConnectionDialog() async {
+    if (Get.isDialogOpen == true) {
       return false;
     }
 
-    return true;
-  }
-
-  Future<void> _showNoConnectionDialog() async {
-    if (Get.isDialogOpen ?? false) {
-      return;
-    }
-
-    await Get.dialog(
+    // Tahan eksekusi dan tunggu hasil (result) dari aksi Get.back() di dalam dialog
+    final result = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieFailed(),
         title: 'Koneksi Terputus!',
-        message: 'Aplikasi memerlukan koneksi internet untuk proses ini. Harap hubungkan perangkat Anda ke jaringan yang stabil.',
+        message: 'Aplikasi memerlukan koneksi internet stabil untuk melakukan proses ini. Silakan cek jaringan Anda.',
+
         primaryButtonText: 'Tutup',
-        onPrimaryPressed: Get.back,
-        secondaryButtonText: null,
-        onSecondaryPressed: null,
+        onPrimaryPressed: () {
+          Get.back(result: false);
+        },
+        secondaryButtonText: "Coba Lagi",
+        onSecondaryPressed: () {
+          Get.back(result: true);
+        },
       ),
       barrierDismissible: false,
     );
+
+    // Jika user memilih Coba Lagi (result == true), validasi ulang secara rekursif
+    if (result == true) {
+      return await validateNetwork();
+    }
+
+    // Jika user memilih Tutup (result == false / null), batalkan semua proses
+    return false;
   }
 }

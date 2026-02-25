@@ -1,10 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 
 import 'package:e_fuel/configs/app_lotties.dart';
 import 'package:flutter/material.dart';
@@ -22,52 +17,28 @@ import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
-import '../../fuel/services/fuel_data_service.dart';
-import '../../fuel/services/master_data_service.dart';
-import '../../transactions/outstanding_service.dart';
-import '../../transactions/penerimaan/services/penerimaan_api_service.dart';
-import '../services/draft_penerimaan_service.dart';
+import '../repositories/penerimaan_verifikasi_bast_repository.dart';
 
 class PenerimaanVerifikasiBastController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
-  final FuelDataService _fuelDataService = Get.find<FuelDataService>();
-  final PenerimaanApiService _apiService = PenerimaanApiService();
-  final MasterDataService _masterDataService = MasterDataService();
 
-  late DraftPenerimaanService _draftService;
+  late PenerimaanVerifikasiBastRepository _repository;
 
-  // Data Utama
   final fillingDataList = <FillingModel>[].obs;
-  final ConnectivityHelper _connectivityHelper = Get.find<ConnectivityHelper>();
-
-  // Menampung Data Transaksi Lengkap (Sebelum Pengisian)
   final Rx<TransactionModel?> currentTransaction = Rx<TransactionModel?>(null);
 
-  // Data UI Header
+  // UI Header
   final totalVolumeDisplay = 0.0.obs;
   final tankListDisplay = <Map<String, String>>[].obs;
   final selectedStorage = "".obs;
   final activeNoBast = "".obs;
+  final activeNoPO = "".obs;
+  final isSensorApiActive = false.obs;
 
   final pageController = PageController();
   final currentPage = 0.obs;
 
-  // --- FORM CONTROLLERS (STEP 2) ---
-  final stdTinggiController = TextEditingController(text: "1605");
-  final stdLiterController = TextEditingController(text: "0"); // Hasil API Standar
-
-  final actTinggiController = TextEditingController(); // Input User
-  final volumeDiterimaLtrController = TextEditingController(text: "0"); // Hasil API Aktual
-
-  final stdPanjangController = TextEditingController(text: "0");
-  final stdLebarController = TextEditingController(text: "0");
-  // final stdTinggiController = TextEditingController(text: "0");
-
-  final actPanjangController = TextEditingController(text: "0");
-  final actLebarController = TextEditingController(text: "0");
-  // final actTinggiController = TextEditingController(text: "0");
-
-  // final volumeDiterimaLtrController = TextEditingController();
+  // Form Controllers
   final volumePengirimController = TextEditingController();
   final volumeKebunController = TextEditingController();
   final varianController = TextEditingController();
@@ -80,74 +51,42 @@ class PenerimaanVerifikasiBastController extends GetxController {
     penStrokeWidth: 3, penColor: AppColors.darkText, exportBackgroundColor: AppColors.white,
   );
 
-  Timer? _debounceTimer;
-
   @override
   void onInit() {
     super.onInit();
+    _initializeRepository();
+    _loadTransactionContext();
+  }
 
-    // Init Draft Service
+  void _initializeRepository() {
     final auth = _loginService.getCurrentAuth();
     if (auth != null) {
-      _draftService = DraftPenerimaanService(auth.user.username);
-    }
-
-    _loadTransactionContext();
-    _fetchLiterFromApi(1605, stdLiterController);
-    actTinggiController.addListener(_onActualHeightChanged);
-  }
-
-  void _onActualHeightChanged() {
-    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-
-    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
-      String text = actTinggiController.text.replaceAll('.', '').replaceAll(',', '.');
-      if (text.isEmpty) {
-        volumeDiterimaLtrController.text = "0";
-        volumeKebunController.text = "0"; // Update field bawah juga
-        hitungVarian();
-        return;
-      }
-
-      double? height = double.tryParse(text);
-      if (height != null) {
-        _fetchLiterFromApi(height, volumeDiterimaLtrController, isActual: true);
-      }
-    });
-  }
-
-  Future<void> _fetchLiterFromApi(double heightMm, TextEditingController targetCtrl, {bool isActual = false}) async {
-    int capacity = 10000;
-
-    final result = await _masterDataService.getLiterFromCalibration(
-        kapasitas: capacity,
-        tinggiMm: heightMm
-    );
-
-    if (result != null) {
-      String formatted = TextConvertHelper().formatNumber(result);
-      targetCtrl.text = formatted;
-
-      // Jika ini input aktual, update juga field "Volume Kebun" di bawah
-      if (isActual) {
-        volumeKebunController.text = formatted;
-        hitungVarian();
-      }
+      _repository = PenerimaanVerifikasiBastRepository(auth.user.username);
+    } else {
+      Get.offAllNamed(Routes.LOGIN);
     }
   }
 
+  // Load Data Sebelumnya pada Halaman Sebelumnya
   Future<void> _loadTransactionContext() async {
     final args = Get.arguments;
     if (args != null) {
-      if (args['noBast'] != null) {
+      // STORAGE CODE LANGSUNG DARI ARGUMEN
+      if (args['storageCode'] != null) {
+        selectedStorage.value = args['storageCode'];
+      }
+
+      // NOMOR BAST, NOMOR PO & LOAD FULL DATA TRANSAKSI
+      if (args['noBast'] != null && args['noPO'] != null) {
         activeNoBast.value = args['noBast'];
+        activeNoPO.value = args['noPO'];
         await _loadFullTransactionData(activeNoBast.value);
       }
 
+      // DATA TANGKI
       if (args['filling_models'] != null) {
         List<FillingModel> data = args['filling_models'] as List<FillingModel>;
         fillingDataList.assignAll(data);
-
         _calculateHeaderData(data);
       } else {
         await _reconstructFillingDataFromDraft();
@@ -164,45 +103,19 @@ class PenerimaanVerifikasiBastController extends GetxController {
     if (detailSebelum == null) return;
 
     try {
-      // 1. Ambil Data Sebelum (Manual & IoT) dari JSON Hive
-      Map<String, double> volBeforeMap = {};
-      Map<String, double> heightBeforeMap = {};
-      Map<String, double> volBeforeIoTMap = {};
-      Map<String, double> heightBeforeIoTMap = {};
+      Map<String, double> volBeforeMap = _repository.parseDetailJson(detailSebelum.manualTankDetailsJson, 'volume_manual', 'height_manual');
+      Map<String, double> heightBeforeMap = _repository.parseDetailJsonHeight(detailSebelum.manualTankDetailsJson, 'height_manual');
+      Map<String, double> volBeforeIoTMap = _repository.parseDetailJson(detailSebelum.iotTankDetailsJson, 'volume_iot', 'height_iot');
+      Map<String, double> heightBeforeIoTMap = _repository.parseDetailJsonHeight(detailSebelum.iotTankDetailsJson, 'height_iot');
 
-      if (detailSebelum.manualTankDetailsJson != null) {
-        List<dynamic> manualList = jsonDecode(detailSebelum.manualTankDetailsJson!);
-        for (var item in manualList) {
-          String code = item['tank_code'].toString().replaceAll(' ', '_');
-          volBeforeMap[code] = (item['volume_manual'] as num).toDouble();
-          heightBeforeMap[code] = (item['height_manual'] as num).toDouble();
-        }
-      }
+      final draftSesudah = await _repository.getDraftSesudah(activeNoBast.value);
 
-      if (detailSebelum.iotTankDetailsJson != null) {
-        List<dynamic> iotList = jsonDecode(detailSebelum.iotTankDetailsJson!);
-        for (var item in iotList) {
-          String code = item['tank_code'].toString().replaceAll(' ', '_');
-          volBeforeIoTMap[code] = ((item['volume_iot'] ?? item['volume']) as num).toDouble();
-          heightBeforeIoTMap[code] = ((item['height_iot'] ?? item['height']) as num).toDouble();
-        }
-      }
+      if (draftSesudah == null || draftSesudah.isEmpty) return;
 
-      // 2. Ambil Data Sesudah dari Draft Service
-      final draftSesudah = await _draftService.getDraftSesudah(activeNoBast.value);
-
-      if (draftSesudah == null || draftSesudah.isEmpty) {
-        print("⚠️ Draft Sesudah tidak ditemukan untuk ${activeNoBast.value}");
-        return;
-      }
-
-      // 3. Rebuild FillingModel List
       List<FillingModel> restoredList = [];
 
       draftSesudah.forEach((tankCodeRaw, values) {
-        // Tank Code di draft mungkin key-nya
         String tankCode = tankCodeRaw.toString();
-
         double volAfter = 0.0;
         double hAfter = 0.0;
 
@@ -211,15 +124,8 @@ class PenerimaanVerifikasiBastController extends GetxController {
           hAfter = double.tryParse(TextConvertHelper().cleanNumber(values['height'] ?? '0')) ?? 0.0;
         }
 
-        // Ambil Data Sebelum pasangan-nya
         double volBefore = volBeforeMap[tankCode] ?? 0.0;
         double hBefore = heightBeforeMap[tankCode] ?? 0.0;
-
-        // IoT Data (jika ada, jika tidak 0)
-        // Kita asumsikan IoT Sesudah tidak tersimpan di draft (karena live),
-        // jadi kita bisa set IoT Sesudah = IoT Sebelum atau 0 (sesuai kebutuhan logic)
-        // Disini kita set varian IoT 0 agar aman.
-
         double volIoTBefore = volBeforeIoTMap[tankCode] ?? 0.0;
         double hIoTBefore = heightBeforeIoTMap[tankCode] ?? 0.0;
 
@@ -238,7 +144,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
             volumeBeforeIoT: volIoTBefore,
             heightBeforeIoT: hIoTBefore,
-            volumeAfterIoT: volIoTBefore, // Anggap sama jika data live hilang
+            volumeAfterIoT: volIoTBefore,
             heightAfterIoT: hIoTBefore,
             volumeVariantIoT: 0,
             heightVariantIoT: 0
@@ -248,70 +154,73 @@ class PenerimaanVerifikasiBastController extends GetxController {
       fillingDataList.assignAll(restoredList);
       _calculateHeaderData(restoredList);
 
-      print("✅ Berhasil restore ${restoredList.length} data tangki dari draft.");
-
     } catch (e) {
-      print("❌ Error reconstructing filling data: $e");
       Get.snackbar("Error Data", "Gagal memulihkan data pengukuran: $e");
     }
   }
 
   Future<void> _loadFullTransactionData(String noBast) async {
-    final auth = _loginService.getCurrentAuth();
-    if (auth != null) {
-      final outstandingService = OutstandingService(auth.user.username);
-      final trx = await outstandingService.getTransactionByNoBast(noBast);
+    final trx = await _repository.getTransaction(noBast);
 
-      if (trx != null) {
-        currentTransaction.value = trx;
-        final detail = trx.dataSebelum;
-        if (detail != null) {
-          if (detail.storageCode != null) {
-            selectedStorage.value = detail.storageCode!;
-          }
-          if (detail.volumeVendor != null) {
-            volumePengirimController.text = TextConvertHelper().formatNumber(detail.volumeVendor!);
-          }
+    if (trx != null) {
+      currentTransaction.value = trx;
+      final detail = trx.dataSebelum;
+      if (detail != null) {
+        if (detail.storageCode != null && detail.storageCode!.isNotEmpty) {
+          selectedStorage.value = detail.storageCode!;
+        }
+
+        if (detail.volumeVendor != null) {
+          volumePengirimController.text = TextConvertHelper().formatNumber(detail.volumeVendor!);
+          hitungVarian(); // Trigger perhitungan varian awal
         }
       }
     }
   }
 
   void _calculateHeaderData(List<FillingModel> data) {
-    double tempTotal = 0.0;
+    double tempTotalAfter = 0.0;
+    double tempTotalReceived = 0.0;
     List<Map<String, String>> tempList = [];
 
     for (var item in data) {
-      tempTotal += item.volumeAfter; // Gunakan volume sesudah
+      tempTotalAfter += item.volumeAfter;
+      // Total yang diterima tangki kita adalah Sesudah - Sebelum
+      tempTotalReceived += item.volumeVariant;
+
       tempList.add({
         'code': item.tankCode.replaceAll('_', ' '),
-        'volume': "${TextConvertHelper().formatNumber(item.volumeAfter)} Ltr",
-        'height': "${TextConvertHelper().formatNumber(item.heightAfter)} cm", // Sesuaikan satuan jika mm
+        'volume': "${TextConvertHelper().formatNumber(item.volumeAfter)} L",
+        'height': "${TextConvertHelper().formatNumber(item.heightAfter)} mm",
       });
+
+      // Jika storage code belum diset oleh _loadFullTransactionData, ambil dari filling model
+      if (selectedStorage.value.isEmpty && item.storageCode.isNotEmpty) {
+        selectedStorage.value = item.storageCode;
+      }
     }
 
-    totalVolumeDisplay.value = tempTotal;
+    totalVolumeDisplay.value = tempTotalAfter;
     tankListDisplay.assignAll(tempList);
+
+    // Otomatis isi kolom "Volume Tangki Kebun" dengan Total Solar yang Diterima
+    volumeKebunController.text = TextConvertHelper().formatNumber(tempTotalReceived);
+    hitungVarian();
   }
 
   void hitungVarian() {
-    // Bersihkan format ribuan (misal: 10.000 -> 10000)
     double pengirim = double.tryParse(volumePengirimController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
     double kebun = double.tryParse(volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
 
-    double varian = kebun - pengirim;
+    // Varian adalah sisa solar di Pengirim (Pengirim - Diterima Kebun)
+    double varian = pengirim - kebun;
     varianController.text = TextConvertHelper().formatNumber(varian);
   }
 
   void nextPage() {
-    // Cek validasi halaman saat ini sebelum lanjut
     if (!_validateCurrentPage()) return;
-
     if (currentPage.value < 3) {
-      pageController.nextPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut
-      );
+      pageController.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
     } else {
       submitBast();
     }
@@ -319,7 +228,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   void previousPage() {
     if (currentPage.value > 0) {
-      pageController.previousPage(duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
+      pageController.previousPage(duration: const Duration(milliseconds: 500), curve: Curves.easeIn);
     } else {
       Get.back();
     }
@@ -328,76 +237,53 @@ class PenerimaanVerifikasiBastController extends GetxController {
   void onPageChanged(int index) { currentPage.value = index; }
 
   bool _validateCurrentPage() {
-    int page = currentPage.value;
-
-    if (page == 0) return true;
-
-    if (page == 1) {
-      return _validateStepPengukuran();
-    }
-
-    if (page == 2) return true;
+    if (currentPage.value == 1) return _validateStepPengukuran();
+    if (currentPage.value == 2) return _validateStepGudang();
+    if (currentPage.value == 3) return _validateStepSupir();
     return true;
   }
 
   bool _validateStepPengukuran() {
-    bool checkEmpty(TextEditingController ctrl, String fieldName) {
-      if (ctrl.text.trim().isEmpty) {
-        Get.snackbar("Data Kurang", "$fieldName wajib diisi.",
-            backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
-        return false;
-      }
-      return true;
-    }
-
-    // Validasi Field Baru
-    if (!checkEmpty(actTinggiController, "Tinggi Aktual (mm)")) return false;
-    if (!checkEmpty(volumePengirimController, "Volume Pengirim")) return false;
-
-    // Validasi Logic
-    double volDiterima = double.tryParse(volumeDiterimaLtrController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
-    if (volDiterima <= 0) {
-      Get.snackbar("Data Invalid", "Volume Solar Diterima masih 0. Pastikan tinggi diinput dengan benar.",
-          backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+    if (volumePengirimController.text.trim().isEmpty) {
+      Get.snackbar("Data Kurang", "Volume Pengirim wajib diisi.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
       return false;
     }
 
+    double volDiterima = double.tryParse(volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+    if (volDiterima <= 0) {
+      Get.snackbar("Data Invalid", "Volume Solar Diterima masih 0 atau minus. Pastikan data pengukuran valid.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateStepGudang() {
+    if (signatureGudangController.isEmpty) {
+      Get.snackbar("Tanda Tangan Kosong", "Mohon lengkapi Tanda Tangan Bagian Gudang.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateStepSupir() {
+    if (signatureSupirController.isEmpty) {
+      Get.snackbar("Tanda Tangan Kosong", "Mohon lengkapi Tanda Tangan Supir / Pengirim.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      return false;
+    }
     return true;
   }
 
   Future<void> submitBast() async {
-    if (signatureGudangController.isEmpty || signatureSupirController.isEmpty) {
-      Get.snackbar(
-          "Data Belum Lengkap",
-          "Mohon lengkapi tanda tangan Gudang dan Supir sebelum submit.",
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: AppColors.white,
-          snackPosition: SnackPosition.TOP
-      );
-      return;
-    }
-
-    bool isConnected = await _connectivityHelper.checkConnection();
-    if (!isConnected) {
-      _showConnectionErrorDialog();
-      return;
-    }
+    if (!await ConnectivityHelper.validateNetwork()) return;
 
     Get.dialog(
       DialogFlexible(
         logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),
         title: "Konfirmasi Submit",
-        message: "Apakah Anda yakin data sudah benar? Proses submit tidak dapat diubah kembali.",
-
+        message: "Apakah Anda yakin data dan tanda tangan sudah benar?",
         primaryColor: AppColors.primary,
-
-        // Tombol Batal
         secondaryButtonText: "Cek Lagi",
-        onSecondaryPressed: () {
-          Get.back();
-        },
-
-        // Tombol Submit (Langsung proses karena koneksi sudah dicek di awal)
+        onSecondaryPressed: () => Get.back(),
         primaryButtonText: "Ya, Submit",
         onPrimaryPressed: () {
           Get.back();
@@ -420,17 +306,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
             children: [
               const CircularProgressIndicator(color: AppColors.primary),
               const SizedBox(height: 24),
-              Text(
-                "Memproses Verifikasi...",
-                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Mengunggah tanda tangan & update status",
-                style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
-              ),
+              Text("Memproses Verifikasi...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText)),
             ],
           ),
         ),
@@ -439,26 +315,15 @@ class PenerimaanVerifikasiBastController extends GetxController {
     );
 
     try {
-      // =======================================================================
-      // STEP 0: PREPARE DATA & SAVE SIGNATURE LOCAL FIRST
-      // =======================================================================
-      if (signatureGudangController.isEmpty) {
-        throw "Tanda tangan Gudang (Penerima) wajib diisi!";
-      }
-
-      if (signatureSupirController.isEmpty) {
-        throw "Tanda tangan Supir/Partner wajib diisi!";
-      }
-
       final auth = _loginService.getCurrentAuth();
       final currentTx = currentTransaction.value;
+      if (auth == null || currentTx == null) throw "Data tidak valid.";
 
-      if (auth == null || currentTx == null) throw "Data user atau transaksi tidak valid.";
+      isSensorApiActive.value = false; // Pasang Function untuk Check API Nanti
 
-      File? fileGudang = await _saveSignature(
-          signatureGudangController, "ttd_gudang_${activeNoBast.value}.png");
-      File? fileSupir = await _saveSignature(
-          signatureSupirController, "ttd_supir_${activeNoBast.value}.png");
+      // Save Signatures
+      File? fileGudang = await _repository.saveSignatureToFile(signatureGudangController, "ttd_gudang_${activeNoBast.value}.png");
+      File? fileSupir = await _repository.saveSignatureToFile(signatureSupirController, "ttd_supir_${activeNoBast.value}.png");
 
       if (fileGudang == null || fileSupir == null) throw "Gagal menyimpan Tanda Tangan.";
 
@@ -466,14 +331,8 @@ class PenerimaanVerifikasiBastController extends GetxController {
       String kodeUnit = currentTransaction.value?.dataSebelum?.kodeUnit ?? "";
       String docType = currentTransaction.value?.dataSebelum?.docTypeCode ?? "FIN";
 
-      if (kodeUnit.isEmpty) {
-        throw "Kode Unit wajib diisi!";
-      }
-
-      /// =======================================================================
-      // STEP 1: HIT API - CEK KONFIGURASI APPROVAL
-      // =======================================================================
-      List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
+      // Validate Approval Config
+      List<KonfigurasiApprovalModel> configList = await _repository.getKonfigurasiApproval(
         transactionType: docType, kodeUnit: kodeUnit, statusActive: true,
       );
 
@@ -482,218 +341,83 @@ class PenerimaanVerifikasiBastController extends GetxController {
         orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval.",
       );
 
-      print("✅ Step 1: Validasi Approval Berhasil (ID: ${myConfig.id})");
-      print("✅ Step 1: Validasi Approval Berhasil: Step ${myConfig.stepApproval}");
-
-      // =======================================================================
-      // STEP 2: HIT API - CREATE INBOUND TANK
-      // =======================================================================
-
-      List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) {
-        return {
-          "kode_tank": item.tankCode,
-          "volume_terkini_liter": item.volumeBefore,
-          "tinggi_terkini_cm": item.heightBefore,
-          "volume_akhir_liter": item.volumeAfter,
-          "tinggi_akhir_cm": item.heightAfter,
-          "tinggi_var_cm": item.heightVariant,
-          "volume_var_liter": item.volumeVariant,
-        };
+      // Prepare Payload
+      List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) => {
+        "kode_tank": item.tankCode,
+        "volume_terkini_liter": (isSensorApiActive.value) ? item.volumeBeforeIoT : item.volumeBefore,
+        "tinggi_terkini_cm": (isSensorApiActive.value) ? item.heightBeforeIoT : item.heightBefore,
+        "volume_akhir_liter": (isSensorApiActive.value) ? item.volumeAfterIoT : item.volumeAfter,
+        "tinggi_akhir_cm": (isSensorApiActive.value) ? item.heightAfterIoT : item.heightAfter,
+        "tinggi_var_cm": (isSensorApiActive.value) ? item.heightVariantIoT : item.heightVariant,
+        "volume_var_liter": item.volumeVariant,
+        "input_type": (isSensorApiActive.value) ? "A" : "M", // A (Auto), M (Manual)
       }).toList();
 
-      List<Map<String, dynamic>> iotPayload = [];
-      for (var item in fillingDataList) {
-        iotPayload.add({
-          "kode_tank": item.tankCode,
-          "iot_volume_terkini_liter": item.volumeBeforeIoT,
-          "iot_tinggi_terkini_cm": item.heightBeforeIoT,
-          "iot_volume_akhir_liter": item.volumeAfterIoT,
-          "iot_tinggi_akhir_cm": item.heightAfterIoT,
-          "iot_volume_var_liter": item.volumeVariantIoT,
-          "iot_tinggi_var_cm": item.heightVariantIoT,
-        });
-      }
-
-      double parseTxt(TextEditingController ctrl) =>
-          double.tryParse(ctrl.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
-
-      List<Map<String, dynamic>> standarPayload = fillingDataList.map((item) {
-        return {
-          "kode_tank": item.tankCode,
-          // Field Panjang & Lebar dikirim 0
-          "std_panjang_tangki_kebun": 0,
-          "std_lebar_tangki_kebun": 0,
-          "std_tinggi_tangki_kebun": parseTxt(stdTinggiController), // 1605
-
-          "std_panjang_diterima": 0,
-          "std_lebar_diterima": 0,
-          "std_tinggi_diterima": parseTxt(actTinggiController), // Input User
-
-          "volume_solar_diterima": parseTxt(volumeDiterimaLtrController), // Hasil API
-          "volume_tangki_pengirim": parseTxt(volumePengirimController),
-          "var_solar_tangki": parseTxt(varianController),
-        };
-      }).toList();
-
-      Map<String, dynamic> inboundPayload = {
+      // Submit Inbound Tank
+        await _repository.createInboundTank({
         "no_doc": activeNoBast.value,
+        "no_po": activeNoPO.value,
         "tanks": tanksPayload,
-        "iot_tanks": iotPayload,
-        "ukuran_standar_tanks": standarPayload, // Payload Standar Baru
-      };
+      });
 
-      await _apiService.createInboundTank(inboundPayload);
-      print("✅ Step 2: Create Inbound Tank Berhasil");
-
-      // =======================================================================
-      // STEP 3: HIT API - CREATE TRANSACTION APPROVAL (MULTIPART)
-      // =======================================================================
-
+      // Create Approval
       try {
-        print("⏳ Step 3: Create Transaction Approval (Init)...");
-        await _apiService.createTransactionApproval(
-          noDoc: activeNoBast.value,
-          kodeUnit: kodeUnit,
-          transactionType: docType,
+        await _repository.createTransactionApproval(
+          noDoc: activeNoBast.value, kodeUnit: kodeUnit, transactionType: docType,
         );
-        print("✅ Step 3: Transaction Approval Created");
-      } catch (e) {
-        print("⚠️ Step 3 Warning: $e");
-      }
+      } catch (e) { print("Warning create approval: $e"); }
 
-      // =======================================================================
-      // STEP 4: HIT API - UPDATE STATUS TRANSACTION
-      // =======================================================================
-
-      print("⏳ Step 4: Uploading Signature & Updating Status...");
-
-      await _apiService.updateStatusTransactionApproval(
+      // Update Status & Upload Sign
+      await _repository.updateStatusTransactionApproval(
         noDoc: activeNoBast.value,
         levelApproval: myConfig.levelApproval ?? "1",
         statusApprove: "APPROVED",
-        catatan: catatanGudangController.text.isEmpty
-            ? "Verifikasi BAST Selesai"
-            : catatanGudangController.text,
-        isSign: true,
-        isPartnerSign: true,
+        catatan: catatanGudangController.text.isEmpty ? "Verifikasi BAST Selesai" : catatanGudangController.text,
+        isSign: true, isPartnerSign: true,
       );
-      print("✅ Step 4: Status Updated");
 
-      // =======================================================================
-      // STEP 5: HIT API - UPLOAD SIGNATURE IMAGE (NEW)
-      // =======================================================================
-
-      print("⏳ Step 5: Uploading Signature Files...");
-      await _apiService.uploadSignatureTransactionApproval(
+      await _repository.uploadSignatureTransactionApproval(
         noDoc: activeNoBast.value,
         levelApproval: myConfig.levelApproval ?? "1",
-        imageSign1: fileGudang,
-        imageSign2: fileSupir,
+        imageSign1: fileGudang, imageSign2: fileSupir,
       );
-      print("✅ Step 5: Signature Uploaded");
 
-      // =======================================================================
-      // FINAL: Save Local Data & Close
-      // =======================================================================
-
+      // Save Local & Update Status Local
       for (var item in fillingDataList) {
-        await _fuelDataService.saveManualTankInput(
-            tankCode: item.tankCode,
-            volume: item.volumeAfter,
-            height: item.heightAfter
-        );
+        await _repository.saveManualTankInput(tankCode: item.tankCode, volume: item.volumeAfter, height: item.heightAfter);
       }
 
-      final outstandingService = OutstandingService(auth.user.username);
-
-      await outstandingService.updateStatus(
+      await _repository.updateLocalTransactionStatus(
         activeNoBast.value,
         'approval_kasie',
         levelApproval: myConfig.levelApproval,
         stepApproval: myConfig.stepApproval,
       );
 
-      var transaction = await outstandingService.getTransactionByNoBast(activeNoBast.value);
-      if (transaction != null) {
-        transaction.status = 'approval_kasie';
-        await transaction.save();
-      }
-
       Get.back();
-      _showResultDialog(
-        isSuccess: true,
-        message: "Dokumen berhasil disetujui dan diteruskan ke Kasie untuk approval selanjutnya.",
-      );
+      _showResultDialog(isSuccess: true, message: "Dokumen berhasil disetujui dan diteruskan.");
 
     } catch (e) {
       Get.back();
 
-      print("❌ Error Submit (Raw): $e");
-      String userMessage = TextConvertHelper().handleApiError(e);
+      String errorMessage = (e is String) ? e : TextConvertHelper().handleApiError(e);
+      print("ERROR SUBMIT BAST: $e");
 
-      _showResultDialog(
-          isSuccess: false,
-          message: userMessage
-      );
+      _showResultDialog(isSuccess: false, message: errorMessage);
     }
-  }
-
-  Future<File?> _saveSignature(SignatureController controller, String fileName) async {
-    if (controller.isEmpty) return null;
-
-    final Uint8List? data = await controller.toPngBytes();
-    if (data == null) return null;
-
-    final Directory dir = await getApplicationDocumentsDirectory();
-    final String fullPath = p.join(dir.path, fileName);
-
-    final File file = File(fullPath);
-    await file.writeAsBytes(data);
-
-    print("Tanda tangan disimpan di: $fullPath");
-    return file;
   }
 
   void _showResultDialog({required bool isSuccess, required String message}) {
     Get.dialog(
       DialogFlexible(
-        logo: Lottie.asset(
-          isSuccess ? AppLotties.success : AppLotties.failed,
-          width: 150,
-          height: 150,
-          repeat: isSuccess ? false : true,
-        ),
+        logo: Lottie.asset(isSuccess ? AppLotties.success : AppLotties.failed, width: 150, height: 150, repeat: !isSuccess),
         title: isSuccess ? "Berhasil" : "Gagal Memproses",
         message: message,
         primaryButtonText: isSuccess ? "Selesai" : "Tutup",
         onPrimaryPressed: () {
           Get.back();
-
-          if (isSuccess) {
-            Get.offNamed(Routes.PENERIMAAN_TRACKING, arguments: activeNoBast.value);
-          }
+          if (isSuccess) Get.offNamed(Routes.PENERIMAAN_TRACKING, arguments: activeNoBast.value);
         },
-      ),
-      barrierDismissible: false,
-    );
-  }
-
-  void _showConnectionErrorDialog() {
-    if (Get.isDialogOpen ?? false) return;
-
-    Get.dialog(
-      DialogFlexible(
-        logo: Lottie.asset(
-          AppLotties.failed,
-          width: 150,
-          height: 150,
-          repeat: true,
-        ),
-        title: "Koneksi Bermasalah",
-        message: "Gagal terhubung ke server. Pastikan koneksi internet Anda stabil dan coba lagi.",
-
-        primaryButtonText: "Tutup",
-        onPrimaryPressed: () => Get.back(),
       ),
       barrierDismissible: false,
     );
@@ -701,29 +425,9 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   @override
   void onClose() {
-    _debounceTimer?.cancel();
-
-    // Dispose Controller Step 2 (Yang Aktif)
-    stdTinggiController.dispose();
-    stdLiterController.dispose();
-    actTinggiController.dispose();
-    volumeDiterimaLtrController.dispose();
-
-    stdPanjangController.dispose();
-    stdLebarController.dispose();
-
-    actPanjangController.dispose();
-    actLebarController.dispose();
-
-    // Dispose Controller Lainnya
-    volumePengirimController.dispose();
-    volumeKebunController.dispose();
-    varianController.dispose();
-
-    catatanGudangController.dispose();
-    signatureGudangController.dispose();
-    signatureSupirController.dispose();
-
+    volumePengirimController.dispose(); volumeKebunController.dispose();
+    varianController.dispose(); catatanGudangController.dispose();
+    signatureGudangController.dispose(); signatureSupirController.dispose();
     pageController.dispose();
     super.onClose();
   }

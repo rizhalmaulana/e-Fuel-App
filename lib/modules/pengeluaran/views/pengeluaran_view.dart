@@ -4,13 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../configs/app_colors.dart';
 import '../../../configs/app_fonts.dart';
-import '../../../helpers/separator_input_formatter.dart';
+import '../../../helpers/decimal_input_formatter.dart';
+import '../../../widgets/component/auto_scroll_text.dart';
 import '../controllers/pengeluaran_controller.dart';
 
 class PengeluaranView extends GetView<PengeluaranController> {
   const PengeluaranView({super.key});
 
-  static const Color _colorEditable = AppColors.alertSoftOrange;
+  static const Color _colorEditable = AppColors.alertSoftOrangeSecond;
   static const Color _colorReadOnly = AppColors.backgroundGrey;
 
   // --- HELPER: SECTION CARD ---
@@ -126,10 +127,26 @@ class PengeluaranView extends GetView<PengeluaranController> {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primaryOrange)),
       ),
       hint: Text(hint ?? '', style: AppFonts.fUrbanistLight12.copyWith(color: AppColors.secondaryText)),
-      items: items.map((String value) {
+      selectedItemBuilder: (BuildContext context) {
+        return items.map<Widget>((String item) {
+          // Panggil widget running text yang baru kita buat
+          return AutoScrollText(
+            text: item.toUpperCase(),
+            style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+          );
+        }).toList();
+      },
+
+      // Tampilan List saat Dropdown Dibuka (Tetap menggunakan Text biasa)
+      items: items.map((String val) {
         return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value.toUpperCase(), style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText), overflow: TextOverflow.ellipsis, maxLines: 1),
+          value: val,
+          child: Text(
+              val.toUpperCase(),
+              style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1
+          ),
         );
       }).toList(),
       onChanged: onChanged,
@@ -235,13 +252,12 @@ class PengeluaranView extends GetView<PengeluaranController> {
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20), onPressed: () => Get.back()),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 30 + MediaQuery.of(context).padding.bottom),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // =========================================================
-            // CARD 1: INFORMASI UNIT & TRANSAKSI (GABUNGAN)
+            // CARD 1: INFORMASI UNIT & TRANSAKSI
             // =========================================================
             _buildSectionCard(
               title: "Jenis Transaksi & Unit",
@@ -310,67 +326,120 @@ class PengeluaranView extends GetView<PengeluaranController> {
             // CARD 2: DATA OPERASIONAL (CONDITIONAL: HIDDEN IF TAMU)
             // =========================================================
             Obx(() {
-              if (controller.isTamu) return const SizedBox.shrink();
-
               return _buildSectionCard(
-                title: "Data Operasional",
+                title: "Data HM/KM",
                 icon: Icons.speed_rounded,
                 children: [
-                  // Logic HM/KM & Date
-                  Obx(() {
-                    if (controller.tipeUnit.value == null) return const SizedBox.shrink();
-                    String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
-                    String labelPrefix = (tipe == "AB") ? "HM" : "KM";
 
-                    if (controller.isTipeKendaraan) {
-                      return Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("$labelPrefix Awal"),
-                          _buildTextField(controller: controller.hmKmAwalC, readOnly: controller.isHmKmAwalReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                        ])),
+                  // --- BAGIAN A: HM/KM/RATIO ---
+                  if (!controller.isTamu) ...[
+                    // Logic HM/KM & Date
+                    Obx(() {
+                      if (controller.tipeUnit.value == null) return const SizedBox.shrink();
+                      String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
+                      String labelPrefix = (tipe == "AB") ? "HM" : "KM";
+
+                      if (controller.isTipeKendaraan) {
+                        return Row(children: [
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("$labelPrefix Sebelumnya"),
+                            _buildTextField(controller: controller.hmKmAwalC, readOnly: controller.isHmKmAwalReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                          ])),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("$labelPrefix Saat ini"),
+                            _buildTextField(controller: controller.hmKmAkhirC, readOnly: controller.isHmKmAkhirReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                          ])),
+                        ]);
+                      } else {
+                        return Row(children: [
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("Tanggal Awal"),
+                            _buildTextField(controller: controller.dateAwalC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, true)),
+                          ])),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("Tanggal Akhir"),
+                            _buildTextField(controller: controller.dateAkhirC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, false)),
+                          ])),
+                        ]);
+                      }
+                    }),
+
+                    const SizedBox(height: 12),
+
+                    // Logic Selisih & Rasio
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Obx(() {
+                                String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
+                                String prefix = (tipe == "AB") ? "HM" : "KM";
+                                return _buildLabel("Varian $prefix");
+                              }),
+
+                              _buildTextField(
+                                  controller: controller.varianC,
+                                  readOnly: controller.isVarianReadOnly.value,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  hint: "0"),
+                            ],
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("$labelPrefix Akhir"),
-                          _buildTextField(controller: controller.hmKmAkhirC, readOnly: controller.isHmKmAkhirReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                        ])),
-                      ]);
-                    } else {
-                      return Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("Tanggal Awal"),
-                          _buildTextField(controller: controller.dateAwalC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, true)),
-                        ])),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("Tanggal Akhir"),
-                          _buildTextField(controller: controller.dateAkhirC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, false)),
-                        ])),
-                      ]);
-                    }
-                  }),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel("Rasio"),
+                              _buildTextField(
+                                controller: controller.ratioInput,
+                                readOnly: controller.isRatioReadOnly.value,
+                                hint: "0",
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                // Tambahkan formatter jika perlu
+                                customFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                                  DecimalInputFormatter(),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
 
-                  const SizedBox(height: 12),
+                    _buildDivider(),
+                  ],
+                  // --- END BAGIAN A ---
 
-                  // Logic Selisih & Rasio
+
+                  // --- BAGIAN B: ESTIMASI LITER & IO ---
                   Row(
                     children: [
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _buildLabel("Selisih"),
+                        _buildLabel("Estimasi Liter"),
                         _buildTextField(
-                            controller: controller.varianC,
-                            readOnly: controller.isVarianReadOnly.value,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            hint: "0"),
+                          controller: controller.pengisianSolarC, // atau ratioC / hmKmAwalC
+                          readOnly: controller.isLiterReadOnly.value,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          hint: "Input Liter",
+                          customFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')), // Izinkan angka, titik, koma
+                            DecimalInputFormatter(),
+                          ],
+                        ),
                       ])),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _buildLabel("Rasio"),
-                        _buildTextField(
-                          controller: controller.ratioC,
-                          readOnly: controller.isRatioReadOnly.value,
-                          hint: "0",
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        ),
+                        Obx(() => _buildLabel(controller.isTamu ? "Cost Center" : "No. IO")),
+                        Obx(() => _buildTextField(
+                            controller: controller.ioController,
+                            readOnly: controller.isIoReadOnly.value,
+                            hint: controller.isTamu ? "Input Cost Center" : "-")),
                       ])),
                     ],
                   ),
@@ -379,39 +448,14 @@ class PengeluaranView extends GetView<PengeluaranController> {
             }),
 
             // =========================================================
-            // CARD 3: DETAIL PENGISIAN & VERIFIKASI (GABUNGAN)
+            // CARD 3: IDENTITAS SUPIR & KETERANGAN
             // =========================================================
             _buildSectionCard(
-              title: "Estimasi Liter & Supir",
-              icon: Icons.local_gas_station_rounded,
+              title: "Identitas Supir", // Judul disesuaikan
+              icon: Icons.person_pin_circle_rounded, // Icon diganti agar lebih sesuai
               children: [
-                // Baris 1: Liter & IO/CostCenter
-                Row(
-                  children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _buildLabel("Estimasi Liter"),
-                      Obx(() => _buildTextField(
-                        controller: controller.pengisianSolarC,
-                        readOnly: controller.isLiterReadOnly.value,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        hint: "Input Liter",
-                        customFormatters: [SeparatorInputFormatter()],
-                      )),
-                    ])),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Obx(() => _buildLabel(controller.isTamu ? "Cost Center" : "No. IO")),
-                      Obx(() => _buildTextField(
-                          controller: controller.ioController,
-                          readOnly: controller.isIoReadOnly.value,
-                          hint: controller.isTamu ? "Input Cost Center" : "-")),
-                    ])),
-                  ],
-                ),
 
-                _buildDivider(), // Garis pemisah
-
-                // Baris 2: Nama Supir
+                // Baris 1: Nama Supir (Naik ke atas)
                 Obx(() {
                   String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
                   String label = "Nama Supir";
@@ -421,7 +465,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
                 }),
                 _buildTextField(controller: controller.driverNameC, hint: "Input Nama Lengkap"),
 
-                // Baris 3: Keterangan
+                // Baris 2: Keterangan
                 const SizedBox(height: 12),
                 _buildLabel("Keterangan"),
                 _buildTextField(controller: controller.keteranganC, hint: "Tambahkan Catatan (Opsional)...", maxLines: 1),

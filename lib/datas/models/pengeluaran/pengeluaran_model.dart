@@ -79,6 +79,12 @@ class PengeluaranModel extends HiveObject {
   @HiveField(24)
   String? satuan;
 
+  @HiveField(25)
+  String? kategoriKendaraan;
+
+  @HiveField(26)
+  String? jenisPengeluaran;
+
   PengeluaranModel({
     this.noDoc,
     this.noIo,
@@ -105,5 +111,7 @@ class PengeluaranModel extends HiveObject {
     this.tanggalAkhir,
     this.tanggalAwal,
     this.satuan,
+    this.kategoriKendaraan,
+    this.jenisPengeluaran,
   });
 }

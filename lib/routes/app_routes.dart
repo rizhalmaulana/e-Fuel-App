@@ -28,7 +28,10 @@ abstract class Routes {
 
   // Report
   static const REPORT_PENERIMAAN = _Paths.REPORT_PENERIMAAN;
+  static const REPORT_DETAIL_PENERIMAAN = _Paths.REPORT_DETAIL_PENERIMAAN;
+
   static const REPORT_PENGELUARAN = _Paths.REPORT_PENGELUARAN;
+  static const REPORT_DETAIL_PENGELUARAN = _Paths.REPORT_DETAIL_PENGELUARAN;
 }
 
 abstract class _Paths {
@@ -51,6 +54,10 @@ abstract class _Paths {
   static const PENGELUARAN_BPB_HARIAN = '/pengeluaran-bpb-harian';
 
   static const APPROVAL = '/approval';
+
   static const REPORT_PENERIMAAN = '/report-penerimaan';
+  static const REPORT_DETAIL_PENERIMAAN = '/report-detail-penerimaan';
+
   static const REPORT_PENGELUARAN = '/report-pengeluaran';
+  static const REPORT_DETAIL_PENGELUARAN = '/report-detail-pengeluaran';
 }

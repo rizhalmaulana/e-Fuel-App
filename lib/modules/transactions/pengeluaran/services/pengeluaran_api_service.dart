@@ -441,6 +441,53 @@ class PengeluaranApiService {
     }
   }
 
+  Future<dynamic> updateAktualLiterPengeluaran({
+    required String noDoc,
+    required double aktual,
+    required double varianLiter,
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    String endpoint = UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN;
+    String url;
+
+    if (endpoint.contains('{no_doc}')) {
+      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
+    } else {
+      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
+    }
+
+    Map<String, dynamic> payload = {
+      'aktual_liter': aktual,
+      'varian_liter': varianLiter
+    };
+
+    print("🔵 [DEBUG] URL Update Aktual Liter: $url");
+    print("🔵 [DEBUG] Payload: $payload");
+
+    try {
+      var response = await _dio.post(
+        url,
+        data: payload,
+        options: Options(
+            contentType: 'application/json',
+            headers: {
+              "Authorization": "Bearer $token",
+            }
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [UPDATE ERROR] Status: ${e.response?.statusCode}");
+        print("❌ [UPDATE ERROR] Data: ${e.response?.data}");
+      }
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> createTransactionBpb({
     required Map<String, dynamic> payload,
   }) async {

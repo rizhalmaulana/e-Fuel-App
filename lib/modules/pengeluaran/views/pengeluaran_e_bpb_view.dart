@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 import 'package:signature/signature.dart';
-import '../controllers/pengeluaran_bpb_harian_controller.dart';
+import '../controllers/pengeluaran_e_bpb_controller.dart';
 
 class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
   const PengeluaranBpbHarianView({super.key});
@@ -170,7 +170,7 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
               scrollDirection: Axis.vertical,
               child: DataTable(
                 headingRowColor:
-                    MaterialStateProperty.all(AppColors.backgroundField),
+                    MaterialStateProperty.all(AppColors.fieldBackground),
                 columnSpacing: 20,
                 horizontalMargin: 15,
                 dataRowHeight: 60,
@@ -202,7 +202,7 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                     cells: [
                       DataCell(Text(item.namaUnit ?? "-",
                           style: AppFonts.fUrbanistMedium12)),
-                      DataCell(Text("${item.liter?.toStringAsFixed(0)}",
+                      DataCell(Text("${item.aktualLiter?.toStringAsFixed(0)}",
                           style: AppFonts.fUrbanistMedium12)),
                       DataCell(Text(item.noIo ?? "-",
                           style: AppFonts.fUrbanistMedium12)),
@@ -357,15 +357,38 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
   }
 
   Widget _buildStep1Data(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          _buildCompactHeader(context),
-          const SizedBox(height: 10),
-          _buildDataTable(),
-          const SizedBox(height: 20),
-          SizedBox(
+    return Column(
+      children: [
+        // 1. Konten Scrollable (Header & Table)
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                _buildCompactHeader(context),
+                const SizedBox(height: 16),
+                _buildDataTable(),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Tombol Sticky di Bawah
+        Container(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
+              )
+            ],
+          ),
+          child: SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
@@ -376,26 +399,47 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                       borderRadius: BorderRadius.circular(12))),
               child: Text("Proses Tanda Tangan",
                   style:
-                      AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
+                  AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
             ),
           ),
-          const SizedBox(height: 30),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildStep2Signature(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          _buildSummaryCard(),
-          const SizedBox(height: 24),
-          _buildSignatureSection(),
-          const SizedBox(height: 24),
-          SizedBox(
+    return Column(
+      children: [
+        // 1. Konten Scrollable (Summary & Signature)
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                _buildSummaryCard(),
+                const SizedBox(height: 24),
+                _buildSignatureSection(),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Tombol Sticky di Bawah
+        Container(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
+              )
+            ],
+          ),
+          child: SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
@@ -406,12 +450,11 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                       borderRadius: BorderRadius.circular(12))),
               child: Text("Submit E-BPB",
                   style:
-                      AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
+                  AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
             ),
           ),
-          const SizedBox(height: 30),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

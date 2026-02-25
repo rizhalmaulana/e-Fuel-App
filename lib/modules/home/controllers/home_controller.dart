@@ -5,16 +5,19 @@ import 'package:e_fuel/configs/app_colors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../configs/app_icons.dart';
 import '../../../configs/app_lotties.dart';
 import '../../../datas/models/auth/auth_response_model.dart';
+import '../../../datas/models/inbound/inbound_model.dart';
 import '../../../datas/models/master_storage/master_storage_model.dart';
 import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
 import '../../../datas/models/user/user_model.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
+import '../../../helpers/connectivity_helper.dart';
 import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 
@@ -32,16 +35,16 @@ import '../../transactions/outstanding_service.dart';
 // Models
 import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
+import '../services/home_service.dart';
 
 class HomeController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
   final FuelDataService _fuelDataService = Get.find<FuelDataService>();
-  final FuelSensorService _sensorService = Get.find<
-      FuelSensorService>(); // Tetap di keep jika butuh background process
-  final NotificationService _notificationService =
-      Get.find<NotificationService>();
+  final FuelSensorService _sensorService = Get.find<FuelSensorService>();
+  final NotificationService _notificationService = Get.find<NotificationService>();
   final MasterDataService _masterDataService = MasterDataService();
   final ApprovalService _approvalService = ApprovalService();
+  final HomeService _homeService = Get.put(HomeService(), permanent: true);
 
   // Data User
   final userName = 'User'.obs;
@@ -49,8 +52,11 @@ class HomeController extends GetxController {
   final unitTitle = 'FLE'.obs;
   final greeting = 'Selamat Datang di Aplikasi e-Fuel'.obs;
   final profileInitials = 'UU'.obs;
+  final isLoading = false.obs;
+  final isTankDetailExpanded = false.obs;
 
   // Menu List dan Unit List (Reactive)
+  final selectedMenuCategory = 0.obs;
   final menuList = <Map<String, dynamic>>[].obs;
   final availableUnits = <Map<String, dynamic>>[].obs;
 
@@ -65,12 +71,12 @@ class HomeController extends GetxController {
   // UI Display
   final totalVolumeDisplay = 0.0.obs;
   final tankListDisplay = <Map<String, String>>[].obs;
+  final lastUpdateTime = '-'.obs;
 
   // Transaksi
-  final ongoingTransactions = <Map<String, dynamic>>[].obs;
-  final historyTransactions = <Map<String, dynamic>>[].obs;
   final selectedTransactionTab = 0.obs;
-  final outstandingTransactions = <Map<String, dynamic>>[].obs;
+  final approvalTransactions = <Map<String, dynamic>>[].obs; // Transaksi yang berjalan dan membutuhkan approval
+  final outstandingTransactions = <Map<String, dynamic>>[].obs; // Transaksi yang belum dibuat karena tidak dilanjutkan
 
   // Permissions
   final deniedPermissionsList = <String>[].obs;
@@ -86,9 +92,13 @@ class HomeController extends GetxController {
     _initNotificationPermission();
     checkAndRequestPermissions();
 
-    _loadDataForActiveUser().then((success) {
+    isLoading.value = true;
+
+    _loadDataForActiveUser().then((success) async {
       if (success) {
-        _initialDataSync();
+        await _initialDataSync();
+
+        isLoading.value = false;
       } else {
         Get.offAllNamed(Routes.LOGIN);
       }
@@ -127,14 +137,23 @@ class HomeController extends GetxController {
   }
 
   Future<void> _initialDataSync() async {
+    // Cek Koneksi sebelum submit
+    if (!await ConnectivityHelper.validateNetwork()) return;
+
     final auth = _loginService.getCurrentAuth();
     if (auth == null) return;
 
+    // Reset list sebelum load ulang agar tidak duplikat saat refresh unit
+    outstandingTransactions.clear();
+    approvalTransactions.clear();
+
     if (auth.user.isApprover) {
-      _loadApproverTransactions();
+      await _loadApproverTransactions();
     } else {
-      _loadOutstandingTransactions();
+      // Load Server
+      await _loadServerOpenTransactions();
     }
+
     _syncMasterDataFromServer();
   }
 
@@ -179,7 +198,6 @@ class HomeController extends GetxController {
       return true;
     }).toList();
 
-    // Sorting
     activeTanks.sort((a, b) {
       String codeA = a.masterSolarTank?.kodeTank ?? '';
       String codeB = b.masterSolarTank?.kodeTank ?? '';
@@ -188,21 +206,26 @@ class HomeController extends GetxController {
 
     for (var tank in activeTanks) {
       final tankCode = tank.masterSolarTank?.kodeTank ?? 'Unknown';
-
       double vol = (tank.volume ?? 0).toDouble();
-      double h = (tank.height ?? 0).toDouble();
-
       totalVol += vol;
 
+      DateTime? serverTime = DateTime.tryParse(tank.createdAt.toString());
+      DateTime localTime = serverTime != null ? serverTime.toLocal() : DateTime.now();
+      String formattedTime = DateFormat('dd MMM, HH:mm', 'id_ID').format(localTime);
+
       tempList.add({
-        'code': tankCode.replaceAll('_', ' '),
-        'volume': "${vol.toStringAsFixed(0)} Ltr",
-        'height': "${h.toStringAsFixed(0)} cm",
+        'code': tankCode.replaceAll('_', ' '), // TANK_01 jadi TANK 01
+        'volume': "${TextConvertHelper().formatNumber(vol)} L", // Format angka langsung disini
+        'last_update': formattedTime,
       });
     }
 
     totalVolumeDisplay.value = totalVol;
     tankListDisplay.assignAll(tempList);
+  }
+
+  void toggleTankDetail() {
+    isTankDetailExpanded.value = !isTankDetailExpanded.value;
   }
 
   Future<void> _fetchAndSetUnitTitle(String unitCode) async {
@@ -232,170 +255,213 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<bool> _hasInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
+
+  List<Map<String, dynamic>> get filteredMenuList {
+    // Kategori Penerimaan
+    if (selectedMenuCategory.value == 0) {
+      return menuList.where((menu) {
+        String action = menu['action'].toString();
+        return action.contains('input_penerimaan');
+      }).toList();
+    } else if (selectedMenuCategory.value == 1) {
+      return menuList.where((menu) {
+        String action = menu['action'].toString();
+        return action.contains('input_pengeluaran') ||
+            action.contains('input_e_bpb');
+      }).toList();
+    } else {
+      return menuList.where((menu) {
+        String action = menu['action'].toString();
+        return action.contains('riwayat');
+      }).toList();
+    }
+  }
+
+  void changeMenuCategory(int index) {
+    selectedMenuCategory.value = index;
+  }
+
+  Future<void> onRefreshData() async {
+    if (!await ConnectivityHelper.validateNetwork()) return;
+
+    isLoading.value = true;
+
+    try {
+      await _initialDataSync();
+
+      // Ambil kode saat ini
+      if (selectedUnitCode.value.isNotEmpty && selectedStorage.value.isNotEmpty) {
+        final storageCode = _getStorageCode(selectedStorage.value);
+
+        // Refresh Firebase dengan path spesifik
+        await _homeService.initDataFlow(selectedUnitCode.value, storageCode);
+
+        await _fetchManualTanksApi(selectedUnitCode.value, storageCode);
+      }
+    } catch (e) {
+      print("Error saat refresh: $e");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<void> _loadApproverTransactions() async {
     final authData = _loginService.getCurrentAuth();
     if (authData == null) return;
 
     final user = authData.user;
+    // Mengambil level user
     String userLevel = user.otorisasi.isNotEmpty ? user.otorisasi.first : '';
+    // Mengambil kode unit
     String kodeUnit = authData.currentKodeUnit ?? '';
 
     try {
+      // Panggil API TANPA memfilter level_approval.
+      // Tujuannya agar kita mendapat seluruh rantai approval yang masih PENDING.
       final apiResult = await _approvalService.getApprovalList(
-        kodeUnit: kodeUnit,
-        transactionType: "FIN"
+          kodeUnit: kodeUnit,
+          levelApproval: null, // <-- Ubah parameter ini menjadi null
+          transactionType: "FIN",
+          statusApprove: "PENDING"
       );
 
-      final List<Map<String, dynamic>> tempOngoing = [];
-      final List<Map<String, dynamic>> tempHistory = [];
+      // Kelompokkan data berdasarkan noBast
+      Map<String, List<dynamic>> groupedApprovals = {};
 
       for (var item in apiResult) {
-        if (item.levelApproval != userLevel) {
-          continue;
+        String noBast = item.noBast ?? '-';
+        if (!groupedApprovals.containsKey(noBast)) {
+          groupedApprovals[noBast] = [];
         }
-
-        String title = 'Penerimaan Solar';
-        String iconPath = AppIcons.icPenerimaan;
-        Color iconColor = AppColors.primary;
-
-        String displayInfo = item.noBast ?? item.noPo ?? '-';
-
-        final mapData = {
-          'noBast': item.noBast,
-          'title': title,
-          'type': item.transactionType,
-          'date':
-              TextConvertHelper().formatDate(item.createdAt ?? item.tglApprove),
-          'amount': displayInfo,
-          'status': item.statusApprove,
-          'unit': kodeUnit,
-          'icon': iconPath,
-          'desc': 'Menunggu Approval Anda',
-          'color': iconColor,
-          'id': item.id
-        };
-
-        // 4. Pisahkan berdasarkan Status
-        // Jika status PENDING -> Masuk Tab "Sedang Berjalan" (Agar bisa di klik untuk approval)
-        // Jika status APPROVED -> Masuk Tab "Riwayat"
-
-        if (item.statusApprove == 'PENDING') {
-          tempOngoing.add(mapData);
-        } else {
-          mapData['desc'] =
-              item.statusApprove == 'APPROVED' ? 'Disetujui' : 'Ditolak';
-          tempHistory.add(mapData);
-        }
+        groupedApprovals[noBast]!.add(item);
       }
 
-      ongoingTransactions.assignAll(tempOngoing);
-      historyTransactions.assignAll(tempHistory);
+      final List<Map<String, dynamic>> tempApproval = [];
+
+      // Evaluasi setiap dokumen (noBast)
+      groupedApprovals.forEach((noBast, approvalList) {
+
+        // Fungsi bantu untuk mengekstrak angka dari string level
+        int getLevelNum(String levelStr) {
+          final match = RegExp(r'\d+').firstMatch(levelStr);
+          return match != null ? int.parse(match.group(0)!) : 99; // Jika tidak ada angka, beri nilai besar
+        }
+
+        // Urutkan list approval dari level terkecil ke terbesar
+        approvalList.sort((a, b) {
+          int levelA = getLevelNum(a.levelApproval ?? '');
+          int levelB = getLevelNum(b.levelApproval ?? '');
+          return levelA.compareTo(levelB);
+        });
+
+        // Cek siapa yang berhak approve saat ini
+        // Karena sudah diurutkan, index pertama (.first) adalah level terendah yang masih PENDING
+        final activePendingNode = approvalList.first;
+        final activePendingLevel = activePendingNode.levelApproval;
+
+        // Jika level yang berhak approve SAMA dengan level user yang sedang login, tampilkan!
+        if (activePendingLevel == userLevel) {
+          String tglApprove = activePendingNode.tglApprove ?? activePendingNode.createdAt ?? '';
+
+          final mapData = {
+            'noBast': noBast,
+            'title': 'Penerimaan Solar',
+            'type': activePendingNode.transactionType,
+            'date': TextConvertHelper().formatDate(tglApprove),
+            'status': activePendingNode.statusApprove,
+            'unit': kodeUnit,
+            'id': activePendingNode.id,
+            'source': 'api'
+          };
+
+          tempApproval.add(mapData);
+        }
+      });
+
+      approvalTransactions.assignAll(tempApproval);
     } catch (e) {
       print("Error loading approval transactions: $e");
     }
   }
 
-  Future<void> _loadOutstandingTransactions() async {
-    final authData = _loginService.getCurrentAuth();
-    if (authData == null) return;
+  Future<void> _loadServerOpenTransactions() async {
+    try {
+      final authData = _loginService.getCurrentAuth();
+      if (authData == null) return;
 
-    final username = authData.user.username;
-    final outstandingService = OutstandingService(username);
+      final kodeUnit = selectedUnitCode.value;
 
-    final List<dynamic> dataList =
-        await outstandingService.getAllCombinedTransactions();
+      // Panggil API untuk mendapatkan list Inbound FIN berstatus Open (O)
+      List<InboundModel> apiList = await _masterDataService.getInboundOpenList(
+          kodeUnit: kodeUnit,
+          statusInbound: 'O',
+          docType: 'FIN'
+      );
 
-    final List<Map<String, dynamic>> tempOngoing = [];
-    final List<Map<String, dynamic>> tempHistory = [];
+      final List<Map<String, dynamic>> tempOutstanding = [];
 
-    for (var trx in dataList) {
-      String title = '';
-      String iconPath = '';
-      String typeCode = '';
-      String noBast = '';
-      String noIO = '';
-      String dateCreated = '';
-      String status = '';
-      String amountStr = '';
-      String platStr = '';
-      String unitStr = '';
-      Color iconColor = AppColors.primary; // Default Color
+      for (var item in apiList) {
+        // Cek apakah arrays tanks dan approvals kosong
+        bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
+            (item.approvals == null || item.approvals!.isEmpty);
 
-      if (trx is TransactionModel) {
-        // --- PENERIMAAN (FIN) ---
-        final detail = trx.dataSebelum;
-        noBast = trx.noBast;
-        status = trx.status;
-        dateCreated = trx.dateCreated;
-        typeCode = 'FIN';
-        title = 'Penerimaan Solar';
-        iconPath = AppIcons.icPenerimaan;
-        iconColor = AppColors.primary;
+        // Jika dia adalah Draft, masukkan ke dalam list
+        if (isDraft) {
+          final mapData = {
+            'noBast': item.noDoc ?? '-',
+            'title': 'Draft Penerimaan',
+            'type': 'FIN',
+            'date': TextConvertHelper().formatDate(item.dateInbound),
+            'amount': "${(item.volumeVendor ?? 0).toInt()} L",
+            'status': 'Draft',
+            'unit': item.kodeUnit,
+            'source': 'api'
+          };
 
-        amountStr = "${(detail?.volumeVendor ?? 0).toInt()} Ltr";
-        platStr = (detail?.nopolVendor ?? 'Tidak Ada Plat').toUpperCase();
-        unitStr = (detail?.kodeUnit ?? '-').toString();
-      } else if (trx is TransactionPengeluaranModel) {
-        // --- PENGELUARAN (FOT) ---
-        final detail = trx.dataPengeluaran;
-        noBast = trx.noBast;
-        status = trx.status;
-        noIO = detail?.noIo ?? '-';
-        dateCreated = trx.dateCreated;
-        typeCode = 'FOT';
-        title = 'Pengeluaran Solar';
-        iconPath = AppIcons.icPengeluaran;
-        iconColor = AppColors.primaryOrange;
-        amountStr = "${(detail?.jumlahPengisianSolar ?? 0).toInt()} Ltr";
-        platStr = (detail?.nopolCheck ?? 'Tidak Ada Plat').toUpperCase();
-        unitStr = (detail?.unitIO ?? '-').toString();
+          tempOutstanding.add(mapData);
+        }
       }
 
-      final mapData = {
-        'noIO': noIO,
-        'noBast': noBast,
-        'title': title,
-        'type': typeCode,
-        'date': TextConvertHelper().formatDate(dateCreated),
-        'amount': amountStr,
-        'plat': platStr,
-        'status': status,
-        'unit': unitStr,
-        'icon': iconPath,
-        'desc': unitStr,
-        'color': iconColor,
-      };
+      // Masukkan ke dalam outstandingTransactions
+      outstandingTransactions.assignAll(tempOutstanding);
 
-      String statusLower = status.toLowerCase();
-      if (statusLower == 'selesai') {
-        tempHistory.add(mapData);
-      } else {
-        tempOngoing.add(mapData);
-      }
+    } catch (e) {
+      print("Error loading server transactions: $e");
     }
-
-    ongoingTransactions.assignAll(tempOngoing);
-    historyTransactions.assignAll(tempHistory);
   }
 
   String _getStorageCode(String storageString) {
     final parts = storageString.split(' - ');
-    if (parts.length > 1) return parts.last;
-    return storageString;
+    if (parts.length > 1) return parts.last.trim();
+    return storageString.trim();
   }
 
   Future<void> changeStorageLocation(String? newLocation) async {
     if (newLocation != null && newLocation != 'Tidak ada Storage') {
       selectedStorage.value = newLocation;
 
-      final storageCode = _getStorageCode(newLocation);
+      // 1. Dapatkan Kode Unit dan Kode Storage
       final unitCode = selectedUnitCode.value;
+      final storageCode = _getStorageCode(newLocation);
 
-      // Reset UI loading state
       totalVolumeDisplay.value = 0.0;
       tankListDisplay.clear();
+      manualTanksList.clear();
 
+      // 2. Fetch Data Tangki API (Existing)
       await _fetchManualTanksApi(unitCode, storageCode);
+
+      // 3. Trigger Sync Firebase berdasarkan Unit & Storage terpilih
+      // Data HM/KM akan menyesuaikan dengan lokasi ini
+      await _homeService.initDataFlow(unitCode, storageCode);
     }
   }
 
@@ -431,103 +497,33 @@ class HomeController extends GetxController {
   }
 
   Future<void> navigateToTransactionDetail(Map<String, dynamic> tx) async {
-    String unitVal = tx['unit'] ?? '-';
+    String source = tx['source'] ?? 'local';
     String noBast = tx['noBast'] ?? '';
-    String status = (tx['status'] ?? '').toString().toLowerCase();
     String type = tx['type'] ?? '';
+    String status = tx['status'] ?? ''; // Ambil status untuk mengecek apakah ini PENDING approval
 
-    final authData = _loginService.getCurrentAuth();
-    if (authData == null) return;
-
-    if (authData.user.isApprover) {
+    // CEK JIKA INI TRANSAKSI APPROVAL (PENDING) DARI SERVER
+    if (source == 'api' && status.toUpperCase() == 'PENDING') {
+      // Arahkan ke halaman Approval untuk diproses
       Get.toNamed(Routes.APPROVAL, arguments: {
-        'noBast': tx['noBast'],
-        'type': tx['type'],
+        'noBast': noBast,
+        'type': type,
       });
-      return;
+      return; // Hentikan eksekusi di sini agar tidak lanjut ke logika di bawahnya
+    }
 
-    } else {
-      final outstandingService = OutstandingService(authData.user.username);
-
+    // LOGIKA DEFAULT UNTUK TRANSAKSI TRACKING / DRAFT (NON-APPROVER)
+    if (source == 'api') {
       if (type == 'FIN') {
-        // --- NAVIGASI PENERIMAAN ---
-        switch (status) {
-          case 'draft':
-          case 'proses':
-            Get.toNamed(Routes.PENERIMAAN,
-                arguments: {'noBast': noBast, 'isResume': true});
-            break;
-          case 'setelah_pengisian':
-            Get.toNamed(Routes.PENERIMAAN_SETELAH,
-                arguments: {'noBast': noBast});
-            break;
-          case 'verifikasi_bast':
-            Get.toNamed(Routes.PENERIMAAAN_VERIFIKASI_BAST,
-                arguments: {'noBast': noBast});
-            break;
-          case 'approval_kasie':
-          case 'approval_manager':
-          case 'selesai':
-            Get.toNamed(Routes.PENERIMAAN_TRACKING,
-                arguments: {'noBast': noBast});
-            break;
-          default:
-            Get.snackbar("Info", "Status transaksi tidak dikenali: $status");
-        }
+        Get.toNamed(Routes.PENERIMAAN_TRACKING, arguments: {'noBast': noBast});
+      } else {
+        Get.toNamed(Routes.PENGELUARAN_TRACKING, arguments: {'noBast': noBast});
+      }
+    } else {
+      if (type == 'FIN') {
+        Get.toNamed(Routes.PENERIMAAN_TRACKING, arguments: {'noBast': noBast});
       } else if (type == 'FOT') {
-        final trxPengeluaran =
-            await outstandingService.getTransactionPengeluaranByNoBast(noBast);
-        if (trxPengeluaran != null) {
-          final detail = trxPengeluaran.dataPengeluaran;
-
-          switch (status) {
-            case 'pengisian_solar':
-            case 'pengisian_solar_pengeluaran':
-              Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-                'noDoc': noBast,
-                'noIO': detail?.noIo,
-                'unitIO': unitVal,
-                'noPolisi': detail?.nopolCheck,
-                'nama_supir': detail?.supirCheck,
-                'tanggal':
-                    TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
-                'km_pengisian': detail?.kmPengisian?.toString(),
-                'jumlah_pengisian_solar':
-                    detail?.jumlahPengisianSolar?.toString(),
-                'status': status,
-              });
-              break;
-
-            case 'verifikasi_pengeluaran':
-              Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-                'noDoc': noBast,
-                'noIO': detail?.noIo,
-                'unitIO': unitVal,
-                'noPolisi': detail?.nopolCheck,
-                'nama_supir': detail?.supirCheck,
-                'tanggal':
-                    TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
-                'km_pengisian': detail?.kmPengisian?.toString(),
-                'jumlah_pengisian_solar':
-                    detail?.jumlahPengisianSolar?.toString(),
-                'status': status,
-              });
-              break;
-
-            case 'approval_kasie':
-            case 'approval_manager':
-            case 'selesai':
-              Get.toNamed(Routes.PENGELUARAN_TRACKING,
-                  arguments: {'noBast': noBast});
-              break;
-
-            default:
-              Get.snackbar("Info",
-                  "Status transaksi pengeluaran tidak dikenali: $status");
-          }
-        } else {
-          Get.snackbar("Error", "Data transaksi tidak ditemukan");
-        }
+        Get.toNamed(Routes.PENGELUARAN_TRACKING, arguments: {'noBast': noBast});
       }
     }
   }
@@ -536,7 +532,6 @@ class HomeController extends GetxController {
     if (authData != null) {
       final user = authData.user;
 
-      // Ambil unit aktif (menghandle level 1 & 2/3 via getter cerdas)
       final unitCode = authData.currentKodeUnit ?? 'E000';
       final unitName = authData.currentNamaUnit ?? 'Unknown Estate';
 
@@ -544,7 +539,6 @@ class HomeController extends GetxController {
       userAddress.value = '$unitCode - $unitName';
       userName.value = authData.currentFullName;
 
-      // Setup Inisial Profile
       final nameParts = userName.value.trim().split(RegExp(r'\s+'));
       if (nameParts.isNotEmpty) {
         profileInitials.value = (nameParts.length > 1)
@@ -552,12 +546,8 @@ class HomeController extends GetxController {
             : nameParts[0][0].toUpperCase();
       }
 
-      // Setup Daftar Unit (untuk multi-unit user)
       _prepareAvailableUnits(authData);
-
-      // Ambil Title (TSE, LKE, dsb) via API
       await _fetchAndSetUnitTitle(unitCode);
-
       _generateUserMenu(user);
 
       // Load Storage
@@ -623,6 +613,7 @@ class HomeController extends GetxController {
       'label': 'E-BPB',
       'action': 'input_e_bpb',
     };
+
     // final menuInputBonSementara = {
     //   'icon': AppIcons.icKalibrasi,
     //   'label': 'Bon Sementara',
@@ -630,20 +621,20 @@ class HomeController extends GetxController {
     // };
 
     final menuRiwayatPenerimaan = {
-      'icon': AppIcons.icTransactionPenerimaan,
-      'label': 'Report Penerimaan',
+      'icon': AppIcons.icReportPenerimaan,
+      'label': 'Laporan Penerimaan',
       'action': 'riwayat_penerimaan',
     };
 
     final menuRiwayatPengeluaran = {
-      'icon': AppIcons.icPenerimaan2,
-      'label': 'Report Pengeluaran',
+      'icon': AppIcons.icReportPengeluaran,
+      'label': 'Laporan Pengeluaran',
       'action': 'riwayat_pengeluaran',
     };
 
     final menuRiwayatEBPB = {
-      'icon': AppIcons.icKalibrasi,
-      'label': 'Report E-BPB',
+      'icon': AppIcons.icReportEBPB,
+      'label': 'Laporan E-BPB',
       'action': 'riwayat_e_bpb',
     };
 
@@ -708,11 +699,13 @@ class HomeController extends GetxController {
     storageLocations.clear();
     List<String> formattedList = [];
 
-    // Loop List<UnitToStorageModel>
     for (var unitData in _cachedStorages) {
       for (MasterStorageModel storage in unitData.masterStorage) {
         if (storage.storageStatus == 'Y') {
-          formattedList.add("${storage.namaStorage} - ${storage.kodeStorage}");
+          String item = "${storage.namaStorage} - ${storage.kodeStorage}";
+          formattedList.add(item);
+        } else {
+          print("🛠️ [DEBUG]    -> Skip (Status bukan Y)");
         }
       }
     }
@@ -720,15 +713,27 @@ class HomeController extends GetxController {
     if (formattedList.isNotEmpty) {
       storageLocations.addAll(formattedList);
 
+      // Logic pemilihan storage awal
       if (selectedStorage.value == 'Pilih Lokasi Storage' ||
           selectedStorage.value.isEmpty) {
+
+        // Pilih storage pertama sebagai default
+        final firstStorage = storageLocations.first;
+
         Future.delayed(Duration.zero, () {
-          changeStorageLocation(storageLocations.first);
+          changeStorageLocation(firstStorage); // Ini akan memicu sync Firebase
         });
+
       } else if (!storageLocations.contains(selectedStorage.value)) {
         changeStorageLocation(storageLocations.first);
+      } else {
+        // Jika Storage yang tersimpan valid, kita Trigger Sync manual di sini
+        // Karena changeStorageLocation mungkin tidak terpanggil jika value tidak berubah
+        final storageCode = _getStorageCode(selectedStorage.value);
+        _homeService.initDataFlow(selectedUnitCode.value, storageCode);
       }
     } else {
+      // Handle jika tidak ada storage
       selectedStorage.value = 'Tidak ada Storage';
       _sensorService.iotData.clear();
     }

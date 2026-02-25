@@ -63,4 +63,55 @@ class ReportApiService {
       return [];
     }
   }
+
+  Future<Map<String, dynamic>?> getDetailPenerimaanApproved(String noDoc) async {
+    final auth = _loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    try {
+      String urlPath = UrlApiStatic.API_GET_DETAIL_DOC_FULL_APPROVED.replaceAll('{no_doc}', noDoc);
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + urlPath,
+        options: Options(
+          headers: {
+            "Authorization": "Bearer $token",
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data'];
+      }
+      return null;
+    } catch (e) {
+      print("🔴 [API EXCEPTION] Error fetching detail report: $e");
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getDetailPengeluaran(String noDoc) async {
+    final auth = _loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    try {
+      String urlPath = UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.replaceAll('{no_doc}', noDoc);
+
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + urlPath,
+        options: Options(
+          headers: {
+            "Authorization": "Bearer $token",
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data'];
+      }
+      return null;
+    } catch (e) {
+      print("🔴 [API EXCEPTION] Error fetching detail pengeluaran: $e");
+      return null;
+    }
+  }
 }

@@ -170,7 +170,11 @@ class LoginView extends GetView<LoginController> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 24, right: 24, bottom: 20),
+        padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            bottom: 20 + MediaQuery.of(context).padding.bottom
+        ),
         child: _buildLoginButton(),
       ),
     );

@@ -92,8 +92,8 @@ class LoginController extends GetxController {
     if (!loginFormKey.currentState!.validate()) return;
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final hasConnection = await _connectivityHelper.checkConnection();
-    if (!hasConnection) return;
+    // Cek Koneksi sebelum submit
+    if (!await ConnectivityHelper.validateNetwork()) return;
 
     isLoading.value = true;
     loadingMessage.value = 'Sedang verifikasi akun...';

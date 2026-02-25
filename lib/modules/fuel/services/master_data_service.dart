@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:e_fuel/datas/models/inbound/inbound_model.dart';
 import 'package:e_fuel/datas/models/storage_to_tank/storage_to_tank_model.dart';
 import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
 import 'package:e_fuel/datas/models/volume_tank_detail/volume_tank_detail_model.dart';
@@ -131,7 +132,7 @@ class MasterDataService {
     }
   }
 
-  // 4. GET LITER FROM KALIBRASI (Handling Spesifik 404)
+  // 4. GET LITER FROM KALIBRASI
   Future<double?> getLiterFromCalibration({
     required int kapasitas,
     required double tinggiMm,
@@ -184,6 +185,37 @@ class MasterDataService {
       return [];
     } catch (e) {
       print("⚠️ Error Get Unit: $e");
+      return [];
+    }
+  }
+
+  Future<List<InboundModel>> getInboundOpenList({
+    required String kodeUnit,
+    String? statusInbound = 'O', // Default Open
+    String? docType,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_INBOUND_OPEN_LIST,
+        queryParameters: {
+          'kode_unit': kodeUnit,
+          'status_inbound': statusInbound,
+          // 'date_inbound':
+          'doc_type': docType
+        },
+        options: _getAuthOptionsJson(),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.data is List) {
+          return (response.data as List)
+              .map((e) => InboundModel.fromJson(e))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      _logError("GetInboundOpenList", e);
       return [];
     }
   }

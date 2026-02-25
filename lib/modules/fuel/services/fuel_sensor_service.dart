@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:e_fuel/configs/app_config.dart';
 import 'package:e_fuel/datas/constant/value_key_static.dart';
-import '../../../datas/models/storage_to_tank/storage_to_tank_model.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import '../../fuel/services/master_data_service.dart';
 
@@ -11,6 +11,7 @@ class FuelSensorService extends GetxService {
 
   final RxList<VolumeTankDetailModel> iotData = <VolumeTankDetailModel>[].obs;
   final RxList<VolumeTankDetailModel> snapshotData = <VolumeTankDetailModel>[].obs;
+
   final MasterDataService _masterDataService = MasterDataService();
 
   Future<void> initSensorBox(String username) async {
@@ -76,10 +77,11 @@ class FuelSensorService extends GetxService {
       );
 
       if (tanks.isNotEmpty) {
-        await _saveLocalIotData(tanks);
+        final List<VolumeTankDetailModel> validTanks = tanks.map((e) => e).toList();
+        await _saveLocalIotData(validTanks);
       }
     } catch (e) {
-      print("⚠️ Gagal refresh sensor data: $e");
+      debugPrint("⚠️ Gagal refresh sensor data: $e");
     }
   }
 }

@@ -151,7 +151,7 @@ class PengeluaranTrackingView extends GetView<PengeluaranTrackingController> {
 
   Widget _buildBottomAction() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + MediaQuery.of(Get.context!).padding.bottom),
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [

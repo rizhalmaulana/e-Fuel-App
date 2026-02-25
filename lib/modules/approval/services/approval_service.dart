@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:e_fuel/modules/transactions/penerimaan/services/penerimaan_api_service.dart';
 import 'package:e_fuel/modules/transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../datas/constant/url_api_static.dart';
 import '../../../datas/models/approval/transaction_approval_model.dart';
 import '../../auth/services/login_service.dart';
@@ -23,17 +24,17 @@ class ApprovalService {
     required String kodeUnit,
     String? statusApprove,
     String? transactionType,
+    String? noBast, // 🟢 TAMBAHAN BARU
   }) async {
-    // ... (kode lama tetap sama)
     try {
       final auth = _loginService.getCurrentAuth();
       final response = await _dio.get(
         UrlApiStatic.API_GET_TRANSACTION_APPROVAL_LIST,
         queryParameters: {
-          'level_approval': levelApproval,
           'kode_unit': kodeUnit,
-          'status_approve': statusApprove,
-          'transaction_type': transactionType,
+          if (statusApprove != null) 'status_approve': statusApprove,
+          if (transactionType != null) 'transaction_type': transactionType,
+          if (noBast != null) 'no_bast': noBast, // 🟢 TAMBAHAN BARU
         },
         options: Options(
           headers: {
@@ -54,11 +55,50 @@ class ApprovalService {
     }
   }
 
+  Future<String?> downloadPdfDocument(String noDoc) async {
+    try {
+      final auth = _loginService.getCurrentAuth();
+      String url = UrlApiStatic.API_EXPORT_PDF_DOC.replaceAll('{no_doc}', noDoc);
+
+      Directory? dir;
+      if (Platform.isAndroid) {
+        dir = Directory('/storage/emulated/0/Download');
+        if (!await dir.exists()) {
+          dir = await getExternalStorageDirectory();
+        }
+      } else {
+        dir = await getApplicationDocumentsDirectory();
+      }
+
+      String savePath = '${dir?.path}/BAST_$noDoc.pdf';
+
+      final response = await _dio.download(
+        url,
+        savePath,
+        options: Options(
+          headers: {
+            "Authorization": "Bearer ${auth?.access ?? ''}",
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Berhasil download PDF: $savePath");
+        return savePath; // 🟢 Kembalikan path file jika sukses
+      }
+      return null; // 🟢 Kembalikan null jika gagal
+    } catch (e) {
+      print("❌ Error download PDF BAST: $e");
+      return null; // 🟢 Kembalikan null jika error
+    }
+  }
+
   Future<Map<String, dynamic>?> getInboundOpenDetail(String noDoc) async {
     try {
       final auth = _loginService.getCurrentAuth();
 
       String url = UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.replaceAll('{no_doc}', noDoc);
+
       if (!UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.contains('{no_doc}')) {
         url = "${UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL}/$noDoc";
       }

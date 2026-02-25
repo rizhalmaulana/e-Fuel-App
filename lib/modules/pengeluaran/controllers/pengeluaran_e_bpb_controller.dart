@@ -177,7 +177,7 @@ class PengeluaranBpbHarianController extends GetxController {
 
   void _calculateTotals() {
     totalQty.value = dailyTransactionList.length;
-    totalVolume.value = dailyTransactionList.fold(0.0, (sum, item) => sum + (item.liter ?? 0.0));
+    totalVolume.value = dailyTransactionList.fold(0.0, (sum, item) => sum + (item.aktualLiter ?? 0.0));
   }
 
   Future<void> submitBpb() async {

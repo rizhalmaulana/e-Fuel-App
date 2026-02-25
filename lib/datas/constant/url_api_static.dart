@@ -1,5 +1,7 @@
 class UrlApiStatic {
   static String API_END_POINT = 'http://112.78.149.227:8000/api';
+  static String API_END_POINT_VPS = 'http://148.230.98.90:8000/api';
+
   static String API_END_POINT_DBK = 'http://192.168.1.8:8085/api';
   static String TOKEN_API_KEY = r"Xy9$2fG7!LpQz#8VmRt6&NsWb@3KdEj4UhPoYxCq";
 
@@ -14,6 +16,7 @@ class UrlApiStatic {
   static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
   static String API_POST_IMAGE_PENGELUARAN = '/e_fuel/inbound-open/upload-photos/{no_doc}';
   static String API_CREATE_TRANSACTION_BPB = '/e_fuel/transaksi-bpb/create';
+  static String API_POST_ACTUAL_LITER_PENGELUARAN = '/e_fuel/inbound-open/update-aktual-liter/{no_doc}';
 
   // GET
   static String API_GET_UNIT = '/unit-list/';
@@ -23,6 +26,7 @@ class UrlApiStatic {
   static String API_GET_LITER_KABLIBRASI = '/e_fuel/master-kalibrasi/get-liter';
   static String API_GET_INBOUND_OPEN_DETAIL = '/e_fuel/fuel-inbound-open/detail/{no_doc}';
   static String API_GET_ALL_TRANSACTION_LIST = '/e_fuel/inbound-open/list-by-date'; // Tampilkan Semua Transaksi FIN atau FOT
+  static String API_GET_DETAIL_DOC_FULL_APPROVED = '/e_fuel/inbound-all-approved/detail/{no_doc}';
 
   static String API_GET_MASTER_STORAGE = '/e_fuel/masterstorage';
   static String API_GET_MASTER_TANK = '/e_fuel/mastersolartank';
@@ -33,6 +37,7 @@ class UrlApiStatic {
 
   static String API_GET_MASTER_IO_LIST = '/e_fuel/master-io/list';
   static String API_GET_MASTER_IO_DETAIL = '/e_fuel/master-io/{internal_order}';
+  static String API_EXPORT_PDF_DOC = '/e_fuel/inbound-all-approved/export-pdf/{no_doc}';
 
   // GET DATA FROM DBK
   static String API_GET_EMPLOYEE_DBK = '/Employee/GetAllPaged';

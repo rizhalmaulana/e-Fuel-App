@@ -57,13 +57,14 @@ class PenerimaanSebelumModelAdapter
       iotTankDetailsJson: fields[36] as String?,
       totalVolumeManual: fields[37] as double?,
       totalVolumeIot: fields[38] as double?,
+      selisihVolumeTerra: fields[39] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PenerimaanSebelumModel obj) {
     writer
-      ..writeByte(39)
+      ..writeByte(40)
       ..writeByte(0)
       ..write(obj.userName)
       ..writeByte(1)
@@ -141,7 +142,9 @@ class PenerimaanSebelumModelAdapter
       ..writeByte(37)
       ..write(obj.totalVolumeManual)
       ..writeByte(38)
-      ..write(obj.totalVolumeIot);
+      ..write(obj.totalVolumeIot)
+      ..writeByte(39)
+      ..write(obj.selisihVolumeTerra);
   }
 
   @override

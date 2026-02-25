@@ -30,36 +30,6 @@ class PenerimaanApiService {
     }
   }
 
-  Future<List<dynamic>> getInboundOpenList({
-    required String kodeUnit,
-    required String docType,
-  }) async {
-    try {
-      final response = await _dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_INBOUND_OPEN_LIST,
-        queryParameters: {
-          'kode_unit': kodeUnit,
-          'doc_type': docType,
-        },
-        options: _getOptions(),
-      );
-
-      if (response.statusCode == 200) {
-        if (response.data is List) {
-          return response.data;
-        } else if (response.data is Map && response.data['data'] != null) {
-          return response.data['data'];
-        }
-        return [];
-      } else {
-        return [];
-      }
-    } catch (e) {
-      print("Error Fetch Inbound List: $e");
-      return []; // Return kosong jika error agar tidak crash
-    }
-  }
-
   Future<Map<String, dynamic>> submitInboundOpen({
     required Map<String, dynamic> formMap,
     required List<File?> photos,
