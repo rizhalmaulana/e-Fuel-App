@@ -48,6 +48,8 @@ class TextConvertHelper {
   }
 
   String handleApiError(dynamic e) {
+    if (e is String) return e;
+
     if (e is DioException) {
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||

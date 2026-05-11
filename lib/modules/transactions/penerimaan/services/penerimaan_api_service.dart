@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:e_fuel/configs/app_config.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart' hide FormData, MultipartFile;
+import '../../../../datas/models/volume_storage/volume_storage.dart';
 import '../../../../datas/network/api_client_network.dart'; // Sesuaikan path
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/constant/url_api_static.dart';
@@ -27,36 +29,6 @@ class PenerimaanApiService {
       );
     } catch (e) {
       return Options();
-    }
-  }
-
-  Future<List<dynamic>> getInboundOpenList({
-    required String kodeUnit,
-    required String docType,
-  }) async {
-    try {
-      final response = await _dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_INBOUND_OPEN_LIST,
-        queryParameters: {
-          'kode_unit': kodeUnit,
-          'doc_type': docType,
-        },
-        options: _getOptions(),
-      );
-
-      if (response.statusCode == 200) {
-        if (response.data is List) {
-          return response.data;
-        } else if (response.data is Map && response.data['data'] != null) {
-          return response.data['data'];
-        }
-        return [];
-      } else {
-        return [];
-      }
-    } catch (e) {
-      print("Error Fetch Inbound List: $e");
-      return []; // Return kosong jika error agar tidak crash
     }
   }
 
@@ -320,6 +292,106 @@ class PenerimaanApiService {
     } catch (e) {
       print("⚠️ Gagal update FCM token ke server: $e");
     }
+  }
+
+  Future<dynamic> fetchLatestStockStorage({
+    required String unitId,
+    required String storageCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_LATEST_STORAGE_STOCK,
+        queryParameters: {
+          'kode_unit': unitId,
+          'kode_storage': storageCode,
+          'date_log': dateLog,
+        },
+        options: _getOptions(),
+      );
+      if (response.data.isNotEmpty && response.data != null) {
+        Map<String, dynamic> dataMap;
+        if (response.data is String) {
+          dataMap = jsonDecode(response.data);
+        } else {
+          dataMap = response.data;
+        }
+
+        VolumeStorage myData = VolumeStorage.fromJson(dataMap);
+        return myData;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<dynamic> getLatestStockTanks({
+    required String unitId,
+    required String tankCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_LATEST_TANK_STOCK,
+        queryParameters: {
+          'kode_unit': unitId,
+          'kode_tank': tankCode,
+          'date_log': dateLog,
+        },
+        options: _getOptions(),
+      );
+      return response.data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<dynamic>> getTankStockList({
+    required String unitId,
+    required String tankCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_TANK_STOCK_LIST,
+        queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
+        options: _getOptions(),
+      );
+      return response.data is List ? response.data : [];
+    } catch (e) { return []; }
+  }
+
+  // Get Flow In (Traffic masuk per detik)
+  Future<List<dynamic>> getFlowInTraffic({
+    required String unitId,
+    required String tankCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_FLOW_IN,
+        queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
+        options: _getOptions(),
+      );
+      return response.data is List ? response.data : [];
+    } catch (e) { return []; }
+  }
+
+  // Get Flow Out (Traffic keluar per detik)
+  Future<List<dynamic>> getFlowOutTraffic({
+    required String unitId,
+    required String tankCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_FLOW_OUT,
+        queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
+        options: _getOptions(),
+      );
+      return response.data is List ? response.data : [];
+    } catch (e) { return []; }
   }
 
   Future<String> _getDeviceId() async {

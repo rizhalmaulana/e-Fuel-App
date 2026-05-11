@@ -77,13 +77,12 @@ class CSTTankModel {
   });
 
   factory CSTTankModel.fromJson(Map<String, dynamic> json) {
+    int _toInt(dynamic value) => (value ?? 0).toInt();
+
     return CSTTankModel(
       kodeTank: json['kode_tank'] ?? '',
       namaTank: json['nama_tank'] ?? '',
-
-      capacity: (json['capacity'] is int)
-          ? json['capacity']
-          : int.tryParse(json['capacity'].toString()) ?? 20000,
+      capacity: _toInt(json['capacity']),
     );
   }
 

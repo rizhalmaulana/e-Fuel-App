@@ -1,20 +1,21 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:e_fuel/configs/app_colors.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../configs/app_icons.dart';
 import '../../../configs/app_lotties.dart';
 import '../../../datas/models/auth/auth_response_model.dart';
+import '../../../datas/models/inbound/inbound_model.dart';
 import '../../../datas/models/master_storage/master_storage_model.dart';
-import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
 import '../../../datas/models/user/user_model.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
+import '../../../helpers/connectivity_helper.dart';
 import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 
@@ -27,21 +28,20 @@ import '../../approval/services/approval_service.dart';
 import '../../fuel/services/fuel_sensor_service.dart';
 import '../../fuel/services/master_data_service.dart';
 import '../../notifications/services/notification_service.dart';
-import '../../transactions/outstanding_service.dart';
 
 // Models
 import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
-import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
+import '../services/home_service.dart';
 
 class HomeController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
   final FuelDataService _fuelDataService = Get.find<FuelDataService>();
-  final FuelSensorService _sensorService = Get.find<
-      FuelSensorService>(); // Tetap di keep jika butuh background process
-  final NotificationService _notificationService =
-      Get.find<NotificationService>();
+  final FuelSensorService _sensorService = Get.find<FuelSensorService>();
+  final NotificationService _notificationService = Get.find<NotificationService>();
   final MasterDataService _masterDataService = MasterDataService();
   final ApprovalService _approvalService = ApprovalService();
+  final HomeService _homeService = Get.put(HomeService(), permanent: true);
+  StreamSubscription? _connectivitySubscription;
 
   // Data User
   final userName = 'User'.obs;
@@ -49,32 +49,58 @@ class HomeController extends GetxController {
   final unitTitle = 'FLE'.obs;
   final greeting = 'Selamat Datang di Aplikasi e-Fuel'.obs;
   final profileInitials = 'UU'.obs;
+  final selectedApprovalFilter = 'Semua'.obs;
+
+  final isApprover = false.obs;
+  final isLoading = false.obs;
+  final isTankDetailExpanded = false.obs;
 
   // Menu List dan Unit List (Reactive)
+  final selectedMenuCategory = 0.obs;
   final menuList = <Map<String, dynamic>>[].obs;
   final availableUnits = <Map<String, dynamic>>[].obs;
+  final availableMenuTabs = <Map<String, dynamic>>[].obs;
 
   // Data Storage Location
   final storageLocations = <String>[].obs;
   final selectedStorage = 'Pilih Lokasi Storage'.obs;
   final selectedUnitCode = ''.obs;
 
-  // DATA TANGKI MANUAL (API) - Dipisahkan dari Sensor Service
+  // DATA TANGKI MANUAL (API + Offline Cache)
   final manualTanksList = <VolumeTankDetailModel>[].obs;
 
   // UI Display
   final totalVolumeDisplay = 0.0.obs;
   final tankListDisplay = <Map<String, String>>[].obs;
+  final lastUpdateTime = '-'.obs;
+
+  // Status offline/online pada tampilan tangki
+  final isUsingOfflineData = false.obs;
+
+  // True selama API pertama kali dipanggil — banner offline tidak ditampilkan dulu
+  // agar tidak muncul sesaat saat app buka padahal HP online
+  final _isInitialLoad = true.obs;
+
+  /// Gabungan: benar-benar offline (bukan sekadar loading pertama)
+  bool get showOfflineBanner => isUsingOfflineData.value && !_isInitialLoad.value;
 
   // Transaksi
-  final ongoingTransactions = <Map<String, dynamic>>[].obs;
-  final historyTransactions = <Map<String, dynamic>>[].obs;
   final selectedTransactionTab = 0.obs;
+  final approvalTransactions = <Map<String, dynamic>>[].obs;
   final outstandingTransactions = <Map<String, dynamic>>[].obs;
+  final selectedDraftFilter = 'Semua'.obs;
+
+  List<Map<String, dynamic>> get filteredOutstandingTransactions {
+    if (selectedDraftFilter.value == 'Penerimaan') {
+      return outstandingTransactions.where((tx) => tx['type'] == 'FIN').toList();
+    } else if (selectedDraftFilter.value == 'Pengeluaran') {
+      return outstandingTransactions.where((tx) => tx['type'] == 'FOT').toList();
+    }
+    return outstandingTransactions;
+  }
 
   // Permissions
   final deniedPermissionsList = <String>[].obs;
-
   bool get isPermissionComplete => deniedPermissionsList.isEmpty;
 
   // Cache Local
@@ -86,11 +112,25 @@ class HomeController extends GetxController {
     _initNotificationPermission();
     checkAndRequestPermissions();
 
-    _loadDataForActiveUser().then((success) {
+    isLoading.value = true;
+
+    _loadDataForActiveUser().then((success) async {
       if (success) {
-        _initialDataSync();
+        await _initialDataSync();
+        isLoading.value = false;
       } else {
         Get.offAllNamed(Routes.LOGIN);
+      }
+    });
+
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+      final isOnline = result != ConnectivityResult.none;
+      if (isOnline && isUsingOfflineData.value) {
+        isUsingOfflineData.value = false;
+        final storageCode = _getStorageCode(selectedStorage.value);
+        _fetchManualTanksApi(selectedUnitCode.value, storageCode);
+      } else {
+        isUsingOfflineData.value = true;
       }
     });
   }
@@ -98,69 +138,70 @@ class HomeController extends GetxController {
   Future<void> _syncMasterDataFromServer() async {
     try {
       final authData = _loginService.getCurrentAuth();
-
-      if (authData == null) {
-        print("⚠️ [LoginController] Auth Data null, skip sync.");
-        return;
-      }
+      if (authData == null) return;
 
       final unitCode = authData.currentKodeUnit;
 
       if (unitCode != null && unitCode.isNotEmpty) {
-        final apiStorages =
-            await _masterDataService.getStorageFromUnit(unitId: unitCode);
+        final apiStorages = await _masterDataService.getStorageFromUnit(unitId: unitCode);
 
         if (apiStorages.isNotEmpty) {
+          // Update cache storage (offline-first: selalu simpan jika berhasil)
           await _fuelDataService.saveLocalStorages(apiStorages);
           _cachedStorages = apiStorages;
           loadStorageLocations(unitCode);
-
-          if (storageLocations.isNotEmpty) {
-            final firstStorageString = storageLocations.first;
-            changeStorageLocation(firstStorageString);
-          }
         }
       }
     } catch (e) {
       print("⚠️ [HomeController] Sync Error: $e");
+      // Tidak crash — data storage tetap terbaca dari Hive
     }
   }
 
   Future<void> _initialDataSync() async {
+    final online = await ConnectivityHelper.isConnected();
+    if (!online) return;
+
     final auth = _loginService.getCurrentAuth();
     if (auth == null) return;
 
+    outstandingTransactions.clear();
+    approvalTransactions.clear();
+
     if (auth.user.isApprover) {
-      _loadApproverTransactions();
+      await _loadApproverTransactions();
     } else {
-      _loadOutstandingTransactions();
+      await _loadServerOpenTransactions();
     }
+
     _syncMasterDataFromServer();
   }
 
   Future<bool> _loadDataForActiveUser() async {
     final authData = await _loginService.getAuthOrLoad();
-
     if (authData == null) return false;
+
     final username = authData.user.username;
 
-    // Init Box
-    await _sensorService
-        .initSensorBox(username); // Sensor box tetap di init (jika perlu)
-    await _fuelDataService.openFuelDataBox(username); // Manual box
+    await _sensorService.initSensorBox(username);
+    await _fuelDataService.openFuelDataBox(username);
 
     loadUserData(authData: authData);
     _fetchAndSetUnitTitle(selectedUnitCode.value);
 
+    // Muat data storage dari cache lokal
     _cachedStorages = _fuelDataService.getLocalStorages();
     if (_cachedStorages.isNotEmpty) {
       loadStorageLocations(selectedUnitCode.value);
     }
 
+    selectedStorage.value = _fuelDataService.getLastSelectedStorage();
+
     final cachedTanks = _fuelDataService.getApiManualTanks();
     if (cachedTanks.isNotEmpty) {
       manualTanksList.assignAll(cachedTanks);
       _updateUiFromManualData();
+      isUsingOfflineData.value = true; // tandai sementara sebagai offline
     }
 
     return true;
@@ -169,7 +210,6 @@ class HomeController extends GetxController {
   void _updateUiFromManualData() {
     double totalVol = 0.0;
     List<Map<String, String>> tempList = [];
-
     final currentStorageCode = _getStorageCode(selectedStorage.value);
 
     final activeTanks = manualTanksList.where((t) {
@@ -179,7 +219,6 @@ class HomeController extends GetxController {
       return true;
     }).toList();
 
-    // Sorting
     activeTanks.sort((a, b) {
       String codeA = a.masterSolarTank?.kodeTank ?? '';
       String codeB = b.masterSolarTank?.kodeTank ?? '';
@@ -188,16 +227,18 @@ class HomeController extends GetxController {
 
     for (var tank in activeTanks) {
       final tankCode = tank.masterSolarTank?.kodeTank ?? 'Unknown';
-
       double vol = (tank.volume ?? 0).toDouble();
-      double h = (tank.height ?? 0).toDouble();
-
       totalVol += vol;
+
+      DateTime? serverTime = DateTime.tryParse(tank.updatedAt ?? tank.createdAt ?? '');
+      DateTime localTime = serverTime != null ? serverTime.toLocal() : DateTime.now();
+      String formattedTime = DateFormat('dd MMM, HH:mm', 'id_ID').format(localTime);
 
       tempList.add({
         'code': tankCode.replaceAll('_', ' '),
-        'volume': "${vol.toStringAsFixed(0)} Ltr",
-        'height': "${h.toStringAsFixed(0)} cm",
+        'volume': "${TextConvertHelper().formatNumber(vol)} L",
+        'capacity': "${TextConvertHelper().formatNumber(tank.capacity.toDouble())} L",
+        'last_update': formattedTime,
       });
     }
 
@@ -205,12 +246,16 @@ class HomeController extends GetxController {
     tankListDisplay.assignAll(tempList);
   }
 
+  void toggleTankDetail() {
+    isTankDetailExpanded.value = !isTankDetailExpanded.value;
+  }
+
   Future<void> _fetchAndSetUnitTitle(String unitCode) async {
     try {
       final allUnits = await _masterDataService.getAllUnits();
       if (allUnits.isNotEmpty) {
         final matched = allUnits.firstWhere(
-          (u) => u['kode_unit'] == unitCode,
+              (u) => u['kode_unit'] == unitCode,
           orElse: () => {},
         );
 
@@ -232,319 +277,348 @@ class HomeController extends GetxController {
     }
   }
 
+  List<Map<String, dynamic>> get filteredMenuList {
+    if (selectedMenuCategory.value == 0) {
+      return menuList.where((menu) => menu['action'].toString().contains('input_penerimaan')).toList();
+    } else if (selectedMenuCategory.value == 1) {
+      return menuList.where((menu) {
+        String action = menu['action'].toString();
+        return action.contains('input_pengeluaran') || action.contains('input_e_bpb');
+      }).toList();
+    } else {
+      return menuList.where((menu) => menu['action'].toString().contains('riwayat')).toList();
+    }
+  }
+
+  void changeMenuCategory(int index) {
+    selectedMenuCategory.value = index;
+  }
+
+  Future<void> onRefreshData() async {
+    if (!await ConnectivityHelper.validateNetwork()) return;
+
+    isLoading.value = true;
+    try {
+      await Future.wait([
+        _initialDataSync(),
+        _refreshTankData(),
+      ]);
+
+      if (selectedUnitCode.value.isNotEmpty && selectedStorage.value.isNotEmpty) {
+        final storageCode = _getStorageCode(selectedStorage.value);
+        await _homeService.initDataFlow(selectedUnitCode.value, storageCode);
+        await _fetchManualTanksApi(selectedUnitCode.value, storageCode);
+      }
+    } catch (e) {
+      debugPrint("Error saat refresh: $e");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _refreshTankData() async {
+    if (selectedUnitCode.value.isNotEmpty && selectedStorage.value.isNotEmpty) {
+      final storageCode = _getStorageCode(selectedStorage.value);
+
+      await Future.wait([
+        _homeService.initDataFlow(selectedUnitCode.value, storageCode),
+        _fetchManualTanksApi(selectedUnitCode.value, storageCode),
+      ]).timeout(const Duration(seconds: 15));
+    }
+  }
+
+  List<Map<String, dynamic>> get filteredApprovalTransactions {
+    if (selectedApprovalFilter.value == 'Penerimaan') {
+      return approvalTransactions.where((tx) => tx['type'] == 'FIN').toList();
+    } else if (selectedApprovalFilter.value == 'E-BPB') {
+      return approvalTransactions.where((tx) => tx['type'] == 'EBPB').toList();
+    }
+    return approvalTransactions;
+  }
+
+  void goToPenerimaan() {
+    if (manualTanksList.isEmpty) {
+      Get.dialog(
+        DialogFlexible(
+          title: "Tangki Tidak Tersedia",
+          message: "Storage ${selectedStorage.value} tidak memiliki data tangki yang terdaftar.",
+          primaryButtonText: "Mengerti",
+          onPrimaryPressed: () => Get.back(),
+          logo: Icon(Icons.warning_amber_rounded, size: 60, color: Colors.orange),
+        ),
+        barrierDismissible: true,
+      );
+      return;
+    }
+
+    Get.toNamed(Routes.PENERIMAAN_SEBELUM_FORM, arguments: {
+      'unit_id': selectedUnitCode.value,
+      'storage_code': _getStorageCode(selectedStorage.value),
+    });
+  }
+
   Future<void> _loadApproverTransactions() async {
     final authData = _loginService.getCurrentAuth();
     if (authData == null) return;
 
-    final user = authData.user;
-    String userLevel = user.otorisasi.isNotEmpty ? user.otorisasi.first : '';
-    String kodeUnit = authData.currentKodeUnit ?? '';
+    final userLevel = authData.user.otorisasi.isNotEmpty ? authData.user.otorisasi.first : '';
+    final kodeUnit = authData.currentKodeUnit ?? '';
 
     try {
+      final List<Map<String, dynamic>> tempApproval = [];
+
       final apiResult = await _approvalService.getApprovalList(
         kodeUnit: kodeUnit,
-        transactionType: "FIN"
+        levelApproval: null,
+        transactionType: "FIN",
+        statusApprove: "PENDING",
       );
 
-      final List<Map<String, dynamic>> tempOngoing = [];
-      final List<Map<String, dynamic>> tempHistory = [];
-
+      Map<String, List<dynamic>> groupedApprovals = {};
       for (var item in apiResult) {
-        if (item.levelApproval != userLevel) {
-          continue;
+        String noBast = item.noBast ?? '-';
+        if (!groupedApprovals.containsKey(noBast)) {
+          groupedApprovals[noBast] = [];
         }
-
-        String title = 'Penerimaan Solar';
-        String iconPath = AppIcons.icPenerimaan;
-        Color iconColor = AppColors.primary;
-
-        String displayInfo = item.noBast ?? item.noPo ?? '-';
-
-        final mapData = {
-          'noBast': item.noBast,
-          'title': title,
-          'type': item.transactionType,
-          'date':
-              TextConvertHelper().formatDate(item.createdAt ?? item.tglApprove),
-          'amount': displayInfo,
-          'status': item.statusApprove,
-          'unit': kodeUnit,
-          'icon': iconPath,
-          'desc': 'Menunggu Approval Anda',
-          'color': iconColor,
-          'id': item.id
-        };
-
-        // 4. Pisahkan berdasarkan Status
-        // Jika status PENDING -> Masuk Tab "Sedang Berjalan" (Agar bisa di klik untuk approval)
-        // Jika status APPROVED -> Masuk Tab "Riwayat"
-
-        if (item.statusApprove == 'PENDING') {
-          tempOngoing.add(mapData);
-        } else {
-          mapData['desc'] =
-              item.statusApprove == 'APPROVED' ? 'Disetujui' : 'Ditolak';
-          tempHistory.add(mapData);
-        }
+        groupedApprovals[noBast]!.add(item);
       }
 
-      ongoingTransactions.assignAll(tempOngoing);
-      historyTransactions.assignAll(tempHistory);
+      groupedApprovals.forEach((noBast, approvalList) {
+        int getLevelNum(String levelStr) {
+          final match = RegExp(r'\d+').firstMatch(levelStr);
+          return match != null ? int.parse(match.group(0)!) : 99;
+        }
+
+        approvalList.sort((a, b) {
+          int levelA = getLevelNum(a.levelApproval ?? '');
+          int levelB = getLevelNum(b.levelApproval ?? '');
+          return levelA.compareTo(levelB);
+        });
+
+        final activePendingNode = approvalList.first;
+        final activePendingLevel = activePendingNode.levelApproval;
+
+        if (activePendingLevel == userLevel) {
+          String tglApprove = activePendingNode.tglApprove ?? activePendingNode.createdAt ?? '';
+          tempApproval.add({
+            'noBast': noBast,
+            'title': 'Penerimaan Solar',
+            'type': activePendingNode.transactionType,
+            'date': TextConvertHelper().formatDate(tglApprove),
+            'rawDate': DateTime.tryParse(tglApprove) ?? DateTime.now(),
+            'status': activePendingNode.statusApprove,
+            'unit': kodeUnit,
+            'id': activePendingNode.id,
+            'source': 'api',
+          });
+        }
+      });
+
+      try {
+        final ebpbResult = await _approvalService.getApprovalListEbpb(
+          kodeUnit: kodeUnit,
+          levelApproval: userLevel,
+          statusApprove: "PENDING",
+        );
+
+        for (var item in ebpbResult) {
+          String dateRaw = item['created_at'] ?? item['tgl_approve'] ?? DateTime.now().toString();
+          tempApproval.add({
+            'noBast': item['no_doc'] ?? '-',
+            'title': 'Approval E-BPB',
+            'type': 'EBPB',
+            'date': TextConvertHelper().formatDate(dateRaw),
+            'rawDate': DateTime.tryParse(dateRaw) ?? DateTime.now(),
+            'status': item['status_approve'] ?? 'PENDING',
+            'unit': kodeUnit,
+            'id': item['id'],
+            'source': 'api_ebpb',
+          });
+        }
+      } catch (e) {
+        print("⚠️ Gagal memuat Approval E-BPB: $e");
+      }
+
+      tempApproval.sort((a, b) {
+        DateTime dateA = a['rawDate'] as DateTime;
+        DateTime dateB = b['rawDate'] as DateTime;
+        return dateA.compareTo(dateB);
+      });
+
+      approvalTransactions.assignAll(tempApproval);
     } catch (e) {
       print("Error loading approval transactions: $e");
     }
   }
 
-  Future<void> _loadOutstandingTransactions() async {
-    final authData = _loginService.getCurrentAuth();
-    if (authData == null) return;
+  Future<void> _loadServerOpenTransactions() async {
+    try {
+      final authData = _loginService.getCurrentAuth();
+      if (authData == null) return;
 
-    final username = authData.user.username;
-    final outstandingService = OutstandingService(username);
+      final kodeUnit = selectedUnitCode.value;
+      List<InboundModel> apiFINList = await _masterDataService.getInboundOpenList(
+        kodeUnit: kodeUnit,
+        statusInbound: 'O',
+        docType: 'FIN',
+      );
 
-    final List<dynamic> dataList =
-        await outstandingService.getAllCombinedTransactions();
+      List<InboundModel> apiFOTList = await _masterDataService.getInboundOpenList(
+        kodeUnit: kodeUnit,
+        statusInbound: 'O',
+        docType: 'FOT',
+      );
 
-    final List<Map<String, dynamic>> tempOngoing = [];
-    final List<Map<String, dynamic>> tempHistory = [];
+      final List<Map<String, dynamic>> tempOutstanding = [];
+      for (var item in apiFINList) {
+        bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
+            (item.approvals == null || item.approvals!.isEmpty);
 
-    for (var trx in dataList) {
-      String title = '';
-      String iconPath = '';
-      String typeCode = '';
-      String noBast = '';
-      String noIO = '';
-      String dateCreated = '';
-      String status = '';
-      String amountStr = '';
-      String platStr = '';
-      String unitStr = '';
-      Color iconColor = AppColors.primary; // Default Color
-
-      if (trx is TransactionModel) {
-        // --- PENERIMAAN (FIN) ---
-        final detail = trx.dataSebelum;
-        noBast = trx.noBast;
-        status = trx.status;
-        dateCreated = trx.dateCreated;
-        typeCode = 'FIN';
-        title = 'Penerimaan Solar';
-        iconPath = AppIcons.icPenerimaan;
-        iconColor = AppColors.primary;
-
-        amountStr = "${(detail?.volumeVendor ?? 0).toInt()} Ltr";
-        platStr = (detail?.nopolVendor ?? 'Tidak Ada Plat').toUpperCase();
-        unitStr = (detail?.kodeUnit ?? '-').toString();
-      } else if (trx is TransactionPengeluaranModel) {
-        // --- PENGELUARAN (FOT) ---
-        final detail = trx.dataPengeluaran;
-        noBast = trx.noBast;
-        status = trx.status;
-        noIO = detail?.noIo ?? '-';
-        dateCreated = trx.dateCreated;
-        typeCode = 'FOT';
-        title = 'Pengeluaran Solar';
-        iconPath = AppIcons.icPengeluaran;
-        iconColor = AppColors.primaryOrange;
-        amountStr = "${(detail?.jumlahPengisianSolar ?? 0).toInt()} Ltr";
-        platStr = (detail?.nopolCheck ?? 'Tidak Ada Plat').toUpperCase();
-        unitStr = (detail?.unitIO ?? '-').toString();
+        if (isDraft) {
+          tempOutstanding.add({
+            'noBast': item.noDoc ?? '-',
+            'title': 'Draft Penerimaan',
+            'type': 'FIN',
+            'date': TextConvertHelper().formatDate(item.dateInbound),
+            'amount': "${(item.volumeVendor ?? 0).toInt()} L",
+            'status': 'Draft',
+            'unit': item.kodeUnit,
+            'source': 'api',
+          });
+        }
       }
 
-      final mapData = {
-        'noIO': noIO,
-        'noBast': noBast,
-        'title': title,
-        'type': typeCode,
-        'date': TextConvertHelper().formatDate(dateCreated),
-        'amount': amountStr,
-        'plat': platStr,
-        'status': status,
-        'unit': unitStr,
-        'icon': iconPath,
-        'desc': unitStr,
-        'color': iconColor,
-      };
+      for (var item in apiFOTList) {
+        bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
+            (item.approvals == null || item.approvals!.isEmpty);
 
-      String statusLower = status.toLowerCase();
-      if (statusLower == 'selesai') {
-        tempHistory.add(mapData);
-      } else {
-        tempOngoing.add(mapData);
+        if (isDraft) {
+          tempOutstanding.add({
+            'noBast': item.noDoc ?? '-',
+            'title': 'Draft Pengeluaran',
+            'type': 'FOT',
+            'date': TextConvertHelper().formatDate(item.dateInbound),
+            'amount': "${(item.volumeVendor ?? 0).toInt()} L",
+            'status': 'Draft',
+            'unit': item.kodeUnit,
+            'source': 'api',
+          });
+        }
       }
+      outstandingTransactions.assignAll(tempOutstanding);
+    } catch (e) {
+      print("Error loading server transactions: $e");
     }
-
-    ongoingTransactions.assignAll(tempOngoing);
-    historyTransactions.assignAll(tempHistory);
   }
 
   String _getStorageCode(String storageString) {
     final parts = storageString.split(' - ');
-    if (parts.length > 1) return parts.last;
-    return storageString;
+    if (parts.length > 1) return parts.last.trim();
+    return storageString.trim();
   }
 
-  Future<void> changeStorageLocation(String? newLocation) async {
-    if (newLocation != null && newLocation != 'Tidak ada Storage') {
-      selectedStorage.value = newLocation;
+  Future<void> changeStorageLocation(String? newStorage) async {
+    if (newStorage != null && newStorage != 'Tidak ada Storage') {
+      selectedStorage.value = newStorage;
 
-      final storageCode = _getStorageCode(newLocation);
       final unitCode = selectedUnitCode.value;
+      final storageCode = _getStorageCode(newStorage);
+      await _fuelDataService.saveLastSelectedStorage(newStorage, storageCode);
 
-      // Reset UI loading state
-      totalVolumeDisplay.value = 0.0;
-      tankListDisplay.clear();
+      final cachedForStorage = _fuelDataService
+          .getApiManualTanks()
+          .where((t) => t.masterStorage?.kodeStorage == storageCode)
+          .toList();
 
-      await _fetchManualTanksApi(unitCode, storageCode);
+      if (cachedForStorage.isNotEmpty) {
+        manualTanksList.assignAll(cachedForStorage);
+        _updateUiFromManualData();
+        isUsingOfflineData.value = true;
+      } else {
+        // Tidak ada cache untuk storage ini, kosongkan tampilan dulu
+        totalVolumeDisplay.value = 0.0;
+        tankListDisplay.clear();
+        manualTanksList.clear();
+      }
+
+      // Fetch terbaru dari API (akan replace data di atas jika berhasil)
+      _fetchManualTanksApi(unitCode, storageCode);
+      await _homeService.initDataFlow(unitCode, storageCode);
     }
   }
 
   Future<void> _fetchManualTanksApi(String unitCode, String storageCode) async {
+    bool online = await ConnectivityHelper.isConnected();
+    isUsingOfflineData.value = !online;
+
     try {
-      final tanks = await _masterDataService.getTankDetailFromStorage(
-          unitId: unitCode, storageId: storageCode);
+      final results = await _homeService.repository.syncSensorStockWithLocal(
+        unitId: unitCode,
+        storageCode: storageCode,
+      );
 
-      manualTanksList.assignAll(tanks);
-      await _fuelDataService.saveApiManualTanks(tanks);
+      if (results.isNotEmpty) {
+        manualTanksList.assignAll(results);
+        _updateUiFromManualData();
 
-      // Update UI
-      _updateUiFromManualData();
+        if (online) isUsingOfflineData.value = false;
+
+        await _fuelDataService.saveLastInputType("A");
+      } else {
+        _loadFallbackData(storageCode);
+      }
     } catch (e) {
-      print("⚠️ Gagal fetch tank manual: $e");
+      _loadFallbackData(storageCode);
+    } finally {
+      _isInitialLoad.value = false;
     }
   }
 
-  Future<void> _fetchTanksForStorage(
-      String unitCode, String storageCode) async {
-    try {
-      final tanks = await _masterDataService.getTankDetailFromStorage(
-          unitId: unitCode, storageId: storageCode);
+  void _loadFallbackData(String storageCode) {
+    final localData = _fuelDataService
+        .getApiManualTanks()
+        .where((t) => t.masterStorage?.kodeStorage == storageCode)
+        .toList();
 
-      if (tanks.isNotEmpty) {
-        _sensorService.iotData.assignAll(tanks);
-      } else {
-        _sensorService.iotData.clear();
-      }
-    } catch (e) {
-      print("⚠️ Gagal fetch tank: $e");
+    if (localData.isNotEmpty) {
+      manualTanksList.assignAll(localData);
+      _updateUiFromManualData();
     }
+    isUsingOfflineData.value = true; // Force true karena gagal API/Offline
+    _fuelDataService.saveLastInputType("M");
   }
 
   Future<void> navigateToTransactionDetail(Map<String, dynamic> tx) async {
-    String unitVal = tx['unit'] ?? '-';
+    String source = tx['source'] ?? 'local';
     String noBast = tx['noBast'] ?? '';
-    String status = (tx['status'] ?? '').toString().toLowerCase();
     String type = tx['type'] ?? '';
+    String status = tx['status'] ?? '';
 
-    final authData = _loginService.getCurrentAuth();
-    if (authData == null) return;
-
-    if (authData.user.isApprover) {
-      Get.toNamed(Routes.APPROVAL, arguments: {
-        'noBast': tx['noBast'],
-        'type': tx['type'],
-      });
+    if (source == 'api' && status.toUpperCase() == 'PENDING') {
+      Get.toNamed(Routes.APPROVAL, arguments: {'noBast': noBast, 'type': type});
       return;
+    }
 
-    } else {
-      final outstandingService = OutstandingService(authData.user.username);
-
-      if (type == 'FIN') {
-        // --- NAVIGASI PENERIMAAN ---
-        switch (status) {
-          case 'draft':
-          case 'proses':
-            Get.toNamed(Routes.PENERIMAAN,
-                arguments: {'noBast': noBast, 'isResume': true});
-            break;
-          case 'setelah_pengisian':
-            Get.toNamed(Routes.PENERIMAAN_SETELAH,
-                arguments: {'noBast': noBast});
-            break;
-          case 'verifikasi_bast':
-            Get.toNamed(Routes.PENERIMAAAN_VERIFIKASI_BAST,
-                arguments: {'noBast': noBast});
-            break;
-          case 'approval_kasie':
-          case 'approval_manager':
-          case 'selesai':
-            Get.toNamed(Routes.PENERIMAAN_TRACKING,
-                arguments: {'noBast': noBast});
-            break;
-          default:
-            Get.snackbar("Info", "Status transaksi tidak dikenali: $status");
-        }
-      } else if (type == 'FOT') {
-        final trxPengeluaran =
-            await outstandingService.getTransactionPengeluaranByNoBast(noBast);
-        if (trxPengeluaran != null) {
-          final detail = trxPengeluaran.dataPengeluaran;
-
-          switch (status) {
-            case 'pengisian_solar':
-            case 'pengisian_solar_pengeluaran':
-              Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-                'noDoc': noBast,
-                'noIO': detail?.noIo,
-                'unitIO': unitVal,
-                'noPolisi': detail?.nopolCheck,
-                'nama_supir': detail?.supirCheck,
-                'tanggal':
-                    TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
-                'km_pengisian': detail?.kmPengisian?.toString(),
-                'jumlah_pengisian_solar':
-                    detail?.jumlahPengisianSolar?.toString(),
-                'status': status,
-              });
-              break;
-
-            case 'verifikasi_pengeluaran':
-              Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-                'noDoc': noBast,
-                'noIO': detail?.noIo,
-                'unitIO': unitVal,
-                'noPolisi': detail?.nopolCheck,
-                'nama_supir': detail?.supirCheck,
-                'tanggal':
-                    TextConvertHelper().formatDate(trxPengeluaran.dateCreated),
-                'km_pengisian': detail?.kmPengisian?.toString(),
-                'jumlah_pengisian_solar':
-                    detail?.jumlahPengisianSolar?.toString(),
-                'status': status,
-              });
-              break;
-
-            case 'approval_kasie':
-            case 'approval_manager':
-            case 'selesai':
-              Get.toNamed(Routes.PENGELUARAN_TRACKING,
-                  arguments: {'noBast': noBast});
-              break;
-
-            default:
-              Get.snackbar("Info",
-                  "Status transaksi pengeluaran tidak dikenali: $status");
-          }
-        } else {
-          Get.snackbar("Error", "Data transaksi tidak ditemukan");
-        }
-      }
+    if (source == 'api_ebpb' && status.toUpperCase() == 'PENDING') {
+      Get.dialog(
+        const DialogOnDevelopment(),
+        barrierDismissible: true,
+      );
+      return;
     }
   }
 
   void loadUserData({AuthResponseModel? authData}) async {
     if (authData != null) {
       final user = authData.user;
-
-      // Ambil unit aktif (menghandle level 1 & 2/3 via getter cerdas)
       final unitCode = authData.currentKodeUnit ?? 'E000';
       final unitName = authData.currentNamaUnit ?? 'Unknown Estate';
 
       selectedUnitCode.value = unitCode;
       userAddress.value = '$unitCode - $unitName';
       userName.value = authData.currentFullName;
+      isApprover.value = (authData.user.otorisasi.first == "fuel_level_1") ? false : true;
 
-      // Setup Inisial Profile
       final nameParts = userName.value.trim().split(RegExp(r'\s+'));
       if (nameParts.isNotEmpty) {
         profileInitials.value = (nameParts.length > 1)
@@ -552,15 +626,10 @@ class HomeController extends GetxController {
             : nameParts[0][0].toUpperCase();
       }
 
-      // Setup Daftar Unit (untuk multi-unit user)
       _prepareAvailableUnits(authData);
-
-      // Ambil Title (TSE, LKE, dsb) via API
       await _fetchAndSetUnitTitle(unitCode);
-
       _generateUserMenu(user);
 
-      // Load Storage
       _cachedStorages = _fuelDataService.getLocalStorages();
       if (_cachedStorages.isNotEmpty) {
         loadStorageLocations(unitCode);
@@ -570,24 +639,13 @@ class HomeController extends GetxController {
 
   void _prepareAvailableUnits(AuthResponseModel authData) {
     availableUnits.clear();
-    // Jika User Level 2/3 (Otorisasi Data)
     if (authData.otorisasiData?.unit != null) {
       for (var u in authData.otorisasiData!.unit!) {
-        availableUnits.add({
-          'id': u.id,
-          'kode_unit': u.kodeUnit,
-          'nama_unit': u.namaUnit,
-        });
+        availableUnits.add({'id': u.id, 'kode_unit': u.kodeUnit, 'nama_unit': u.namaUnit});
       }
-    }
-    // Jika User Level 1 (Karyawan)
-    else if (authData.user.userKaryawan != null) {
+    } else if (authData.user.userKaryawan != null) {
       final u = authData.user.userKaryawan!.unit;
-      availableUnits.add({
-        'id': u.id,
-        'kode_unit': u.kodeUnit,
-        'nama_unit': u.namaUnit,
-      });
+      availableUnits.add({'id': u.id, 'kode_unit': u.kodeUnit, 'nama_unit': u.namaUnit});
     }
   }
 
@@ -595,102 +653,74 @@ class HomeController extends GetxController {
     selectedUnitCode.value = unit['kode_unit'];
     userAddress.value = "${unit['kode_unit']} - ${unit['nama_unit']}";
 
-    // Refresh Data Dashboard
     await _fetchAndSetUnitTitle(unit['kode_unit']);
     await _syncMasterDataFromServer();
-
-    // Refresh Transaksi
     _initialDataSync();
   }
 
   void _generateUserMenu(UserModel user) {
     menuList.clear();
 
-    final menuInputPenerimaan = {
-      'icon': AppIcons.icPenerimaan,
-      'label': 'Penerimaan',
-      'action': 'input_penerimaan',
-    };
-
-    final menuInputPengeluaran = {
-      'icon': AppIcons.icPengeluaran,
-      'label': 'Pengeluaran',
-      'action': 'input_pengeluaran',
-    };
-
-    final menuEBPB = {
-      'icon': AppIcons.icBpbHarian,
-      'label': 'E-BPB',
-      'action': 'input_e_bpb',
-    };
-    // final menuInputBonSementara = {
-    //   'icon': AppIcons.icKalibrasi,
-    //   'label': 'Bon Sementara',
-    //   'action': 'bon_sementara',
-    // };
-
-    final menuRiwayatPenerimaan = {
-      'icon': AppIcons.icTransactionPenerimaan,
-      'label': 'Report Penerimaan',
-      'action': 'riwayat_penerimaan',
-    };
-
-    final menuRiwayatPengeluaran = {
-      'icon': AppIcons.icPenerimaan2,
-      'label': 'Report Pengeluaran',
-      'action': 'riwayat_pengeluaran',
-    };
-
-    final menuRiwayatEBPB = {
-      'icon': AppIcons.icKalibrasi,
-      'label': 'Report E-BPB',
-      'action': 'riwayat_e_bpb',
-    };
+    final menuInputPenerimaan = {'icon': AppIcons.icPenerimaan, 'label': 'Penerimaan', 'action': 'input_penerimaan', 'category': 0};
+    final menuInputPengeluaran = {'icon': AppIcons.icPengeluaran, 'label': 'Pengeluaran', 'action': 'input_pengeluaran', 'category': 1};
+    final menuEBPB = {'icon': AppIcons.icBpbHarian, 'label': 'E-BPB', 'action': 'input_e_bpb', 'category': 1};
+    final menuRiwayatPenerimaan = {'icon': AppIcons.icReportPenerimaan, 'label': 'Laporan Penerimaan', 'action': 'riwayat_penerimaan', 'category': 2};
+    final menuRiwayatPengeluaran = {'icon': AppIcons.icReportPengeluaran, 'label': 'Laporan Pengeluaran', 'action': 'riwayat_pengeluaran', 'category': 2};
+    final menuRiwayatEBPB = {'icon': AppIcons.icReportEBPB, 'label': 'Laporan E-BPB', 'action': 'riwayat_e_bpb', 'category': 2};
 
     if (user.isKrani) {
       menuList.addAll([
-        menuInputPenerimaan,
-        menuInputPengeluaran,
-        menuEBPB,
-        // menuInputBonSementara,
-        menuRiwayatPenerimaan,
-        menuRiwayatPengeluaran,
-        menuRiwayatEBPB,
+        menuInputPenerimaan, menuInputPengeluaran, menuEBPB,
+        menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB,
       ]);
     } else if (user.isApprover) {
       menuList.addAll([
-        menuRiwayatPenerimaan,
-        menuRiwayatPengeluaran,
-        menuRiwayatEBPB,
+        menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB,
       ]);
+    }
+
+    availableMenuTabs.clear();
+
+    bool hasPenerimaan = menuList.any((menu) => menu['category'] == 0);
+    bool hasPengeluaran = menuList.any((menu) => menu['category'] == 1);
+    bool hasLaporan = menuList.any((menu) => menu['category'] == 2);
+
+    if (hasPenerimaan) availableMenuTabs.add({'label': 'Penerimaan', 'index': 0});
+    if (hasPengeluaran) availableMenuTabs.add({'label': 'Pengeluaran', 'index': 1});
+    if (hasLaporan) availableMenuTabs.add({'label': 'Laporan', 'index': 2});
+
+    if (availableMenuTabs.isNotEmpty) {
+      selectedMenuCategory.value = availableMenuTabs.first['index'];
     }
   }
 
-  void handleMenuTap(String action, BuildContext context) {
+  void handleMenuTap(String action, BuildContext context) async {
+    debugPrint("Selected Storage: ${_getStorageCode(selectedStorage.value)}");
+
+    // Cek Koneksi Internet (Khusus untuk menu input)
+    if (action == 'input_penerimaan' || action == 'input_pengeluaran' || action == 'input_e_bpb') {
+      bool isOnline = await ConnectivityHelper.isConnected();
+      if (!isOnline) {
+        Get.snackbar(
+          "Akses Terbatas (Offline)", 
+          "Koneksi internet diperlukan untuk mengakses menu transaksi.",
+          backgroundColor: Colors.red.withOpacity(0.8),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          margin: const EdgeInsets.all(16),
+        );
+        return; // Hentikan navigasi
+      }
+    }
+
     switch (action) {
-      case 'input_penerimaan':
-        Get.toNamed(Routes.PENERIMAAN_SEBELUM_FORM);
-        break;
-      case 'input_pengeluaran':
-        Get.toNamed(Routes.PENGELUARAN);
-        break;
-      case 'input_e_bpb':
-        Get.toNamed(Routes.PENGELUARAN_BPB_HARIAN);
-        break;
-      // case 'bon_sementara':
-      //   Get.toNamed(Routes.PENGELUARAN_INPUT_BON_SEMENTARA);
-      //   break;
-      case 'riwayat_penerimaan':
-        Get.toNamed(Routes.REPORT_PENERIMAAN);
-        break;
-      case 'riwayat_pengeluaran':
-        Get.toNamed(Routes.REPORT_PENGELUARAN);
-        break;
-      case 'riwayat_e_bpb':
-        _showDevelopmentModal(context);
-        break;
-      default:
-        _showDevelopmentModal(context);
+      case 'input_penerimaan': goToPenerimaan(); break;
+      case 'input_pengeluaran': Get.toNamed(Routes.PENGELUARAN); break;
+      case 'input_e_bpb': Get.toNamed(Routes.PENGELUARAN_EBPB); break;
+      case 'riwayat_penerimaan': Get.toNamed(Routes.REPORT_PENERIMAAN); break;
+      case 'riwayat_pengeluaran': Get.toNamed(Routes.REPORT_PENGELUARAN); break;
+      case 'riwayat_e_bpb': _showDevelopmentModal(context); break;
+      default: _showDevelopmentModal(context);
     }
   }
 
@@ -708,7 +738,6 @@ class HomeController extends GetxController {
     storageLocations.clear();
     List<String> formattedList = [];
 
-    // Loop List<UnitToStorageModel>
     for (var unitData in _cachedStorages) {
       for (MasterStorageModel storage in unitData.masterStorage) {
         if (storage.storageStatus == 'Y') {
@@ -720,13 +749,13 @@ class HomeController extends GetxController {
     if (formattedList.isNotEmpty) {
       storageLocations.addAll(formattedList);
 
-      if (selectedStorage.value == 'Pilih Lokasi Storage' ||
-          selectedStorage.value.isEmpty) {
-        Future.delayed(Duration.zero, () {
-          changeStorageLocation(storageLocations.first);
-        });
+      if (selectedStorage.value == 'Pilih Lokasi Storage' || selectedStorage.value.isEmpty) {
+        changeStorageLocation(storageLocations.first);
       } else if (!storageLocations.contains(selectedStorage.value)) {
         changeStorageLocation(storageLocations.first);
+      } else {
+        final storageCode = _getStorageCode(selectedStorage.value);
+        _fetchManualTanksApi(selectedUnitCode.value, storageCode);
       }
     } else {
       selectedStorage.value = 'Tidak ada Storage';
@@ -742,26 +771,25 @@ class HomeController extends GetxController {
   void logout() {
     Get.dialog(
       DialogFlexible(
-        logo: Lottie.asset(AppLotties.question,
-            width: 120, height: 120, repeat: true),
+        logo: Lottie.asset(
+          AppLotties.question,
+          width: (Get.width * 0.25).clamp(80.0, 120.0),
+          height: (Get.width * 0.25).clamp(80.0, 120.0),
+          repeat: true,
+        ),
         title: "Konfirmasi Keluar",
-        message:
-            "Apakah Anda yakin ingin keluar dari aplikasi? Sesi Anda akan diakhiri.",
-
-        // Tombol Batal
+        message: "Apakah Anda yakin ingin keluar dari aplikasi? Sesi Anda akan diakhiri.",
         secondaryButtonText: "Batal",
         onSecondaryPressed: () => Get.back(),
-
         primaryButtonText: "Ya, Keluar",
         onPrimaryPressed: () async {
           Get.back();
-
-          // Proses Logout
+          // Hanya hapus data auth/token — data tangki dan storage tetap di Hive per user
           await _loginService.clearAuthData();
           Get.offAllNamed(Routes.LOGIN);
         },
       ),
-      barrierDismissible: false,
+      barrierDismissible: true,
     );
   }
 
@@ -793,5 +821,11 @@ class HomeController extends GetxController {
       }
     }
     deniedPermissionsList.assignAll(currentlyDenied);
+  }
+
+  @override
+  void onClose() {
+    _connectivitySubscription?.cancel();
+    super.onClose();
   }
 }

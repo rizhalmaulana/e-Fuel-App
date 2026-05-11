@@ -31,6 +31,7 @@ class AppFonts {
   static TextStyle fUrbanistRegular16 = const TextStyle(fontFamily: _fontFamily, fontSize: 16, fontWeight: FontWeight.w400);
 
   // Medium (w500)
+  static TextStyle fUrbanistMedium8 = const TextStyle(fontFamily: _fontFamily, fontSize: 8, fontWeight: FontWeight.w500);
   static TextStyle fUrbanistMedium10 = const TextStyle(fontFamily: _fontFamily, fontSize: 10, fontWeight: FontWeight.w500);
   static TextStyle fUrbanistMedium12 = const TextStyle(fontFamily: _fontFamily, fontSize: 12, fontWeight: FontWeight.w500);
   static TextStyle fUrbanistMedium14 = const TextStyle(fontFamily: _fontFamily, fontSize: 14, fontWeight: FontWeight.w500);
@@ -51,6 +52,7 @@ class AppFonts {
   static TextStyle fUrbanistSemiBoldItalic18 = const TextStyle(fontFamily: _fontFamily, fontSize: 18, fontWeight: FontWeight.w600, fontStyle: FontStyle.italic);
 
   // Bold (w700)
+  static TextStyle fUrbanistBold8 = const TextStyle(fontFamily: _fontFamily, fontSize: 8, fontWeight: FontWeight.w700);
   static TextStyle fUrbanistBold10 = const TextStyle(fontFamily: _fontFamily, fontSize: 10, fontWeight: FontWeight.w700);
   static TextStyle fUrbanistBold12 = const TextStyle(fontFamily: _fontFamily, fontSize: 12, fontWeight: FontWeight.w700);
   static TextStyle fUrbanistBold14 = const TextStyle(fontFamily: _fontFamily, fontSize: 14, fontWeight: FontWeight.w700);

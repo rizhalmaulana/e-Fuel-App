@@ -24,23 +24,16 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
     return "Nama Supir";
   }
 
-  String _getLabelFotoSupir() {
-    String tipe = controller.tipeUnit.value.toUpperCase();
-    if (tipe == 'AB') return "Foto Operator";
-    if (tipe == 'GS') return "Foto Pengambil Solar";
-    return "Foto Supir";
-  }
-
   void _showExitConfirmation() {
     Get.dialog(
       DialogFlexible(
         logo: LottiesHelper().getLottieQuestion(),
-        title: 'Konfirmasi',
-        message: 'Apakah anda yakin akan membatalkan transaksi ini? Data yang belum tersimpan akan hilang.',
+        title: 'Konfirmasi Keluar',
+        message: 'Data yang belum disubmit akan hilang. Yakin ingin keluar?',
         primaryColor: AppColors.primaryOrange,
-        secondaryButtonText: 'Lanjut Transaksi',
+        secondaryButtonText: 'Batal',
         onSecondaryPressed: () => Get.back(),
-        primaryButtonText: 'Keluar',
+        primaryButtonText: 'Ya, Keluar',
         onPrimaryPressed: () {
           Get.back();
           controller.saveAndExit();
@@ -50,6 +43,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
     );
   }
 
+  // --- WIDGETS ---
   Widget _buildSummaryCard() {
     return Container(
       width: double.infinity,
@@ -66,7 +60,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
       ),
       child: Column(
         children: [
-          // Header: Doc No & Tanggal
+          // Header Card (Tetap Sama)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -82,7 +76,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                     const SizedBox(width: 6),
                     Text(
                       "Doc. ${controller.noDoc.value}",
-                      style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryOrange),
+                      style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryOrange),
                     ),
                   ],
                 ),
@@ -94,32 +88,13 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
             ),
           ),
 
+          // Info Content
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Highlight: Jumlah Solar
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.fieldBackground),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text("Estimasi Solar Dikeluarkan", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
-                      const SizedBox(height: 4),
-                      Obx(() => Text(
-                        "${controller.jumlahSolar.value} Liter",
-                        style: AppFonts.fUrbanistBold20.copyWith(color: AppColors.primaryOrange),
-                      )),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Detail Grid
+                // Info Grid Unit/Supir (Tetap Sama)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -127,8 +102,8 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildInfoItem("Kode Unit", controller.unitIO.value, Icons.local_shipping_outlined),
-                          const SizedBox(height: 16),
+                          _buildInfoItem("Nama Unit", controller.unitIO.value, Icons.local_shipping_outlined),
+                          const SizedBox(height: 8),
                           Obx(() => _buildInfoItem(_getLabelNoPolisi(), controller.noPolisi.value, Icons.featured_play_list_outlined)),
                         ],
                       ),
@@ -139,8 +114,99 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildInfoItem("No. IO", controller.noIO.value, Icons.confirmation_number_outlined),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
                           Obx(() => _buildInfoItem(_getLabelNamaSupir(), controller.namaSupir.value, Icons.person_outline)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Divider(),
+
+                // =========================================================
+                // 1. AKTUAL PENGELUARAN (INPUT)
+                // =========================================================
+                Obx(() {
+                  if (controller.isSensorApiActive.value) return const SizedBox.shrink();
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade800),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Sensor tidak merespon atau data (0). Silakan masukkan liter aktual secara manual.",
+                            style: AppFonts.fUrbanistMedium10.copyWith(color: Colors.orange.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Aktual Pengeluaran Solar (Ltr)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: controller.aktualSolarC,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      readOnly: false,
+                      decoration: InputDecoration(
+                        hintText: "0",
+                        filled: true,
+                        fillColor: AppColors.alertSoftOrangeSecond,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE3E8F0))),
+                        suffixIcon: Obx(() => IconButton(
+                          icon: controller.isRefreshingSensor.value
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : Icon(Icons.sync, color: controller.isSensorApiActive.value ? Colors.green : AppColors.primary),
+                          onPressed: controller.refreshSensorMonitoring,
+                          tooltip: "Tarik Data Sensor",
+                        )),
+                      ),
+                      style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.darkText),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // =========================================================
+                // 2. ESTIMASI & VARIAN (SIDE BY SIDE - READ ONLY)
+                // =========================================================
+                Row(
+                  children: [
+                    // KIRI: ESTIMASI
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Estimasi (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                          const SizedBox(height: 8),
+                          _buildReadOnlyField(controller.estimasiSolarC),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // KANAN: VARIAN
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Varian (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                          const SizedBox(height: 8),
+                          _buildReadOnlyField(controller.varianSolarC),
                         ],
                       ),
                     ),
@@ -150,6 +216,22 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper Widget untuk Field ReadOnly agar codingan lebih rapi
+  Widget _buildReadOnlyField(TextEditingController ctrl) {
+    return TextField(
+      controller: ctrl,
+      readOnly: true,
+      style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.secondaryText),
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        filled: true,
+        fillColor: Colors.grey[200],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
   }
@@ -179,24 +261,28 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Bukti Foto (Wajib)",
+          "Bukti Dokumentasi (Wajib)",
           style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
         ),
         const SizedBox(height: 12),
         Obx(() => Row(
           children: [
+            // FOTO DISPENSER
             _buildPhotoItem(
-              label: _getLabelFotoSupir(),
-              imageFile: controller.fotoSupir.value,
-              onTap: () => controller.takePhoto(true),
-              onRemove: () => controller.removePhoto(true),
+              label: "Foto Dispenser Pom",
+              icon: Icons.local_gas_station_rounded,
+              imageFile: controller.fotoDispenser.value,
+              onTap: () => controller.takePhoto(false), // False = Dispenser
+              onRemove: () => controller.removePhoto(false),
             ),
             const SizedBox(width: 16),
+            // FOTO SUPIR
             _buildPhotoItem(
-              label: "Foto Unit/Truk",
-              imageFile: controller.fotoTruk.value,
-              onTap: () => controller.takePhoto(false),
-              onRemove: () => controller.removePhoto(false),
+              label: controller.namaSupir.value,
+              icon: Icons.person_pin_circle_outlined,
+              imageFile: controller.fotoSupir.value,
+              onTap: () => controller.takePhoto(true), // True = Supir
+              onRemove: () => controller.removePhoto(true),
             ),
           ],
         )),
@@ -206,6 +292,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
 
   Widget _buildPhotoItem({
     required String label,
+    required IconData icon,
     required File? imageFile,
     required VoidCallback onTap,
     required VoidCallback onRemove,
@@ -213,16 +300,15 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
     bool hasImage = imageFile != null;
     return Expanded(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: controller.isTakingPhoto.value ? null : onTap,
         child: Container(
-          height: 120, // Sedikit lebih tinggi agar proporsional
+          height: 140,
           decoration: BoxDecoration(
             color: hasImage ? AppColors.white : const Color(0xFFF9F9F9),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: hasImage ? AppColors.primaryOrange : AppColors.secondaryText.withOpacity(0.2),
               width: hasImage ? 1.5 : 1,
-              style: hasImage ? BorderStyle.solid : BorderStyle.solid,
             ),
           ),
           child: hasImage
@@ -233,11 +319,10 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                 borderRadius: BorderRadius.circular(10),
                 child: Image.file(imageFile, fit: BoxFit.cover),
               ),
-              // Gradient Overlay untuk teks label
               Positioned(
                 bottom: 0, left: 0, right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.6),
                     borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
@@ -246,10 +331,11 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                     label,
                     style: AppFonts.fUrbanistSemiBold10.copyWith(color: Colors.white),
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              // Delete Button
               Positioned(
                 top: 6, right: 6,
                 child: GestureDetector(
@@ -277,11 +363,14 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                   shape: BoxShape.circle,
                   boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)],
                 ),
-                child: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryOrange, size: 24),
+                child: Icon(icon, color: AppColors.primaryOrange, size: 28),
               ),
               const SizedBox(height: 10),
-              Text("Ambil Foto", style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText)),
-              Text(label, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryText)),
+              Text("Ambil Foto", style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.secondaryText)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(label, textAlign: TextAlign.center, style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryText)),
+              ),
             ],
           ),
         ),
@@ -313,54 +402,62 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
           ),
         ),
         body: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Section 1: Summary Card
-                      _buildSummaryCard(),
-
-                      const SizedBox(height: 16),
-
-                      // Section 2: Photo Upload
-                      _buildPhotoSection(),
-
-                      const SizedBox(height: 20), // Spacing bottom
-                    ],
-                  ),
-                ),
-              ),
-
-              // Bottom Action Button
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: AppColors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: controller.finishTransaction,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryOrange,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSummaryCard(),
+                          const SizedBox(height: 20),
+                          _buildPhotoSection(),
+                          const SizedBox(height: 20),
+                        ],
                       ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'Proses Verifikasi',
-                      style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
                     ),
                   ),
-                ),
+
+                  // Footer Button
+                  Container(
+                    padding: EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    decoration: const BoxDecoration(
+                      color: AppColors.white,
+                      border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: controller.showSubmitConfirmation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryOrange,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Submit Data',
+                          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+
+              // Loading Indicator Overlay when taking photo
+              Obx(() => controller.isTakingPhoto.value
+                  ? Positioned.fill(
+                  child: Container(
+                    color: Colors.black45,
+                    child: const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange)),
+                  ))
+                  : const SizedBox()),
             ],
           ),
         ),

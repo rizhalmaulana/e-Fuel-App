@@ -274,7 +274,7 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + MediaQuery.of(context).padding.bottom),
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:signature/signature.dart';
 
+import '../../../configs/app_colors.dart';
 import '../../auth/services/login_service.dart';
 import '../services/approval_service.dart';
 import '../../../routes/app_pages.dart';
@@ -55,7 +57,7 @@ class ApprovalController extends GetxController {
       if (data != null) {
         detailData.assignAll(data);
       } else {
-        Get.snackbar("Error", "Gagal memuat detail data transaksi");
+        Get.snackbar("Terjadi Kesalahan", "Gagal memuat detail data transaksi");
       }
     }
     isLoading.value = false;
@@ -81,16 +83,16 @@ class ApprovalController extends GetxController {
 
   Future<void> submitDecision(String status) async {
     if (status == 'APPROVED' && signatureController.isEmpty) {
-      Get.snackbar("Error", "Tanda tangan wajib diisi untuk Approve");
+      Get.snackbar("Informasi", "Tanda tangan wajib diisi untuk Approve", backgroundColor: AppColors.info, colorText: Colors.white);
       return;
     }
 
     if (status == 'REJECTED' && noteController.text.isEmpty) {
-      Get.snackbar("Error", "Mohon isi catatan alasan penolakan");
+      Get.snackbar("Informasi", "Mohon isi catatan alasan penolakan", backgroundColor: AppColors.info, colorText: Colors.white);
       return;
     }
 
-    Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+    Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primary)), barrierDismissible: false);
 
     File? signFile;
     if (status == 'APPROVED') {
@@ -102,6 +104,7 @@ class ApprovalController extends GetxController {
 
     final auth = _loginService.getCurrentAuth();
     final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
+    final kodeUnit = auth?.currentKodeUnit ?? ''; // Ambil kode unit untuk parameter getApprovalList
 
     final success = await _approvalService.submitPenerimaanApprovalDecision(
       noDoc: noBast,
@@ -111,12 +114,58 @@ class ApprovalController extends GetxController {
       signature: signFile,
     );
 
-    Get.back();
-
     if (success) {
+      // PENGECEKAN FULL APPROVED
+      if (status == 'APPROVED') {
+        // Hit API untuk mengecek seluruh list approval dokumen ini
+        final approvalList = await _approvalService.getApprovalList(
+          kodeUnit: kodeUnit,
+          noBast: noBast,
+          transactionType: transactionType,
+        );
+
+        // Jika data ada, dan SEMUA status_approve-nya adalah 'APPROVED' (tidak ada yang PENDING/REJECTED)
+        bool isFullApproved = approvalList.isNotEmpty &&
+            approvalList.every((appv) => appv.statusApprove?.toUpperCase() == 'APPROVED');
+
+        if (isFullApproved) {
+          // 🟢 Panggil API export PDF dan simpan path-nya
+          String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
+
+          Get.back(); // Tutup loading progress dialog
+          Get.offAllNamed(Routes.HOME); // Arahkan ke Home
+
+          if (downloadedFilePath != null) {
+            Get.snackbar(
+              "Full Approved!",
+              "Dokumen berhasil diunduh.",
+              backgroundColor: Colors.green,
+              colorText: Colors.white,
+            );
+
+            // 🟢 Buka file PDF secara otomatis!
+            await Future.delayed(const Duration(milliseconds: 500)); // Beri jeda sedikit agar transisi ke Home mulus
+            await OpenFilex.open(downloadedFilePath);
+
+          } else {
+            // Jika gagal mendownload dari server
+            Get.snackbar(
+              "Full Approved!",
+              "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
+              backgroundColor: Colors.orange,
+              colorText: Colors.white,
+            );
+          }
+          return;
+        }
+      }
+
+      // (Belum Full Approved atau REJECTED)
+      Get.back(); // Tutup loading progress dialog
       Get.offAllNamed(Routes.HOME);
       Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
     } else {
+      Get.back(); // Tutup loading progress dialog
       Get.snackbar("Gagal", "Terjadi kesalahan saat memproses data", backgroundColor: Colors.red, colorText: Colors.white);
     }
   }

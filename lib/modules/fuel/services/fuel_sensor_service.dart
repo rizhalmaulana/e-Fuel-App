@@ -1,16 +1,20 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:e_fuel/configs/app_config.dart';
 import 'package:e_fuel/datas/constant/value_key_static.dart';
-import '../../../datas/models/storage_to_tank/storage_to_tank_model.dart';
+import '../../../configs/app_colors.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import '../../fuel/services/master_data_service.dart';
 
 class FuelSensorService extends GetxService {
-  Box<List>? _sensorBox;
+  late Box<List<dynamic>> _sensorBox;
+  Box? _configBox;
 
   final RxList<VolumeTankDetailModel> iotData = <VolumeTankDetailModel>[].obs;
   final RxList<VolumeTankDetailModel> snapshotData = <VolumeTankDetailModel>[].obs;
+
   final MasterDataService _masterDataService = MasterDataService();
 
   Future<void> initSensorBox(String username) async {
@@ -18,14 +22,68 @@ class FuelSensorService extends GetxService {
         ? '${ValueKeyStatic.FUEL_DATA_IOT_BOX}_dev_$username'
         : '${ValueKeyStatic.FUEL_DATA_IOT_BOX}_$username';
 
-    if (!Hive.isBoxOpen(boxName)) {
-      _sensorBox = await Hive.openBox<List>(boxName);
+    final configBoxName = '${boxName}_${username}_config';
+
+    if (Hive.isBoxOpen(boxName)) {
+      _sensorBox = Hive.box<List<dynamic>>(boxName);
     } else {
-      _sensorBox = Hive.box<List>(boxName);
+      _sensorBox = await Hive.openBox<List<dynamic>>(boxName);
+    }
+
+    if (Hive.isBoxOpen(configBoxName)) {
+      await Hive.box(configBoxName).close();
+    }
+
+    if (await Hive.boxExists(boxName)) {
+      bool needsMigration = true;
+      if (await Hive.boxExists(configBoxName)) {
+        try {
+          final tempBox = await Hive.openBox(configBoxName);
+          final version = tempBox.get('data_version', defaultValue: 1);
+          await tempBox.close();
+          needsMigration = version < 2;
+        } catch (e) { needsMigration = true; }
+      }
+      if (needsMigration) {
+        await Hive.deleteBoxFromDisk(boxName);
+        if (await Hive.boxExists(configBoxName)) {
+          await Hive.deleteBoxFromDisk(configBoxName);
+        }
+      }
+    }
+
+    try {
+      _sensorBox = await Hive.openBox<List>(boxName);
+    } catch (e) {
+      print("Error opening box, force deleting...");
+      await Hive.deleteBoxFromDisk(boxName);
+      _sensorBox = await Hive.openBox<List>(boxName);
+    }
+    _configBox = await Hive.openBox(configBoxName);
+
+    final currentVersion = _configBox!.get('data_version', defaultValue: 1);
+
+    if (currentVersion < 2) {
+      await _migrateFromV1ToV2();
+      await _configBox!.put('data_version', 2);
     }
 
     _loadLocalIotData();
     _loadSnapshotData();
+  }
+
+  Future<void> _migrateFromV1ToV2() async {
+    print("🔄 Migrasi sensor data dari v1 ke v2...");
+
+    Get.snackbar(
+      "Pembaruan Aplikasi",
+      "Data sensor akan dimuat ulang secara otomatis.",
+      backgroundColor: AppColors.primary,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+
+    print("✅ Migrasi selesai");
   }
 
   void _loadLocalIotData() {
@@ -65,7 +123,7 @@ class FuelSensorService extends GetxService {
     snapshotData.clear();
   }
 
-  Future<void> refreshData({
+  Future<void> fetchDataDetailTank({
     required String unitId,
     required String targetStorageCode
   }) async {
@@ -76,10 +134,11 @@ class FuelSensorService extends GetxService {
       );
 
       if (tanks.isNotEmpty) {
-        await _saveLocalIotData(tanks);
+        final List<VolumeTankDetailModel> validTanks = tanks.map((e) => e).toList();
+        await _saveLocalIotData(validTanks);
       }
     } catch (e) {
-      print("⚠️ Gagal refresh sensor data: $e");
+      debugPrint("⚠️ Gagal refresh sensor data: $e");
     }
   }
 }

@@ -25,13 +25,14 @@ class VolumeTankDetailModelAdapter extends TypeAdapter<VolumeTankDetailModel> {
       height: fields[5] as double,
       createdAt: fields[6] as String?,
       updatedAt: fields[7] as String?,
+      capacity: fields[8] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, VolumeTankDetailModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class VolumeTankDetailModelAdapter extends TypeAdapter<VolumeTankDetailModel> {
       ..writeByte(6)
       ..write(obj.createdAt)
       ..writeByte(7)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(8)
+      ..write(obj.capacity);
   }
 
   @override

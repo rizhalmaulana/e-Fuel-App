@@ -4,13 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../configs/app_colors.dart';
 import '../../../configs/app_fonts.dart';
-import '../../../helpers/separator_input_formatter.dart';
+import '../../../helpers/decimal_input_formatter.dart';
+import '../../../widgets/component/auto_scroll_text.dart';
 import '../controllers/pengeluaran_controller.dart';
 
 class PengeluaranView extends GetView<PengeluaranController> {
   const PengeluaranView({super.key});
 
-  static const Color _colorEditable = AppColors.alertSoftOrange;
+  static const Color _colorEditable = AppColors.alertSoftOrangeSecond;
   static const Color _colorReadOnly = AppColors.backgroundGrey;
 
   // --- HELPER: SECTION CARD ---
@@ -126,10 +127,26 @@ class PengeluaranView extends GetView<PengeluaranController> {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primaryOrange)),
       ),
       hint: Text(hint ?? '', style: AppFonts.fUrbanistLight12.copyWith(color: AppColors.secondaryText)),
-      items: items.map((String value) {
+      selectedItemBuilder: (BuildContext context) {
+        return items.map<Widget>((String item) {
+          // Panggil widget running text yang baru kita buat
+          return AutoScrollText(
+            text: item.toUpperCase(),
+            style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+          );
+        }).toList();
+      },
+
+      // Tampilan List saat Dropdown Dibuka (Tetap menggunakan Text biasa)
+      items: items.map((String val) {
         return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value.toUpperCase(), style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText), overflow: TextOverflow.ellipsis, maxLines: 1),
+          value: val,
+          child: Text(
+              val.toUpperCase(),
+              style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1
+          ),
         );
       }).toList(),
       onChanged: onChanged,
@@ -235,32 +252,33 @@ class PengeluaranView extends GetView<PengeluaranController> {
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20), onPressed: () => Get.back()),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 30 + MediaQuery.of(context).padding.bottom),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // =========================================================
-            // CARD 1: INFORMASI UNIT & TRANSAKSI (GABUNGAN)
+            // CARD 1: INFORMASI UNIT & TRANSAKSI
             // =========================================================
             _buildSectionCard(
               title: "Jenis Transaksi & Unit",
               icon: Icons.directions_car_filled_rounded,
               children: [
-                // Baris 1: Jenis & Kategori
+                // Baris 1: Jenis Pengeluaran
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _buildLabel("Jenis Pengeluaran"),
+                  Obx(() => _buildStandardDropdown(
+                    items: controller.jenisBonList,
+                    value: controller.selectedJenisBon.value,
+                    onChanged: (val) => controller.switchJenisBon(val),
+                    hint: "Pilih Jenis",
+                  )),
+                ]),
+                const SizedBox(height: 12),
+
+                // Baris 2: Kategori & Kode Kebun/Pabrik
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _buildLabel("Jenis Pengeluaran"),
-                      Obx(() => _buildStandardDropdown(
-                        items: controller.jenisBonList,
-                        value: controller.selectedJenisBon.value,
-                        onChanged: (val) => controller.switchJenisBon(val),
-                        hint: "Pilih Jenis",
-                      )),
-                    ])),
-                    const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       _buildLabel("Kategori"),
                       Obx(() => _buildStandardDropdown(
@@ -270,12 +288,50 @@ class PengeluaranView extends GetView<PengeluaranController> {
                         hint: "Pilih Kategori",
                       )),
                     ])),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      _buildLabel("Kode Kebun/Pabrik"),
+                      Obx(() {
+                        if (controller.isLoadingUnitsPerArea.value) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            alignment: Alignment.centerLeft,
+                            child: const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryOrange)),
+                          );
+                        }
+                        
+                        if (controller.selectedKategoriKendaraan.value!.contains('INTERNAL NON')) {
+                          return _buildStandardDropdown(
+                            items: controller.listTitleUnitPerArea,
+                            value: controller.selectedKodeKebunPabrik.value,
+                            onChanged: (val) => controller.selectedKodeKebunPabrik.value = val,
+                            hint: "Pilih Kode",
+                          );
+                        } else {
+                          String val = "-";
+                          if (controller.selectedKategoriKendaraan.value!.contains('INTERNAL') && !controller.selectedKategoriKendaraan.value!.contains('NON')) {
+                            val = controller.userTitleUnit.value;
+                          }
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _colorReadOnly,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              val,
+                              style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+                            ),
+                          );
+                        }
+                      }),
+                    ])),
                   ],
                 ),
+                const SizedBox(height: 12),
 
-                _buildDivider(), // Garis pemisah
-
-                // Baris 2: Nama Unit & Plat No
+                // Baris 3: Nama Unit & Plat No
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -310,67 +366,120 @@ class PengeluaranView extends GetView<PengeluaranController> {
             // CARD 2: DATA OPERASIONAL (CONDITIONAL: HIDDEN IF TAMU)
             // =========================================================
             Obx(() {
-              if (controller.isTamu) return const SizedBox.shrink();
-
               return _buildSectionCard(
-                title: "Data Operasional",
+                title: "Data HM/KM",
                 icon: Icons.speed_rounded,
                 children: [
-                  // Logic HM/KM & Date
-                  Obx(() {
-                    if (controller.tipeUnit.value == null) return const SizedBox.shrink();
-                    String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
-                    String labelPrefix = (tipe == "AB") ? "HM" : "KM";
 
-                    if (controller.isTipeKendaraan) {
-                      return Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("$labelPrefix Awal"),
-                          _buildTextField(controller: controller.hmKmAwalC, readOnly: controller.isHmKmAwalReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                        ])),
+                  // --- BAGIAN A: HM/KM/RATIO ---
+                  if (!controller.isTamu) ...[
+                    // Logic HM/KM & Date
+                    Obx(() {
+                      if (controller.tipeUnit.value == null) return const SizedBox.shrink();
+                      String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
+                      String labelPrefix = (tipe == "AB") ? "HM" : "KM";
+
+                      if (controller.isTipeKendaraan) {
+                        return Row(children: [
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("$labelPrefix Sebelumnya"),
+                            _buildTextField(controller: controller.hmKmAwalC, readOnly: controller.isHmKmAwalReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                          ])),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("$labelPrefix Saat ini"),
+                            _buildTextField(controller: controller.hmKmAkhirC, readOnly: controller.isHmKmAkhirReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                          ])),
+                        ]);
+                      } else {
+                        return Row(children: [
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("Tanggal Awal"),
+                            _buildTextField(controller: controller.dateAwalC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, true)),
+                          ])),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _buildLabel("Tanggal Akhir"),
+                            _buildTextField(controller: controller.dateAkhirC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, false)),
+                          ])),
+                        ]);
+                      }
+                    }),
+
+                    const SizedBox(height: 12),
+
+                    // Logic Selisih & Rasio
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Obx(() {
+                                String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
+                                String prefix = (tipe == "AB") ? "HM" : "KM";
+                                return _buildLabel("Varian $prefix");
+                              }),
+
+                              _buildTextField(
+                                  controller: controller.varianC,
+                                  readOnly: controller.isVarianReadOnly.value,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  hint: "0"),
+                            ],
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("$labelPrefix Akhir"),
-                          _buildTextField(controller: controller.hmKmAkhirC, readOnly: controller.isHmKmAkhirReadOnly.value, hint: "0", keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-                        ])),
-                      ]);
-                    } else {
-                      return Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("Tanggal Awal"),
-                          _buildTextField(controller: controller.dateAwalC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, true)),
-                        ])),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildLabel("Tanggal Akhir"),
-                          _buildTextField(controller: controller.dateAkhirC, readOnly: true, forceEditableColor: true, hint: "dd/MM/yyyy", onTap: () => controller.pickDate(context, false)),
-                        ])),
-                      ]);
-                    }
-                  }),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel("Rasio"),
+                              _buildTextField(
+                                controller: controller.ratioInput,
+                                readOnly: controller.isRatioReadOnly.value,
+                                hint: "0",
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                // Tambahkan formatter jika perlu
+                                customFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                                  DecimalInputFormatter(),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
 
-                  const SizedBox(height: 12),
+                    _buildDivider(),
+                  ],
+                  // --- END BAGIAN A ---
 
-                  // Logic Selisih & Rasio
+
+                  // --- BAGIAN B: ESTIMASI LITER & IO ---
                   Row(
                     children: [
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _buildLabel("Selisih"),
+                        _buildLabel("Estimasi Liter"),
                         _buildTextField(
-                            controller: controller.varianC,
-                            readOnly: controller.isVarianReadOnly.value,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            hint: "0"),
+                          controller: controller.pengisianSolarC, // atau ratioC / hmKmAwalC
+                          readOnly: controller.isLiterReadOnly.value,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          hint: "Input Liter",
+                          customFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')), // Izinkan angka, titik, koma
+                            DecimalInputFormatter(),
+                          ],
+                        ),
                       ])),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _buildLabel("Rasio"),
-                        _buildTextField(
-                          controller: controller.ratioC,
-                          readOnly: controller.isRatioReadOnly.value,
-                          hint: "0",
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        ),
+                        Obx(() => _buildLabel(controller.isTamu ? "Cost Center" : "No. IO")),
+                        Obx(() => _buildTextField(
+                            controller: controller.ioController,
+                            readOnly: controller.isIoReadOnly.value,
+                            hint: controller.isTamu ? "Input Cost Center" : "-")),
                       ])),
                     ],
                   ),
@@ -379,39 +488,14 @@ class PengeluaranView extends GetView<PengeluaranController> {
             }),
 
             // =========================================================
-            // CARD 3: DETAIL PENGISIAN & VERIFIKASI (GABUNGAN)
+            // CARD 3: IDENTITAS SUPIR & KETERANGAN
             // =========================================================
             _buildSectionCard(
-              title: "Estimasi Liter & Supir",
-              icon: Icons.local_gas_station_rounded,
+              title: "Identitas Supir", // Judul disesuaikan
+              icon: Icons.person_pin_circle_rounded, // Icon diganti agar lebih sesuai
               children: [
-                // Baris 1: Liter & IO/CostCenter
-                Row(
-                  children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _buildLabel("Estimasi Liter"),
-                      Obx(() => _buildTextField(
-                        controller: controller.pengisianSolarC,
-                        readOnly: controller.isLiterReadOnly.value,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        hint: "Input Liter",
-                        customFormatters: [SeparatorInputFormatter()],
-                      )),
-                    ])),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Obx(() => _buildLabel(controller.isTamu ? "Cost Center" : "No. IO")),
-                      Obx(() => _buildTextField(
-                          controller: controller.ioController,
-                          readOnly: controller.isIoReadOnly.value,
-                          hint: controller.isTamu ? "Input Cost Center" : "-")),
-                    ])),
-                  ],
-                ),
 
-                _buildDivider(), // Garis pemisah
-
-                // Baris 2: Nama Supir
+                // Baris 1: Nama Supir (Naik ke atas)
                 Obx(() {
                   String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
                   String label = "Nama Supir";
@@ -421,10 +505,103 @@ class PengeluaranView extends GetView<PengeluaranController> {
                 }),
                 _buildTextField(controller: controller.driverNameC, hint: "Input Nama Lengkap"),
 
-                // Baris 3: Keterangan
+                // Baris 2: Keterangan
                 const SizedBox(height: 12),
                 _buildLabel("Keterangan"),
                 _buildTextField(controller: controller.keteranganC, hint: "Tambahkan Catatan (Opsional)...", maxLines: 1),
+
+                // Baris 3: Foto Odometer Kendaraan
+                const SizedBox(height: 12),
+                Obx(() {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      _buildLabel("Foto Odometer (KM Kendaraan)"),
+
+                      // Cek apakah foto sudah diambil
+                      if (controller.fotoOdometer.value != null)
+                        Stack(
+                          children: [
+                            Container(
+                              height: 180,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade300),
+                                image: DecorationImage(
+                                  image: FileImage(controller.fotoOdometer.value!),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: controller.hapusFotoOdometer,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.alertSoftRed,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close, color: Colors.white, size: 18),
+                                ),
+                              ),
+                            )
+                          ],
+                        )
+                      else
+                        InkWell(
+                          onTap: controller.takeOdometerPhoto,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundGrey,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryOrange.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt, color: AppColors.primaryOrange, size: 28),
+                                ),
+                                const SizedBox(height: 12),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  child: Text(
+                                    "Ketuk di sini untuk mengambil foto",
+                                    style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryText),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  child: Text(
+                                    "Wajib melampirkan foto KM/HM kendaraan",
+                                    style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.secondaryText),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }),
               ],
             ),
 

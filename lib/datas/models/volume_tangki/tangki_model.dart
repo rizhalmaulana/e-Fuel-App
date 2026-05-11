@@ -11,39 +11,57 @@ class TangkiModel extends HiveObject {
   double? volumeTerkiniLiter; // Volume Sebelumnya
 
   @HiveField(2)
-  double? tinggiTerkiniMM; // Tinggi Sebelumnya
+  double? tinggiTerkiniCM; // Tinggi Sebelumnya
 
   @HiveField(3)
   double? volumeAkhirLiter; // Volume Setelah
 
   @HiveField(4)
-  double? tinggiAkhirMM; // Tinggi Setelah
+  double? tinggiAkhirCM; // Tinggi Setelah
 
   @HiveField(5)
   double? volumeVarLiter; // Volume Varian
 
   @HiveField(6)
-  double? tinggiVarMM; // Tinggi Varian
+  double? tinggiVarCM; // Tinggi Varian
+
+  @HiveField(7)
+  String? namaTank; // Tinggi Varian
 
   TangkiModel({
     required this.kodeTank,
     this.volumeTerkiniLiter,
-    this.tinggiTerkiniMM,
+    this.tinggiTerkiniCM,
     this.volumeAkhirLiter,
-    this.tinggiAkhirMM,
+    this.tinggiAkhirCM,
     this.volumeVarLiter,
-    this.tinggiVarMM,
+    this.tinggiVarCM,
+    this.namaTank,
   });
 
   Map<String, dynamic> toApiJson() {
     return {
       "kode_tank": kodeTank,
       "volume_terkini_liter": volumeTerkiniLiter ?? 0.0,
-      "tinggi_terkini_cm": tinggiTerkiniMM ?? 0.0,
+      "tinggi_terkini_cm": tinggiTerkiniCM ?? 0.0,
       "volume_akhir_liter": volumeAkhirLiter ?? 0.0,
-      "tinggi_akhir_cm": tinggiAkhirMM ?? 0.0,
+      "tinggi_akhir_cm": tinggiAkhirCM ?? 0.0,
       "volume_var_liter": volumeVarLiter ?? 0.0,
-      "tinggi_var_cm": tinggiVarMM ?? 0.0,
+      "tinggi_var_cm": tinggiVarCM ?? 0.0,
+      "nama_tank": namaTank
     };
+  }
+
+  factory TangkiModel.fromJson(Map<String, dynamic> json) {
+    return TangkiModel(
+      kodeTank: json['kode_tank'],
+      namaTank: json['nama_tank'],
+      volumeTerkiniLiter: json['volume_terkini_liter'],
+      tinggiTerkiniCM: json['tinggi_terkini_cm'],
+      volumeAkhirLiter: json['volume_akhir_liter'],
+      tinggiAkhirCM: json['tinggi_akhir_cm'],
+      tinggiVarCM: json['tinggi_var_cm'],
+      volumeVarLiter: json['volume_var_liter'],
+    );
   }
 }

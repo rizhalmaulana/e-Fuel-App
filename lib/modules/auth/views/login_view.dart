@@ -32,7 +32,7 @@ class LoginView extends GetView<LoginController> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: borderSide, // Garis saat fokus
+          borderSide: borderSide,
         ),
       ),
     );
@@ -82,7 +82,8 @@ class LoginView extends GetView<LoginController> {
   Widget _buildLoginButton() {
     return Obx(
           () => SizedBox(
-        height: 45,
+        height: 50, // Sedikit diperbesar agar lebih nyaman di tap pada semua HP
+        width: double.infinity,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
@@ -99,8 +100,8 @@ class LoginView extends GetView<LoginController> {
           )
               : Text(
             'Login',
-            style: AppFonts.fUrbanistBold14.copyWith(
-                color: AppColors.third
+            style: AppFonts.fUrbanistBold16.copyWith( // Font disesuaikan
+                color: AppColors.white // Pastikan warna font kontras
             ),
           ),
         ),
@@ -110,68 +111,89 @@ class LoginView extends GetView<LoginController> {
 
   @override
   Widget build(BuildContext context) {
+    // Mengambil tinggi layar untuk membuat ukuran gambar responsif
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
+      backgroundColor: Colors.white, // Pastikan background putih konsisten
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 30.0),
-            child: Form(
-              key: controller.loginFormKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Image.asset(
-                    AppImages.bgLoginFuel,
-                    height: 180,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'e-Fuel Mobile',
-                    textAlign: TextAlign.center,
-                    style: AppFonts.fUrbanistBold24.copyWith(
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  Text(
-                    'Fuel Management System',
-                    textAlign: TextAlign.center,
-                    style: AppFonts.fUrbanistMedium16.copyWith(
-                      color: AppColors.secondary,
-                    ),
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                // Memaksa konten minimal setinggi layar yang tersedia
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Form(
+                      key: controller.loginFormKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Spacer atas untuk mendorong konten ke tengah
+                          const Spacer(flex: 2),
 
-                  const SizedBox(height: 25),
+                          // Gambar dengan tinggi responsif (maksimal 22% dari layar)
+                          Image.asset(
+                            AppImages.bgLoginFuel,
+                            height: screenHeight * 0.22,
+                          ),
+                          const SizedBox(height: 16),
 
-                  // Email Field
-                  _buildUsernameField(),
-                  const SizedBox(height: 20),
+                          Text(
+                            'e-Fuel Mobile',
+                            textAlign: TextAlign.center,
+                            style: AppFonts.fUrbanistBold24.copyWith(
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          Text(
+                            'Fuel Management System',
+                            textAlign: TextAlign.center,
+                            style: AppFonts.fUrbanistMedium16.copyWith(
+                              color: AppColors.secondary,
+                            ),
+                          ),
 
-                  // Password Field
-                  _buildPasswordField(),
+                          const SizedBox(height: 32),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: controller.forgotPassword,
-                      child: Text(
-                        'Lupa Password?',
-                        style: AppFonts.fUrbanistSemiBold12.copyWith(
-                            color: AppColors.primary
-                        ),
+                          _buildUsernameField(),
+                          const SizedBox(height: 16),
+
+                          _buildPasswordField(),
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: controller.forgotPassword,
+                              child: Text(
+                                'Lupa Password?',
+                                style: AppFonts.fUrbanistSemiBold12.copyWith(
+                                    color: AppColors.primary
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Spacer bawah untuk menekan tombol login ke paling bawah layar
+                          const Spacer(flex: 3),
+
+                          _buildLoginButton(),
+
+                          // Jarak aman di bawah tombol login
+                          const SizedBox(height: 24),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 24, right: 24, bottom: 20),
-        child: _buildLoginButton(),
       ),
     );
   }

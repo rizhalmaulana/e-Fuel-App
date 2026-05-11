@@ -6,37 +6,6 @@ class TransactionCard extends StatelessWidget {
   final Map<String, dynamic> transaction;
   const TransactionCard({super.key, required this.transaction});
 
-  String _getDisplayStatus(String rawStatus) {
-    switch (rawStatus.toLowerCase()) {
-      case 'draft':
-        return 'Draft';
-      case 'proses':
-        return 'Pengecekan';
-      case 'pengisian_solar':
-      case 'pengisian_solar_pengeluaran': // Handle status baru pengeluaran
-        return 'Pengisian';
-      case 'setelah_pengisian':
-      case 'verifikasi_pengeluaran': // Handle status baru pengeluaran
-        return 'Verifikasi';
-      case 'verifikasi_bast':
-        return 'Pembuatan BAST';
-      case 'approval_kasie':
-        return 'Apprv. Kasie';
-      case 'approval_manager':
-        return 'Apprv. Manager';
-      case 'selesai':
-      case 'approved':
-        return 'Selesai';
-      default:
-        return rawStatus.split('_').map((word) {
-          if (word.isNotEmpty) {
-            return "${word[0].toUpperCase()}${word.substring(1)}";
-          }
-          return "";
-        }).join(' ');
-    }
-  }
-
   Color _getStatusColor(String rawStatus) {
     switch (rawStatus.toLowerCase()) {
       case 'selesai':
@@ -56,7 +25,6 @@ class TransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String rawStatus = (transaction['status'] ?? 'Proses').toString();
-    final String displayStatus = _getDisplayStatus(rawStatus);
 
     final String noIO = (transaction['noIO'] ?? '-').toString();
     final String noBast = (transaction['noBast'] ?? '-').toString();
@@ -91,19 +59,6 @@ class TransactionCard extends StatelessWidget {
                     decoration: BoxDecoration(
                         color: _getStatusColor(rawStatus),
                         shape: BoxShape.circle
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      displayStatus.toUpperCase(),
-                      style: AppFonts.fUrbanistSemiBold12.copyWith(
-                          color: mainColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

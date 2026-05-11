@@ -8,6 +8,7 @@ import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/models/master_io/master_io_model.dart';
 import '../../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
+import '../../../../datas/models/volume_storage/volume_storage.dart';
 import '../../../../datas/network/api_client_network.dart';
 import '../../../auth/services/login_service.dart';
 
@@ -75,32 +76,49 @@ class PengeluaranApiService {
     }
   }
 
-  Future<KaryawanPagedResponse> getEmployees({
-    int page = 1,
-    int pageSize = 20,
-    String? search,
-    required String kodeUnit
-  }) async {
-    final String url = UrlApiStatic.API_END_POINT_DBK + UrlApiStatic.API_GET_EMPLOYEE_DBK;
-    print("Requesting URL: $url");
-
-    final response = await _dio.get(
-      url,
-      options: _getOptionsDBK(),
-      queryParameters: {
-        'page': page,
-        'pageSize': pageSize,
-        'search': search,
-        'unit': kodeUnit,
-      },
-    );
-
-    if (response.statusCode == 200) {
-      return KaryawanPagedResponse.fromJson(response.data);
-    } else {
-      throw Exception('Gagal mengambil data karyawan');
+  Future<List<dynamic>> getUnitsPerArea(String kodeUnit) async {
+    try {
+      String endpoint = UrlApiStatic.API_GET_UNIT_PER_AREA.replaceAll('{kode_unit}', kodeUnit);
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + endpoint,
+        options: _getOptions(),
+      );
+      if (response.statusCode == 200 && response.data['status'] == 'success') {
+        return response.data['data'] as List<dynamic>;
+      }
+      return [];
+    } catch (e) {
+      print("Error getUnitsPerArea: $e");
+      return [];
     }
   }
+
+  // Future<KaryawanPagedResponse> getEmployees({
+  //   int page = 1,
+  //   int pageSize = 20,
+  //   String? search,
+  //   required String kodeUnit
+  // }) async {
+  //   final String url = UrlApiStatic.API_END_POINT_DBK + UrlApiStatic.API_GET_EMPLOYEE_DBK;
+  //   print("Requesting URL: $url");
+  //
+  //   final response = await _dio.get(
+  //     url,
+  //     options: _getOptionsDBK(),
+  //     queryParameters: {
+  //       'page': page,
+  //       'pageSize': pageSize,
+  //       'search': search,
+  //       'unit': kodeUnit,
+  //     },
+  //   );
+  //
+  //   if (response.statusCode == 200) {
+  //     return KaryawanPagedResponse.fromJson(response.data);
+  //   } else {
+  //     throw Exception('Gagal mengambil data karyawan');
+  //   }
+  // }
 
   Future<List<KonfigurasiApprovalModel>> getKonfigurasiApproval({
     required String transactionType,
@@ -122,6 +140,37 @@ class PengeluaranApiService {
       return data.map((e) => KonfigurasiApprovalModel.fromJson(e)).toList();
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<VolumeStorage?> fetchLatestStockStorage({
+    required String unitId,
+    required String storageCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_LATEST_STORAGE_STOCK,
+        queryParameters: {
+          'kode_unit': unitId,
+          'kode_storage': storageCode,
+          'date_log': dateLog,
+        },
+        options: _getOptions(),
+      );
+      if (response.data != null && response.data.isNotEmpty) {
+        Map<String, dynamic> dataMap;
+        if (response.data is String) {
+          dataMap = jsonDecode(response.data);
+        } else {
+          dataMap = response.data;
+        }
+        return VolumeStorage.fromJson(dataMap);
+      }
+      return null;
+    } catch (e) {
+      print("Error fetchLatestStockStorage Pengeluaran: $e");
+      return null;
     }
   }
 
@@ -188,9 +237,6 @@ class PengeluaranApiService {
         }
       }
 
-      print("🚀 HIT API: ${UrlApiStatic.API_CREATE_INBOUND_FOT}");
-      print("📦 Payload: $jsonPayload");
-
       final response = await _dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_FOT,
         data: formData,
@@ -242,7 +288,7 @@ class PengeluaranApiService {
           headers: {
             "Authorization": "Bearer $token",
           },
-        ),
+        )
       );
       return response.data;
     } catch (e) {
@@ -441,12 +487,59 @@ class PengeluaranApiService {
     }
   }
 
-  Future<Map<String, dynamic>> createTransactionBpb({
+  Future<dynamic> updateAktualLiterPengeluaran({
+    required String noDoc,
+    required double aktual,
+    required double varianLiter,
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    String endpoint = UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN;
+    String url;
+
+    if (endpoint.contains('{no_doc}')) {
+      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
+    } else {
+      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
+    }
+
+    Map<String, dynamic> payload = {
+      'aktual_liter': aktual,
+      'varian_liter': varianLiter
+    };
+
+    print("🔵 [DEBUG] URL Update Aktual Liter: $url");
+    print("🔵 [DEBUG] Payload: $payload");
+
+    try {
+      var response = await _dio.post(
+        url,
+        data: payload,
+        options: Options(
+            contentType: 'application/json',
+            headers: {
+              "Authorization": "Bearer $token",
+            }
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [UPDATE ERROR] Status: ${e.response?.statusCode}");
+        print("❌ [UPDATE ERROR] Data: ${e.response?.data}");
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> createTransactionEBPB({
     required Map<String, dynamic> payload,
   }) async {
     try {
       final response = await _dio.post(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_BPB,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_EBPB,
         data: payload,
         options: _getOptions(),
       );
@@ -462,6 +555,83 @@ class PengeluaranApiService {
         );
       }
     } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createTransactionEBPBApproval({
+    required String noDoc,
+    required String kodeUnit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_EBPB_APPROVAL,
+        data: {
+          "no_doc": noDoc,
+          "kode_unit": kodeUnit,
+        },
+        options: _getOptions(),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> uploadSignatureEBPB({
+    required String noDoc,
+    required String levelApproval,
+    required File imageSign,
+  }) async {
+    try {
+      String jsonPayload = jsonEncode({
+        "no_doc": noDoc,
+        "level_approval": levelApproval,
+      });
+
+      // FILTER KARAKTER: Ganti '/' dengan '_' dan hapus spasi agar aman untuk penamaan file
+      String safeFileNameDoc = noDoc.replaceAll('/', '_').replaceAll(' ', '');
+
+      FormData formData = FormData.fromMap({
+        'payload': jsonPayload,
+        'image_sign': await MultipartFile.fromFile(
+          imageSign.path,
+          filename: 'sign_ebpb_$safeFileNameDoc.png', // Contoh output: sign_ebpb_02_E-BPB_AFDTR_02_2026.png
+        ),
+      });
+
+      final response = await _dio.post(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_UPLOAD_SIGNATURE_EBPB,
+        data: formData,
+        options: _getOptions(),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateStatusEBPB({
+    required String noDoc,
+    required String statusApprove,
+    required String levelApproval,
+    required String catatan,
+    required bool isSign,
+  }) async {
+    try {
+      final response = await _dio.put(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_UPDATE_STATUS_EBPB,
+        data: {
+          "no_doc": noDoc,
+          "status_approve": statusApprove,
+          "level_approval": levelApproval,
+          "catatan": catatan,
+          "is_sign": isSign,
+        },
+        options: _getOptions(),
+      );
+      return response.data;
+    } on DioException catch (e) {
       rethrow;
     }
   }

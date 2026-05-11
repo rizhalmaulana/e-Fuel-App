@@ -7,7 +7,6 @@ import 'package:signature/signature.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../configs/app_fonts.dart';
@@ -16,6 +15,7 @@ import '../../../datas/models/pengeluaran/pengeluaran_model.dart';
 import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
 import '../../../datas/models/widgets/capture_image_detail.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/component/custom_camera_view.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../../auth/services/login_service.dart';
@@ -33,14 +33,13 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
   // Photo State
   final RxList<CapturedImageDetail?> photoSlots =
-      RxList<CapturedImageDetail?>([null, null, null]);
-  final ImagePicker _picker = ImagePicker();
+  RxList<CapturedImageDetail?>([null, null, null]);
 
   var photoDispenser = Rxn<CapturedImageDetail>();
   File? hiddenPhotoSupir;
   File? hiddenPhotoTruk;
 
-// Signature Controllers
+  // Signature Controllers
   late SignatureController warehouseSignatureController;
   late SignatureController driverSignatureController;
   final warehouseNoteController = TextEditingController();
@@ -120,7 +119,6 @@ class PengeluaranVerifikasiDocController extends GetxController {
     keterangan.value = args['keterangan'] ?? '-';
     docType.value = args['doc_type'] ?? 'FOT';
 
-    // Load Status Supir (Default Internal jika null)
     statusSupir.value = args['status_supir'] ?? 'Internal';
     aktualSolarC.text = jumlahSolar.value;
 
@@ -198,21 +196,22 @@ class PengeluaranVerifikasiDocController extends GetxController {
     controller.clear();
   }
 
-  // --- PHOTO FUNCTIONS ---
   Future<void> takeDispenserPhoto() async {
     try {
       isTakingPhoto.value = true;
-      final XFile? imageFile = await _picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 1080.0,
-        maxHeight: 1920.0,
-        imageQuality: 80,
-      );
 
-      if (imageFile == null) return;
+      // Navigasi ke Custom Camera
+      final String? resultPath = await Get.to(() => const CustomCameraView(
+        label: "Foto Dispenser (Jumlah Liter)",
+      ));
 
-      File originalFile = File(imageFile.path);
+      // Jika user menekan back
+      if (resultPath == null) {
+        isTakingPhoto.value = false;
+        return;
+      }
+
+      File originalFile = File(resultPath);
       File? compressedFile = await _compressImage(originalFile);
 
       if (compressedFile == null) return;
@@ -336,11 +335,10 @@ class PengeluaranVerifikasiDocController extends GetxController {
       if (auth == null) throw "Data user tidak valid.";
 
       String userLevel = auth.user.otorisasi.first;
-      String kodeUnit = auth.currentKodeUnit ?? "";
 
       List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
-        transactionType: 'FOT', // Config biasanya tetap FOT untuk modul ini
-        kodeUnit: kodeUnit,
+        transactionType: 'FOT',
+        kodeUnit: auth.currentKodeUnit ?? "",
         statusActive: true,
       );
 
@@ -352,7 +350,6 @@ class PengeluaranVerifikasiDocController extends GetxController {
       String finalNoDoc = noDoc.value;
       double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
 
-      // Map untuk Local Hive
       Map<String, dynamic> payload = {
         "no_io": noIO.value,
         "unit_io": unitIO.value,
@@ -391,7 +388,6 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
       await Future.delayed(const Duration(seconds: 1));
 
-      // Upload 3 Foto
       await _apiService.uploadImagePengeluaran(
         noDoc: finalNoDoc,
         foto1: f1,

@@ -121,6 +121,9 @@ class PenerimaanSebelumModel extends HiveObject {
   @HiveField(38)
   double? totalVolumeIot;
 
+  @HiveField(39)
+  double? selisihVolumeTerra;
+
   PenerimaanSebelumModel({
     required this.userName,
     this.status = 'proses',
@@ -161,6 +164,7 @@ class PenerimaanSebelumModel extends HiveObject {
     this.iotTankDetailsJson,
     this.totalVolumeManual,
     this.totalVolumeIot,
+    this.selisihVolumeTerra,
   });
 
   // Method convert ke JSON untuk API
@@ -195,6 +199,7 @@ class PenerimaanSebelumModel extends HiveObject {
       "kapasitas_vendor": kapasitasVendor ?? 0.0,
       "tinggi_terkini_cm": tinggiTerkiniCm ?? 0.0,
       "density_vendor": densityVendor ?? 0.0,
+      "selisih_vol_tera": selisihVolumeTerra ?? 0.0,
     };
   }
 }
