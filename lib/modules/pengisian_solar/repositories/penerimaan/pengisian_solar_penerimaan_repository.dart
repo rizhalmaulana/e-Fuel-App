@@ -1,11 +1,14 @@
 import 'package:e_fuel/modules/fuel/services/fuel_sensor_service.dart';
 import 'package:e_fuel/modules/transactions/outstanding_service.dart';
+import 'package:e_fuel/modules/transactions/penerimaan/services/penerimaan_api_service.dart';
 import 'package:get/get.dart';
 
 import '../../../../datas/models/transactions/penerimaan/transaction_model.dart';
+import '../../../../datas/models/volume_storage/volume_storage.dart';
 import '../../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 
 class PengisianSolarPenerimaanRepository {
+  final PenerimaanApiService _penerimaanService = Get.find<PenerimaanApiService>();
   final FuelSensorService _sensorService = Get.find<FuelSensorService>();
   late OutstandingService _outstandingService;
 
@@ -14,8 +17,16 @@ class PengisianSolarPenerimaanRepository {
   }
 
   // --- SENSOR OPERATIONS ---
-  Future<void> refreshSensorData({required String unitId, required String storageCode}) async {
-    await _sensorService.refreshData(unitId: unitId, targetStorageCode: storageCode);
+  Future<VolumeStorage> getDataStockStorage({required String unitId, required String storageCode, required String dateLog}) async {
+    return await _penerimaanService.fetchLatestStockStorage(
+        unitId: unitId,
+        storageCode: storageCode,
+        dateLog: dateLog
+    );
+  }
+  
+  Future<void> getDetailTanks({required String unitId, required String storageCode}) async {
+    await _sensorService.fetchDataDetailTank(unitId: unitId, targetStorageCode: storageCode);
   }
 
   List<VolumeTankDetailModel> getLocalSensorData(String storageCode) {
@@ -26,10 +37,8 @@ class PengisianSolarPenerimaanRepository {
 
   // --- TRANSACTION STATUS OPERATIONS ---
   Future<void> updateTransactionStatus(String noBast, String status) async {
-    // 1. Update ke Outstanding Service
     await _outstandingService.updateStatus(noBast, status);
-
-    // 2. Pastikan objek TransactionModel lokal juga di-update dan di-save ke Hive
+    
     TransactionModel? transaction = await _outstandingService.getTransactionByNoBast(noBast);
     if (transaction != null) {
       transaction.status = status;

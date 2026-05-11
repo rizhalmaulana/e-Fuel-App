@@ -6,21 +6,21 @@ import 'package:e_fuel/datas/models/transactions/pengeluaran/transaction_pengelu
 import 'package:e_fuel/helpers/text_convert_helper.dart';
 import 'package:e_fuel/modules/home/services/home_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../../configs/app_fonts.dart';
-import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
 import '../../../datas/models/master_io/master_io_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_model.dart';
 import '../../../helpers/connectivity_helper.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/component/custom_camera_view.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
 import '../../transactions/outstanding_service.dart';
 import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
-import '../services/bon_sementara_local_service.dart';
 import '../services/draft_pengeluaran_service.dart';
 
 class PengeluaranController extends GetxController {
@@ -37,10 +37,11 @@ class PengeluaranController extends GetxController {
   final platController = TextEditingController();
   final driverNameC = TextEditingController();
   final keteranganC = TextEditingController();
+  final kodeUnitController = TextEditingController();
 
   // --- Data Logic ---
   final List<String> jenisBonList = ['Bon Sementara', 'BPB'];
-  final List<String> jenisKategoriList = ['Internal', 'Tamu'];
+  final jenisKategoriList = ['INTERNAL LKE', 'INTERNAL NON LKE', 'VENDOR', 'TAMU'].obs;
   final List<String> statusSupirList = ['Internal', 'Eksternal'];
 
   var isLoadingUnit = false.obs;
@@ -48,9 +49,20 @@ class PengeluaranController extends GetxController {
   List<MasterIoModel> _allUnitList = [];
   var selectedUnit = Rxn<MasterIoModel>();
 
+  var isLoadingUnitsPerArea = false.obs;
+
+  var listTitleUnitPerArea = <String>[].obs;
+  var listKodeUnitPerArea = <String>[].obs;
+  var userTitleUnit = "".obs;
+  var userKodeUnit = "".obs;
+
+  var selectedKodeKebunPabrik = Rxn<String>();
+  var selectedKodeUnitKebunPabrik = Rxn<String>();
+
   var selectedJenisBon = Rxn<String>();
   var selectedKategoriKendaraan = Rxn<String>();
   var selectedStatusSupir = Rxn<String>();
+  var fotoOdometer = Rxn<File>();
 
   final tipeUnit = Rxn<String>();
   final satuan = Rxn<String>();
@@ -72,6 +84,7 @@ class PengeluaranController extends GetxController {
   var isRatioReadOnly = true.obs;
   var isLiterReadOnly = true.obs;
   var isIoReadOnly = true.obs;
+  var isTakingPhoto = false.obs;
 
   final tipeUnitC = TextEditingController();
   final satuanC = TextEditingController();
@@ -93,7 +106,7 @@ class PengeluaranController extends GetxController {
 
   bool get isTipeGenset => (tipeUnit.value?.toUpperCase() ?? '') == 'GS';
   bool get isBpbMode => selectedJenisBon.value == 'BPB';
-  bool get isTamu => selectedKategoriKendaraan.value == 'Tamu';
+  bool get isTamu => selectedKategoriKendaraan.value == 'TAMU' || selectedKategoriKendaraan.value == 'VENDOR';
 
   @override
   void onInit() {
@@ -111,6 +124,7 @@ class PengeluaranController extends GetxController {
 
     _setupInternalMode();
     fetchUnitList();
+    fetchUnitsPerArea();
 
     // Listener yang sudah ada
     hmKmAwalC.addListener(_calculateAutomatedValues);
@@ -142,6 +156,7 @@ class PengeluaranController extends GetxController {
     dateAkhirC.dispose();
     varianC.dispose();
     ratioInput.dispose();
+    kodeUnitController.dispose();
     super.onClose();
   }
 
@@ -154,11 +169,20 @@ class PengeluaranController extends GetxController {
     platController.clear();
     isPlatReadOnly.value = false;
 
-    if (val == 'Tamu') {
-      _setupTamuMode();
+    if (val == 'TAMU' || val == 'VENDOR') {
+      _setupTamuMode(val);
+      selectedKodeKebunPabrik.value = null; // or "-"
+      selectedKodeUnitKebunPabrik.value = null;
     } else {
       _setupInternalMode();
       searchUnit('');
+      if (!val.contains('NON')) {
+        selectedKodeKebunPabrik.value = userTitleUnit.value;
+        selectedKodeUnitKebunPabrik.value = userKodeUnit.value;
+      } else {
+        selectedKodeKebunPabrik.value = null;
+        selectedKodeUnitKebunPabrik.value = null;
+      }
     }
     update();
   }
@@ -175,11 +199,11 @@ class PengeluaranController extends GetxController {
     isIoReadOnly.value = true;
   }
 
-  void _setupTamuMode() {
+  void _setupTamuMode(String kategori) {
 
     final tamuUnit = MasterIoModel(
-        namaUnit: "TAMU",
-        description: "External Guest",
+        namaUnit: kategori,
+        description: "External $kategori",
         internalOrder: "-",
         noPolisi: "-");
     selectedUnit.value = tamuUnit;
@@ -381,6 +405,63 @@ class PengeluaranController extends GetxController {
     }
   }
 
+  Future<void> fetchUnitsPerArea() async {
+    final auth = _loginService.getCurrentAuth();
+    if (auth != null && auth.currentKodeUnit != null) {
+      isLoadingUnitsPerArea.value = true;
+      try {
+        var data = await _apiService.getUnitsPerArea(auth.currentKodeUnit!);
+        List<String> titles = [];
+        List<String> units = [];
+
+        String defaultTitle = "LKE";
+        String defaultUnit = "E031";
+
+        for (var item in data) {
+          String title = item['title_unit']?.toString() ?? "";
+          String unit = item['kode_unit']?.toString() ?? "";
+
+          if (title.isNotEmpty && !titles.contains(title)) titles.add(title);
+          if (unit.isNotEmpty && !units.contains(unit)) units.add(unit);
+
+          if (item['kode_unit'] == auth.currentKodeUnit) {
+            defaultTitle = title;
+            defaultUnit = unit;
+          }
+        }
+
+        listTitleUnitPerArea.assignAll(titles);
+        listKodeUnitPerArea.assignAll(units);
+
+        userTitleUnit.value = defaultTitle;
+        userKodeUnit.value = defaultUnit;
+
+        // --- UPDATE DYNAMIC CATEGORIES ---
+        jenisKategoriList.assignAll([
+          'INTERNAL $defaultTitle',
+          'INTERNAL NON $defaultTitle',
+          'VENDOR',
+          'TAMU'
+        ]);
+
+        // Sesuaikan kembali kategori yang dipilih agar label baru teraplikasikan
+        if (selectedKategoriKendaraan.value!.startsWith('INTERNAL')) {
+           if (selectedKategoriKendaraan.value!.contains('NON')) {
+               selectedKategoriKendaraan.value = 'INTERNAL NON $defaultTitle';
+               selectedKodeKebunPabrik.value = null;
+           } else {
+               selectedKategoriKendaraan.value = 'INTERNAL $defaultTitle';
+               selectedKodeKebunPabrik.value = defaultTitle;
+           }
+        }
+      } catch (e) {
+        print("Error fetchUnitsPerArea: $e");
+      } finally {
+        isLoadingUnitsPerArea.value = false;
+      }
+    }
+  }
+
   void searchUnit(String keyword) {
     if (keyword.isEmpty) {
       filteredUnitList.assignAll(_allUnitList);
@@ -470,6 +551,8 @@ class PengeluaranController extends GetxController {
     if (detail != null) {
       tipeUnit.value = detail.tipe;
       satuan.value = detail.satuan;
+      tipeUnitC.text = detail.tipe ?? "";
+      satuanC.text = detail.satuan ?? "";
 
       if (detail.hmKmAwal != null) {
         double val = double.tryParse(detail.hmKmAwal.toString()) ?? 0.0;
@@ -528,8 +611,71 @@ class PengeluaranController extends GetxController {
     if (_validateForm()) _processSubmitToApi();
   }
 
+  Future<void> takeOdometerPhoto() async {
+    try {
+      isTakingPhoto.value = true;
+
+      // Membuka halaman Custom Camera bawaan aplikasi Anda
+      final String? resultPath = await Get.to(() => const CustomCameraView(
+        label: "Foto Odometer Kendaraan",
+      ));
+
+      // Jika user klik tombol back atau cancel
+      if (resultPath == null) {
+        isTakingPhoto.value = false;
+        return;
+      }
+
+      // Mulai kompresi file foto
+      File originalFile = File(resultPath);
+      File? compressedFile = await _compressImage(originalFile);
+
+      if (compressedFile != null) {
+        fotoOdometer.value = compressedFile;
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+    } finally {
+      isTakingPhoto.value = false;
+    }
+  }
+
+  Future<File?> _compressImage(File file) async {
+    try {
+      final lastIndex = file.path.lastIndexOf(RegExp(r'.jp'));
+      if (lastIndex == -1) return file; // Jika ekstensi tidak dikenali, kembalikan aslinya
+
+      final splitted = file.path.substring(0, (lastIndex));
+      final outPath = "${splitted}_compressed.jpg";
+
+      final outCheck = File(outPath);
+      if (await outCheck.exists()) {
+        await outCheck.delete();
+      }
+
+      var result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        outPath,
+        quality: 60,
+        minWidth: 1024,
+        minHeight: 1024,
+      );
+
+      // Opsional: Hapus file original untuk menghemat storage
+      await file.delete();
+      return result != null ? File(result.path) : null;
+    } catch (e) {
+      return file; // Jika gagal compress, gunakan file asli
+    }
+  }
+
+  // Fungsi untuk membatalkan/menghapus foto jika user ingin foto ulang
+  void hapusFotoOdometer() {
+    fotoOdometer.value = null;
+  }
+
   bool _validateForm() {
-    // 1. Cek Kelengkapan Dasar
     if (selectedJenisBon.value == null ||
         selectedUnit.value == null ||
         selectedStatusSupir.value == null ||
@@ -543,7 +689,22 @@ class PengeluaranController extends GetxController {
       return false;
     }
 
-    // 2. Validasi Khusus Nama Supir (Minimal 3 Karakter)
+    if (fotoOdometer.value == null) {
+      Get.snackbar('Data Belum Lengkap', 'Foto Odometer wajib dilampirkan!',
+          backgroundColor: AppColors.alertSoftRed,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16));
+      return false;
+    }
+
+    if (selectedKategoriKendaraan.value!.contains('INTERNAL NON') && selectedKodeKebunPabrik.value == null) {
+      Get.snackbar('Data Belum Lengkap', 'Pilih Kode Kebun/Pabrik terlebih dahulu!',
+          backgroundColor: AppColors.alertSoftRed,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16));
+      return false;
+    }
+
     if (driverNameC.text.trim().length < 3) {
       Get.snackbar('Validasi Supir', 'Nama Supir/Operator minimal 3 karakter!',
           backgroundColor: AppColors.alertSoftRed,
@@ -552,7 +713,6 @@ class PengeluaranController extends GetxController {
       return false;
     }
 
-    // 3. Validasi Logic Angka (Opsional tambahan biar aman)
     double inputSolar = double.tryParse(
             TextConvertHelper().cleanNumber(pengisianSolarC.text)) ??
         0;
@@ -668,12 +828,15 @@ class PengeluaranController extends GetxController {
     );
 
     try {
+      bool isOnline = await ConnectivityHelper.isConnected();
+      String inputTypeStr = isOnline ? "A" : "M";
+
       String cleanKm = TextConvertHelper().cleanNumber(hmKmAkhirC.text);
       String rawSolar = pengisianSolarC.text;
       double solarDouble = TextConvertHelper().parseToDouble(rawSolar);
 
       String namaSupirFinal = driverNameC.text;
-      String docType = (selectedJenisBon.value == 'BPB') ? "BPB" : "Bon Sementara";
+      // String docType = (selectedJenisBon.value == 'BPB') ? "BPB" : "Bon Sementara";
       double ratioDefault = TextConvertHelper().parseToDouble(ratioC.text);
       double ratioUser = TextConvertHelper().parseToDouble(ratioInput.text);
 
@@ -692,6 +855,7 @@ class PengeluaranController extends GetxController {
         "ratio_input": ratioUser,
         "tipe_unit_io": tipeUnitC.text,
         "varian": double.tryParse(varianC.text) ?? 0,
+        "input_type": inputTypeStr,
         "jumlah_pengisian_solar": solarDouble,
         "tanggal_akhir": (dateAkhir.value == null || dateAkhir.value == "")
             ? null
@@ -703,23 +867,14 @@ class PengeluaranController extends GetxController {
         "nopol_check": platController.text.toUpperCase(),
         "jenis_pengeluaran": selectedJenisBon.value,
         "satuan": satuanC.text,
+        "kode_unit": selectedKodeUnitKebunPabrik.value
       };
 
-      List<File?> photos = [null, null, null];
+      List<File?> photos = [fotoOdometer.value, null, null];
       final response = await _apiService.createInboundFot(payloadMap: payloadRequestAPI, photos: photos);
       String noDoc = response['no_doc'] ?? "-";
 
-      // if (!isTamu) {
-      //   await _homeService.updateUnitAfterTransaction(
-      //       ioController.text, // IO
-      //       double.tryParse(hmKmAkhirC.text) ?? 0, // HM Akhir Transaksi Ini
-      //       dateAkhir.value ?? "", // Tanggal
-      //       double.tryParse(pengisianSolarC.text) ?? 0, // Liter
-      //       ratioC.text // Ratio
-      //   );
-      // }
-
-      await _saveToOutstanding(noDoc, payloadRequestAPI);
+      await _saveToOutstanding(noDoc, payloadRequestAPI, fotoOdometer.value);
       await _draftService.deleteDraft();
 
       Get.back();
@@ -727,26 +882,11 @@ class PengeluaranController extends GetxController {
       Get.offNamed(
         Routes.PENGISIAN_SOLAR_PENGELUARAN,
         arguments: {
-          'docType': docType,
           'noDoc': noDoc,
-          'noIO': payloadRequestAPI['no_io'],
-          'costCenter': payloadRequestAPI['cost_center'],
           'unitIO': selectedUnit.value?.namaUnit,
-          'noPolisi': payloadRequestAPI['nopol_check'],
           'tanggal': DateFormat('dd/MM/yyyy').format(DateTime.now()),
-          'nama_supir': namaSupirFinal,
-          'km_pengisian': cleanKm,
-          'jumlah_pengisian_solar': rawSolar,
           'status': 'pengisian_solar_pengeluaran',
-          'tipe_unit': payloadRequestAPI['tipe_unit_io'],
-          'satuan': payloadRequestAPI['satuan'],
-          'hm_km_awal': payloadRequestAPI['hm_km_awal'],
-          'hm_km_akhir': payloadRequestAPI['hm_km_akhir'],
-          'tanggal_awal': payloadRequestAPI['tanggal_awal'],
-          'tanggal_akhir': payloadRequestAPI['tanggal_akhir'],
-          'varian': payloadRequestAPI['varian'],
-          'ratio': ratioC.text,
-          'keterangan': payloadRequestAPI['keterangan'],
+          'payload': payloadRequestAPI,
         },
       );
     } on DioException catch (e) {
@@ -759,7 +899,7 @@ class PengeluaranController extends GetxController {
     }
   }
 
-  Future<void> _saveToOutstanding(String noDoc, Map<String, dynamic> payload) async {
+  Future<void> _saveToOutstanding(String noDoc, Map<String, dynamic> payload, File? foto) async {
     final auth = _loginService.getCurrentAuth();
     if (auth == null) return;
 
@@ -772,17 +912,17 @@ class PengeluaranController extends GetxController {
       supirCheck: payload['supir_check'],
       kmPengisian: payload['km_pengisian'],
       jumlahPengisianSolar: payload['jumlah_pengisian_solar'],
-      unitIO: payload['unit_io'],
+      // unitIO: payload['tipe_unit_io'],
       userName: auth.user.username,
       dateOutbound: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
-      pathFoto1: null,
+      pathFoto1: foto?.path,
       pathFoto2: null,
       pathFoto3: null,
       keterangan: payload['keterangan'],
       docType: payload['doc_type'],
-      hmKmAkhi: payload['hm_km_akhir'],
+      hmKmAkhir: payload['hm_km_akhir'],
       liter: payload['liter'],
-      hmKmAwak: payload['hm_km_awal'],
+      hmKmAwal: payload['hm_km_awal'],
       kategoriKendaraan: payload['kategori_kendaraan'],
       jenisPengeluaran: payload['jenis_pengeluaran'],
       costCenter: payload['cost_center'],
@@ -792,6 +932,7 @@ class PengeluaranController extends GetxController {
       tanggalAkhir: payload['tanggal_akhir'],
       tanggalAwal: payload['tanggal_awal'],
       satuan: payload['satuan'],
+      kodeUnit: payload['kode_unit']
     );
 
     final trx = TransactionPengeluaranModel(

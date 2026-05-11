@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../datas/constant/url_api_static.dart';
 import '../../../datas/models/approval/transaction_approval_model.dart';
+import '../../../datas/network/api_client_network.dart';
 import '../../auth/services/login_service.dart';
 
 class ApprovalService {
@@ -152,6 +153,40 @@ class ApprovalService {
     } catch (e) {
       print("Error submit approval: $e");
       return false;
+    }
+  }
+
+  Future<List<dynamic>> getApprovalListEbpb({
+    required String kodeUnit,
+    required String levelApproval,
+    required String statusApprove,
+  }) async {
+    try {
+      final loginService = Get.find<LoginService>();
+      final token = loginService.getCurrentAuth()?.access ?? '';
+
+      final response = await ApiClientNetwork.dio.get(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_APPROVAL_LIST_EBPB,
+        queryParameters: {
+          'kode_unit': kodeUnit,
+          'level_approval': levelApproval,
+          'status_approve': statusApprove,
+        },
+        options: Options(
+          headers: {"Authorization": "Bearer $token"},
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.data is List) {
+          return response.data;
+        } else if (response.data['data'] != null) {
+          return response.data['data'];
+        }
+      }
+      return [];
+    } catch (e) {
+      rethrow;
     }
   }
 }

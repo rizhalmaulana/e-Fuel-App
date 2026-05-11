@@ -32,9 +32,9 @@ class PengeluaranModelAdapter extends TypeAdapter<PengeluaranModel> {
       pathFoto3: fields[12] as String?,
       keterangan: fields[13] as String?,
       docType: fields[14] as String?,
-      hmKmAkhi: fields[15] as double?,
+      hmKmAkhir: fields[15] as double?,
       liter: fields[16] as double?,
-      hmKmAwak: fields[17] as double?,
+      hmKmAwal: fields[17] as double?,
       costCenter: fields[18] as String?,
       ratio: fields[19] as double?,
       tipeUnitIo: fields[20] as String?,
@@ -82,11 +82,11 @@ class PengeluaranModelAdapter extends TypeAdapter<PengeluaranModel> {
       ..writeByte(14)
       ..write(obj.docType)
       ..writeByte(15)
-      ..write(obj.hmKmAkhi)
+      ..write(obj.hmKmAkhir)
       ..writeByte(16)
       ..write(obj.liter)
       ..writeByte(17)
-      ..write(obj.hmKmAwak)
+      ..write(obj.hmKmAwal)
       ..writeByte(18)
       ..write(obj.costCenter)
       ..writeByte(19)

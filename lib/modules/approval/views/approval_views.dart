@@ -65,8 +65,8 @@ class ApprovalView extends GetView<ApprovalController> {
                 const SizedBox(height: 8),
 
                 _buildSectionTitle("Pemeriksaan Volume Solar"),
-                _buildSummaryRow("Vol. Tangki Pengirim", valNum(data['volume_pengirim'] ?? data['volume_vendor'], "Ltr")),
-                _buildSummaryRow("Total Solar Diterima Kebun", valNum(data['volume_aktual'] ?? data['volume_kebun'], "Ltr")),
+                _buildSummaryRow("Volume Tangki Pengirim", valNum(data['volume_pengirim'] ?? data['volume_vendor'], "Ltr")),
+                _buildSummaryRow("Volume Tangki Kebun", valNum(data['volume_aktual'] ?? data['volume_kebun'], "Ltr")),
                 Container(
                   margin: const EdgeInsets.only(top: 4),
                   padding: const EdgeInsets.all(8),
@@ -74,7 +74,7 @@ class ApprovalView extends GetView<ApprovalController> {
                       color: AppColors.primary.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(8)
                   ),
-                  child: _buildSummaryRow("Varian (Sisa)", valNum(data['varian_volume'] ?? data['var_solar_tangki'] ?? data['varian'], "Ltr")),
+                  child: _buildSummaryRow("Varian", valNum(data['varian_volume'] ?? data['var_solar_tangki'] ?? data['varian'], "Ltr")),
                 ),
 
                 const SizedBox(height: 16),

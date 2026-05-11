@@ -127,27 +127,59 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                 // =========================================================
                 // 1. AKTUAL PENGELUARAN (INPUT)
                 // =========================================================
-                Text("Aktual Pengeluaran Solar (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryOrange)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: controller.aktualSolarC,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.darkText),
-                  decoration: InputDecoration(
-                    hintText: "0",
-                    isDense: true,
-                    suffixText: "Ltr",
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    suffixStyle: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.secondaryText),
-                    filled: true,
-                    fillColor: AppColors.alertSoftOrangeSecond,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primaryOrange)),
-                  ),
+                Obx(() {
+                  if (controller.isSensorApiActive.value) return const SizedBox.shrink();
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade800),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Sensor tidak merespon atau data (0). Silakan masukkan liter aktual secara manual.",
+                            style: AppFonts.fUrbanistMedium10.copyWith(color: Colors.orange.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Aktual Pengeluaran Solar (Ltr)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: controller.aktualSolarC,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      readOnly: false,
+                      decoration: InputDecoration(
+                        hintText: "0",
+                        filled: true,
+                        fillColor: AppColors.alertSoftOrangeSecond,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE3E8F0))),
+                        suffixIcon: Obx(() => IconButton(
+                          icon: controller.isRefreshingSensor.value
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : Icon(Icons.sync, color: controller.isSensorApiActive.value ? Colors.green : AppColors.primary),
+                          onPressed: controller.refreshSensorMonitoring,
+                          tooltip: "Tarik Data Sensor",
+                        )),
+                      ),
+                      style: AppFonts.fUrbanistBold18.copyWith(color: AppColors.darkText),
+                    ),
+                  ],
                 ),
-
                 const SizedBox(height: 8),
-
                 // =========================================================
                 // 2. ESTIMASI & VARIAN (SIDE BY SIDE - READ ONLY)
                 // =========================================================

@@ -29,6 +29,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   // UI Header
   final totalVolumeDisplay = 0.0.obs;
+  final totalVolumeReceived = 0.0.obs;
   final tankListDisplay = <Map<String, String>>[].obs;
   final selectedStorage = "".obs;
   final activeNoBast = "".obs;
@@ -185,7 +186,6 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
     for (var item in data) {
       tempTotalAfter += item.volumeAfter;
-      // Total yang diterima tangki kita adalah Sesudah - Sebelum
       tempTotalReceived += item.volumeVariant;
 
       tempList.add({
@@ -194,16 +194,15 @@ class PenerimaanVerifikasiBastController extends GetxController {
         'height': "${TextConvertHelper().formatNumber(item.heightAfter)} mm",
       });
 
-      // Jika storage code belum diset oleh _loadFullTransactionData, ambil dari filling model
       if (selectedStorage.value.isEmpty && item.storageCode.isNotEmpty) {
         selectedStorage.value = item.storageCode;
       }
     }
 
     totalVolumeDisplay.value = tempTotalAfter;
+    totalVolumeReceived.value = tempTotalReceived;
     tankListDisplay.assignAll(tempList);
 
-    // Otomatis isi kolom "Volume Tangki Kebun" dengan Total Solar yang Diterima
     volumeKebunController.text = TextConvertHelper().formatNumber(tempTotalReceived);
     hitungVarian();
   }
@@ -410,16 +409,26 @@ class PenerimaanVerifikasiBastController extends GetxController {
   void _showResultDialog({required bool isSuccess, required String message}) {
     Get.dialog(
       DialogFlexible(
-        logo: Lottie.asset(isSuccess ? AppLotties.success : AppLotties.failed, width: 150, height: 150, repeat: !isSuccess),
+        logo: Lottie.asset(
+            isSuccess ? AppLotties.success : AppLotties.failed,
+            width: 150,
+            height: 150,
+            repeat: !isSuccess
+        ),
         title: isSuccess ? "Berhasil" : "Gagal Memproses",
         message: message,
         primaryButtonText: isSuccess ? "Selesai" : "Tutup",
         onPrimaryPressed: () {
           Get.back();
-          if (isSuccess) Get.offNamed(Routes.PENERIMAAN_TRACKING, arguments: activeNoBast.value);
+
+          if (isSuccess) {
+            Get.offAllNamed(Routes.HOME);
+          }
+          // isSuccess bernilai false (Gagal), maka tidak melakukan apa-apa lagi
+          // setelah Get.back(), sehingga user tetap berada di halaman form (stay).
         },
       ),
-      barrierDismissible: false,
+      barrierDismissible: false, // User tidak bisa klik sembarang tempat untuk menutup dialog
     );
   }
 

@@ -74,7 +74,7 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: statusColorBg, borderRadius: BorderRadius.circular(6)),
-                child: Text(isCompleted ? "Selesai" : "Proses", style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText)),
+                child: Text(isCompleted ? "Selesai" : "Dalam Proses", style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText)),
               )
             ],
           ),
@@ -91,24 +91,23 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
             ],
           ),
 
-          const SizedBox(height: 12),
-
-          // TOMBOL LIHAT DETAIL
-          SizedBox(
-            width: double.infinity,
-            height: 36,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primaryOrange),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          if (isCompleted) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 36,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primaryOrange),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
+                },
+                child: Text("Lihat Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryOrange)),
               ),
-              onPressed: () {
-                // Sesuai dengan route yang ada di app_pages.dart Anda
-                Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
-              },
-              child: Text("Lihat Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryOrange)),
-            ),
-          )
+            )
+          ]
         ],
       ),
     );

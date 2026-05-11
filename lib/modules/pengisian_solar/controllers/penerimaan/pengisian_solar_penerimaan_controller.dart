@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../../routes/app_pages.dart';
@@ -19,6 +20,7 @@ class PengisianSolarPenerimaanController extends GetxController {
   final noPolisi = '-'.obs;
   final tanggal = '-'.obs;
   final status = '-'.obs;
+  final waktuSounding  = '-'.obs;
 
   // Data Volume
   final initialVolume = 0.0.obs;
@@ -29,6 +31,7 @@ class PengisianSolarPenerimaanController extends GetxController {
   final isRefreshingSensor = false.obs;
   final lastUpdateSensor = '-'.obs;
 
+
   String? manualJsonBackup;
   String? iotJsonBackup;
   String activeStorageCode = "";
@@ -37,14 +40,13 @@ class PengisianSolarPenerimaanController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Inisialisasi Repository
     final auth = _loginService.getCurrentAuth();
     if (auth != null) {
-      // Gunakan Repository baru
       _repository = PengisianSolarPenerimaanRepository(auth.user.username);
     }
 
     _loadArguments();
+    refreshSensorMonitoring();
   }
 
   void _loadArguments() {
@@ -54,7 +56,7 @@ class PengisianSolarPenerimaanController extends GetxController {
     noPolisi.value = args['noPolisi'] ?? '-';
     tanggal.value = args['tanggal'] ?? '-';
     status.value = args['status'] ?? 'pengisian_solar';
-
+    waktuSounding.value = args['waktu_sounding'] ?? '-';
     manualJsonBackup = args['manual_json_backup'];
     iotJsonBackup = args['iot_json_backup'];
     activeStorageCode = args['storage_code'] ?? "";
@@ -64,7 +66,6 @@ class PengisianSolarPenerimaanController extends GetxController {
 
     // Set current volume sama dengan initial dulu
     currentVolume.value = initialVolume.value;
-    _updateLastSyncTime();
   }
 
   void _calculateInitialVolume() {
@@ -72,7 +73,9 @@ class PengisianSolarPenerimaanController extends GetxController {
       double total = 0;
       bool useManualData = false;
 
-      // 1. CEK DATA MANUAL TERLEBIH DAHULU (Prioritas Utama)
+      debugPrint("Json Manual: $manualJsonBackup");
+      debugPrint("Json IoT: $iotJsonBackup");
+
       if (manualJsonBackup != null && manualJsonBackup!.isNotEmpty) {
         List<dynamic> list = jsonDecode(manualJsonBackup!);
 
@@ -89,7 +92,6 @@ class PengisianSolarPenerimaanController extends GetxController {
         }
       }
 
-      // 2. CEK DATA IOT (Fallback)
       if (!useManualData && iotJsonBackup != null && iotJsonBackup!.isNotEmpty) {
         total = 0;
         List<dynamic> list = jsonDecode(iotJsonBackup!);
@@ -114,40 +116,35 @@ class PengisianSolarPenerimaanController extends GetxController {
     isRefreshingSensor.value = true;
 
     try {
+      String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final auth = _loginService.getCurrentAuth();
 
       if (auth?.currentKodeUnit != null && activeStorageCode.isNotEmpty) {
-        // PANGGIL API REAL MENGGUNAKAN REPOSITORY BARU
-        await _repository.refreshSensorData(
+        await _repository.getDetailTanks(
             unitId: auth!.currentKodeUnit!,
             storageCode: activeStorageCode
         );
 
-        // AMBIL HASIL TERBARU
-        final newData = _repository.getLocalSensorData(activeStorageCode);
-        double total = 0;
-        for(var t in newData) {
-          total += (t.volume ?? 0);
+        final stockStorageData = await _repository.getDataStockStorage(
+            unitId: auth.currentKodeUnit!,
+            storageCode: activeStorageCode,
+            dateLog: today
+        );
+
+        if (stockStorageData.totalStockVolume != 0) {
+          currentVolume.value = stockStorageData.totalStockVolume;
+          lastUpdateSensor.value = DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now());
+        } else {
+          currentVolume.value = 0.0;
+          lastUpdateSensor.value = DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now());
         }
-
-        currentVolume.value = total;
       }
-
-      // Simulasi delay request API
       await Future.delayed(const Duration(seconds: 2));
-      currentVolume.value = currentVolume.value + 50; // Mockup
-
-      _updateLastSyncTime();
     } catch (e) {
       print("Gagal refresh sensor: $e");
     } finally {
       isRefreshingSensor.value = false;
     }
-  }
-
-  void _updateLastSyncTime() {
-    final now = DateTime.now();
-    lastUpdateSensor.value = DateFormat('HH:mm:ss').format(now);
   }
 
   Future<void> saveAndExit() async {
@@ -169,7 +166,6 @@ class PengisianSolarPenerimaanController extends GetxController {
     }
 
     try {
-      // update status menjadi 'setelah_pengisian' melalui Repository baru
       await _repository.updateTransactionStatus(noBast.value, 'setelah_pengisian');
     } catch (e) {
       print("Error update status pengisian: $e");
@@ -180,7 +176,7 @@ class PengisianSolarPenerimaanController extends GetxController {
 
   void _goToNextPage() {
     Get.offAllNamed(
-          Routes.PENERIMAAN_SETELAH,
+        Routes.PENERIMAAN_SETELAH,
         arguments: {
           'noBast': noBast.value,
           'noPO': noPO.value,

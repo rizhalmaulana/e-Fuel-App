@@ -20,6 +20,8 @@ class ValueKeyStatic {
 
   // 🔑 Static Box untuk Nama Box Fuel Data (Prefix per user)
   static const String LIST_STORAGE_FUEL_BOX = 'list_storage_fuel_box';
+  static const String LAST_SELECTED_STORAGE_KEY = 'last_selected_storage_name';
+  static const String LAST_SELECTED_STORAGE_CODE_KEY = 'last_selected_storage_coded';
 
   // 🔑 Static Keys untuk Nama Box Fuel Data (Prefix per user)
   static const String FUEL_DATA_BOX = 'fuelDataBox'; // Prefix nama box
@@ -27,6 +29,7 @@ class ValueKeyStatic {
 
   // Key baru untuk menyimpan list tangki manual dari API
   static const String API_MANUAL_TANKS_KEY = 'api_manual_tanks_list';
+  static const String LATEST_STOCK_CACHE_KEY = 'latest_stock_cache_data';
 
   static String CODE_TRANSACTION_PENERIMAAN = "FIN";
   static String CODE_TRANSACTION_PENGELUARAN = "FOT";

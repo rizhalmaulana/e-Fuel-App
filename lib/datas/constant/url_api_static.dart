@@ -1,8 +1,8 @@
 class UrlApiStatic {
-  static String API_END_POINT = 'http://112.78.149.227:8000/api';
-  static String API_END_POINT_VPS = 'http://148.230.98.90:8000/api';
+  static String API_END_POINT = 'https://digilink.teladanprima.com/api/';
+  // static String API_END_POINT_VPS = 'http://148.230.98.90:8000/api';
 
-  static String API_END_POINT_DBK = 'http://192.168.1.8:8085/api';
+  // static String API_END_POINT_DBK = 'http://192.168.1.8:8085/api';
   static String TOKEN_API_KEY = r"Xy9$2fG7!LpQz#8VmRt6&NsWb@3KdEj4UhPoYxCq";
 
   // POST
@@ -15,8 +15,14 @@ class UrlApiStatic {
   static String API_POST_FCM_TOKEN = '/absensi/user-devices';
   static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
   static String API_POST_IMAGE_PENGELUARAN = '/e_fuel/inbound-open/upload-photos/{no_doc}';
-  static String API_CREATE_TRANSACTION_BPB = '/e_fuel/transaksi-bpb/create';
   static String API_POST_ACTUAL_LITER_PENGELUARAN = '/e_fuel/inbound-open/update-aktual-liter/{no_doc}';
+
+  // EBPB
+  static String API_GET_APPROVAL_LIST_EBPB = '/e_fuel/transaksi-approval-ebpb/list'; // Mengambil Transkasi Approval EBPB
+  static String API_CREATE_TRANSACTION_EBPB = '/e_fuel/transaksi-ebpb/create';
+  static String API_CREATE_TRANSACTION_EBPB_APPROVAL = '/e_fuel/transaksi-approval-ebpb/create';
+  static String API_UPLOAD_SIGNATURE_EBPB = '/e_fuel/transaksi-approval-ebpb/upload-signature';
+  static String API_UPDATE_STATUS_EBPB = '/e_fuel/transaksi-approval-ebpb/update-status';
 
   // GET
   static String API_GET_UNIT = '/unit-list/';
@@ -38,6 +44,17 @@ class UrlApiStatic {
   static String API_GET_MASTER_IO_LIST = '/e_fuel/master-io/list';
   static String API_GET_MASTER_IO_DETAIL = '/e_fuel/master-io/{internal_order}';
   static String API_EXPORT_PDF_DOC = '/e_fuel/inbound-all-approved/export-pdf/{no_doc}';
+
+  // Get Current Stock Tank
+  // static String API_GET_LAST_STOCK = '/e_fuel/last-stock'; // Get Latest Stock for Penerimaan
+
+  static String API_GET_TANK_STOCK_LIST = '/e_fuel/tank-stock/list'; // Get All Stock
+  static String API_GET_LATEST_STORAGE_STOCK = '/e_fuel/storage-stock/latest-volume'; // Get Latest Tank Stock Pengeluaran
+  static String API_GET_LATEST_TANK_STOCK = '/e_fuel/tank-stock/latest-volume'; // Get Latest Tank Stock Pengeluaran
+  static String API_GET_FLOW_IN = '/e_fuel/tank-stock/flow-out'; // Get Traffic Stock Penerimaan
+  static String API_GET_FLOW_OUT = '/e_fuel/tank-stock/flow-in'; // Get Traffic Stock Pengeluaran
+
+  static String API_GET_UNIT_PER_AREA = '/absensi/units/same-area/{kode_unit}';
 
   // GET DATA FROM DBK
   static String API_GET_EMPLOYEE_DBK = '/Employee/GetAllPaged';

@@ -132,7 +132,7 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
     return Column(
       crossAxisAlignment: isRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppFonts.fUrbanistMedium8.copyWith(color: AppColors.secondaryText)),
+        Text(label, style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
         const SizedBox(height: 2),
         Text(value, style: AppFonts.fUrbanistBold8.copyWith(color: AppColors.darkText)),
       ],
@@ -217,12 +217,14 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
             // Card 1: Sounding Awal
             Expanded(
               child: _buildVolumeCard(
-                title: "Sounding Awal",
+                title: "Volume Awal",
                 volume: controller.initialVolume.value,
                 icon: Icons.history,
                 color: AppColors.secondaryText,
                 bgColor: Colors.white,
                 borderColor: Colors.grey.shade200,
+                isLive: false,
+                waktuSounding: controller.waktuSounding.value
               ),
             ),
             const SizedBox(width: 12),
@@ -230,7 +232,7 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
             // Card 2: Sensor Live
             Expanded(
               child: Obx(() => _buildVolumeCard(
-                  title: "Volume Sensor",
+                  title: "Volume Akhir",
                   volume: controller.currentVolume.value,
                   icon: Icons.sensors_rounded,
                   color: AppColors.primary, // Warna teks primary
@@ -258,7 +260,8 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
     bool isLive = false,
     bool isLoading = false,
     VoidCallback? onTap,
-    String? lastUpdate
+    String? lastUpdate,
+    String? waktuSounding
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -304,14 +307,21 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
                     borderRadius: BorderRadius.circular(4)
                 ),
                 child: Text(
-                  "Update: $lastUpdate",
+                  "Diperbaharui \n$lastUpdate",
                   style: AppFonts.fUrbanistMedium10.copyWith(color: color, fontSize: 9),
                 ),
               )
             else
-              Text(
-                "Data statis",
-                style: AppFonts.fUrbanistRegular10.copyWith(color: Colors.grey.shade400, fontSize: 9),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(4)
+                ),
+                child: Text(
+                  "Waktu Volume Awal \n$waktuSounding",
+                  style: AppFonts.fUrbanistMedium10.copyWith(color: color, fontSize: 9),
+                ),
               )
           ],
         ),

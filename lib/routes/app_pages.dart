@@ -42,8 +42,6 @@ class AppPages {
   AppPages._();
 
   static const INITIAL = Routes.HOME;
-  // static const INITIAL = '${Routes.PENERIMAAN_SEBELUM_FORM}?step=2';
-
   static const LOGIN = Routes.LOGIN;
   static const HOME = Routes.HOME;
 
@@ -53,7 +51,6 @@ class AppPages {
   static const PENGISIAN_SOLAR = Routes.PENGISIAN_SOLAR;
   static const PENERIMAAN_SETELAH = Routes.PENERIMAAN_SETELAH;
   static const PENERIMAAN_VERIFIKASI_BAST = Routes.PENERIMAAAN_VERIFIKASI_BAST;
-  static const PENERIMAAN_TRACKING = Routes.PENERIMAAN_TRACKING;
 
   static const PENGELUARAN_INPUT_BON_SEMENTARA = Routes.PENGELUARAN_INPUT_BON_SEMENTARA;
   static const PENGELUARAN = Routes.PENGELUARAN;
@@ -153,9 +150,9 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 500),
     ),
     GetPage(
-      name: Routes.PENGELUARAN_BPB_HARIAN,
-      page: () => const PengeluaranBpbHarianView(),
-      binding: PengeluaranBpbHarianBinding(),
+      name: Routes.PENGELUARAN_EBPB,
+      page: () => const PengeluaranEBpbView(),
+      binding: PengeluaranEBpbBinding(),
       transition: Transition.downToUp,
       transitionDuration: const Duration(milliseconds: 500),
     ),

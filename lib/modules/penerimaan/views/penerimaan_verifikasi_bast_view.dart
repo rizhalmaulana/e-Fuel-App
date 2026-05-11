@@ -68,17 +68,37 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
             child: Row(
               children: [
                 Expanded(
-                  flex: 3,
+                  flex: 4,
                   child: Obx(() => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      Text("Volume Saat Ini", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+                      const SizedBox(height: 4),
                       Text(
                         "${TextConvertHelper().formatNumber(controller.totalVolumeDisplay.value)} L",
                         style: AppFonts.fUrbanistBold20.copyWith(color: AppColors.primary, height: 1.0),
                       ),
-                      const SizedBox(height: 4),
-                      Text("Volume Saat Ini", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green.withOpacity(0.3))
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.arrow_upward_rounded, size: 10, color: Colors.green),
+                            const SizedBox(width: 4),
+                            Text(
+                              "${TextConvertHelper().formatNumber(controller.totalVolumeReceived.value)} L",
+                              style: AppFonts.fUrbanistBold10.copyWith(color: Colors.green),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   )),
                 ),

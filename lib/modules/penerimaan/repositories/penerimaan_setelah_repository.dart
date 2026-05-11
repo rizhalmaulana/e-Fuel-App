@@ -8,11 +8,13 @@ import 'package:get/get.dart';
 
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
+import '../../transactions/penerimaan/services/penerimaan_api_service.dart';
 import '../services/draft_penerimaan_service.dart';
 
 class PenerimaanSetelahRepository {
   final FuelSensorService _sensorService = Get.find<FuelSensorService>();
   final MasterDataService _masterDataService = MasterDataService();
+  final PenerimaanApiService _apiService = Get.find<PenerimaanApiService>();
 
   late OutstandingService _outstandingService;
   late DraftPenerimaanService _draftService;
@@ -32,8 +34,28 @@ class PenerimaanSetelahRepository {
   }
 
   // --- SENSOR & MASTER DATA ---
-  Future<void> refreshSensorData({required String unitId, required String storageCode}) async {
-    await _sensorService.refreshData(unitId: unitId, targetStorageCode: storageCode);
+  Future<List<VolumeTankDetailModel>> fetchMasterTankDetail(String unitId, String storageCode) async {
+    final result = await _masterDataService.getTankDetailFromStorage(
+        unitId: unitId,
+        storageId: storageCode
+    );
+    return result.map((e) => e).toList();
+  }
+
+  Future<Map<String, dynamic>?> fetchLatestTankStock({
+    required String unitId,
+    required String tankCode,
+    required String dateLog,
+  }) async {
+    final response = await _apiService.getLatestStockTanks(
+      unitId: unitId,
+      tankCode: tankCode,
+      dateLog: dateLog,
+    );
+    if (response != null && response is List && response.isNotEmpty) {
+      return response.first;
+    }
+    return null;
   }
 
   List<VolumeTankDetailModel> getLocalSensorData(String storageCode) {

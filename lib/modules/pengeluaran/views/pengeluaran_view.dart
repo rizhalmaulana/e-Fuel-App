@@ -263,20 +263,22 @@ class PengeluaranView extends GetView<PengeluaranController> {
               title: "Jenis Transaksi & Unit",
               icon: Icons.directions_car_filled_rounded,
               children: [
-                // Baris 1: Jenis & Kategori
+                // Baris 1: Jenis Pengeluaran
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _buildLabel("Jenis Pengeluaran"),
+                  Obx(() => _buildStandardDropdown(
+                    items: controller.jenisBonList,
+                    value: controller.selectedJenisBon.value,
+                    onChanged: (val) => controller.switchJenisBon(val),
+                    hint: "Pilih Jenis",
+                  )),
+                ]),
+                const SizedBox(height: 12),
+
+                // Baris 2: Kategori & Kode Kebun/Pabrik
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _buildLabel("Jenis Pengeluaran"),
-                      Obx(() => _buildStandardDropdown(
-                        items: controller.jenisBonList,
-                        value: controller.selectedJenisBon.value,
-                        onChanged: (val) => controller.switchJenisBon(val),
-                        hint: "Pilih Jenis",
-                      )),
-                    ])),
-                    const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       _buildLabel("Kategori"),
                       Obx(() => _buildStandardDropdown(
@@ -286,12 +288,50 @@ class PengeluaranView extends GetView<PengeluaranController> {
                         hint: "Pilih Kategori",
                       )),
                     ])),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      _buildLabel("Kode Kebun/Pabrik"),
+                      Obx(() {
+                        if (controller.isLoadingUnitsPerArea.value) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            alignment: Alignment.centerLeft,
+                            child: const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryOrange)),
+                          );
+                        }
+                        
+                        if (controller.selectedKategoriKendaraan.value!.contains('INTERNAL NON')) {
+                          return _buildStandardDropdown(
+                            items: controller.listTitleUnitPerArea,
+                            value: controller.selectedKodeKebunPabrik.value,
+                            onChanged: (val) => controller.selectedKodeKebunPabrik.value = val,
+                            hint: "Pilih Kode",
+                          );
+                        } else {
+                          String val = "-";
+                          if (controller.selectedKategoriKendaraan.value!.contains('INTERNAL') && !controller.selectedKategoriKendaraan.value!.contains('NON')) {
+                            val = controller.userTitleUnit.value;
+                          }
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _colorReadOnly,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              val,
+                              style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+                            ),
+                          );
+                        }
+                      }),
+                    ])),
                   ],
                 ),
+                const SizedBox(height: 12),
 
-                _buildDivider(), // Garis pemisah
-
-                // Baris 2: Nama Unit & Plat No
+                // Baris 3: Nama Unit & Plat No
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -469,6 +509,99 @@ class PengeluaranView extends GetView<PengeluaranController> {
                 const SizedBox(height: 12),
                 _buildLabel("Keterangan"),
                 _buildTextField(controller: controller.keteranganC, hint: "Tambahkan Catatan (Opsional)...", maxLines: 1),
+
+                // Baris 3: Foto Odometer Kendaraan
+                const SizedBox(height: 12),
+                Obx(() {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      _buildLabel("Foto Odometer (KM Kendaraan)"),
+
+                      // Cek apakah foto sudah diambil
+                      if (controller.fotoOdometer.value != null)
+                        Stack(
+                          children: [
+                            Container(
+                              height: 180,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade300),
+                                image: DecorationImage(
+                                  image: FileImage(controller.fotoOdometer.value!),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: controller.hapusFotoOdometer,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.alertSoftRed,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close, color: Colors.white, size: 18),
+                                ),
+                              ),
+                            )
+                          ],
+                        )
+                      else
+                        InkWell(
+                          onTap: controller.takeOdometerPhoto,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundGrey,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryOrange.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt, color: AppColors.primaryOrange, size: 28),
+                                ),
+                                const SizedBox(height: 12),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  child: Text(
+                                    "Ketuk di sini untuk mengambil foto",
+                                    style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryText),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  child: Text(
+                                    "Wajib melampirkan foto KM/HM kendaraan",
+                                    style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.secondaryText),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }),
               ],
             ),
 

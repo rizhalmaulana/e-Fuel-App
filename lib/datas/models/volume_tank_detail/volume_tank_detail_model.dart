@@ -13,22 +13,25 @@ class VolumeTankDetailModel {
   final StorageUnitModel? unit;
 
   @HiveField(2)
-  final CSTStorageModel? masterStorage; // Reuse dari file storage_to_tank_model.dart
+  final CSTStorageModel? masterStorage;
 
   @HiveField(3)
-  final CSTTankModel? masterSolarTank; // Reuse dari file storage_to_tank_model.dart
+  final CSTTankModel? masterSolarTank;
 
   @HiveField(4)
   final double volume;
 
   @HiveField(5)
-  final double height; // Mapping dari JSON "tinggi"
+  final double height;
 
   @HiveField(6)
   final String? createdAt;
 
   @HiveField(7)
   final String? updatedAt;
+
+  @HiveField(8)
+  final int capacity;
 
   VolumeTankDetailModel({
     required this.id,
@@ -39,38 +42,43 @@ class VolumeTankDetailModel {
     required this.height,
     this.createdAt,
     this.updatedAt,
+    required this.capacity,
   });
 
   factory VolumeTankDetailModel.fromJson(Map<String, dynamic> json) {
-    return VolumeTankDetailModel(
-      id: json['id'] ?? 0,
+    // Safe type conversion
+    int _toInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
 
-      // Reuse logic parsing Unit
+    double _toDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
+    return VolumeTankDetailModel(
+      id: _toInt(json['id']),
       unit: json['unit'] != null
           ? StorageUnitModel.fromJson(json['unit'])
           : null,
-
-      // Reuse logic parsing Storage
       masterStorage: json['master_storage'] != null
           ? CSTStorageModel.fromJson(json['master_storage'])
           : null,
-
-      // Reuse logic parsing Tank
       masterSolarTank: json['master_solar_tank'] != null
           ? CSTTankModel.fromJson(json['master_solar_tank'])
           : null,
-
-      // Parsing aman ke double (handle integer atau double dari API)
-      volume: (json['volume'] is int)
-          ? (json['volume'] as int).toDouble()
-          : (json['volume'] as double? ?? 0.0),
-
-      height: (json['tinggi'] is int)
-          ? (json['tinggi'] as int).toDouble()
-          : (json['tinggi'] as double? ?? 0.0),
-
+      volume: _toDouble(json['volume']),
+      height: _toDouble(json['tinggi']),
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
+      capacity: _toInt(json['capacity']),
     );
   }
 }

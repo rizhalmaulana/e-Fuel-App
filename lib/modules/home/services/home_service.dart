@@ -2,10 +2,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:get/get.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
 import '../../pengeluaran/services/bon_sementara_local_service.dart';
+import '../repositories/home_repository.dart';
 
 class HomeService extends GetxService {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final BonSementaraLocalService _localService = BonSementaraLocalService();
+  final HomeRepository repository = HomeRepository();
 
   var masterList = <BonSementaraModel>[].obs;
   var isLoading = false.obs;
@@ -26,7 +28,6 @@ class HomeService extends GetxService {
 
     try {
       await loadInitialData();
-      // Pass parameter ke sync
       await syncFromRealtimeDatabase(unitCode, storageCode);
     } catch (e) {
       print("Error Init Unit Realtime: $e");
@@ -563,22 +564,19 @@ class HomeService extends GetxService {
   }
 
   Future<void> syncFromRealtimeDatabase(String unitCode, String storageCode) async {
-    // Validasi sederhana
     if (unitCode.isEmpty || storageCode.isEmpty) {
       print("⚠️ Skip Sync: Unit atau Storage belum dipilih.");
       return;
     }
 
     try {
-      print("🔄 Sinkronisasi Firebase pada: $unitCode / $storageCode ...");
-
-      // Child berdasarkan Unit -> Storage -> Node Data
+      print("🔄[Firebase] Sinkronisasi Firebase pada: $unitCode / $storageCode ...");
       final targetRef = _dbRef.child(unitCode).child(storageCode);
 
       final results = await Future.wait([
         targetRef.child('InitiateKM').get(),
         targetRef.child('InitiateRatio').get(),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
 
       final DataSnapshot kmSnapshot = results[0];
       final DataSnapshot ratioSnapshot = results[1];
@@ -601,7 +599,6 @@ class HomeService extends GetxService {
           }
         } else {
           // Push Data Lokal ke Path Baru jika kosong
-          print("➕ Inisiasi Node Baru di ($unitCode/$storageCode) untuk IO: $io");
           Map<String, dynamic> initialData = {};
           if (item.tipe == 'GS') {
             initialData['DateAwal'] = DateTime.now().toIso8601String().split('T')[0];

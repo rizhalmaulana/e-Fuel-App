@@ -1,5 +1,4 @@
 import 'package:hive/hive.dart';
-
 part 'pengeluaran_model.g.dart';
 
 @HiveType(typeId: 30)
@@ -50,13 +49,13 @@ class PengeluaranModel extends HiveObject {
   String? docType;
 
   @HiveField(15)
-  double? hmKmAkhi;
+  double? hmKmAkhir;
 
   @HiveField(16)
   double? liter;
 
   @HiveField(17)
-  double? hmKmAwak;
+  double? hmKmAwal;
 
   @HiveField(18)
   String? costCenter;
@@ -85,6 +84,9 @@ class PengeluaranModel extends HiveObject {
   @HiveField(26)
   String? jenisPengeluaran;
 
+  @HiveField(27)
+  String? kodeUnit;
+
   PengeluaranModel({
     this.noDoc,
     this.noIo,
@@ -101,9 +103,9 @@ class PengeluaranModel extends HiveObject {
     this.pathFoto3,
     this.keterangan,
     this.docType,
-    this.hmKmAkhi,
+    this.hmKmAkhir,
     this.liter,
-    this.hmKmAwak,
+    this.hmKmAwal,
     this.costCenter,
     this.ratio,
     this.tipeUnitIo,
@@ -113,5 +115,6 @@ class PengeluaranModel extends HiveObject {
     this.satuan,
     this.kategoriKendaraan,
     this.jenisPengeluaran,
+    this.kodeUnit
   });
 }

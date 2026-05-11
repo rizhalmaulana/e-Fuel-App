@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 import 'package:signature/signature.dart';
 import '../controllers/pengeluaran_e_bpb_controller.dart';
 
-class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
-  const PengeluaranBpbHarianView({super.key});
+class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
+  const PengeluaranEBpbView({super.key});
 
   Widget _buildCompactHeader(BuildContext context) {
     return Card(
@@ -15,90 +16,118 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Obx(() => Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: () => controller.pickDate(context),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Tanggal Transaksi",
-                              style: AppFonts.fUrbanistMedium12
-                                  .copyWith(color: AppColors.primaryOrange)),
-                          Row(
-                            children: [
-                              Text(controller.selectedDateDisplay.value,
-                                  style: AppFonts.fUrbanistBold14.copyWith(
-                                      color: AppColors.secondaryText)),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.calendar_month,
-                                  size: 16, color: AppColors.primaryOrange),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text("Kode Unit",
-                            style: AppFonts.fUrbanistMedium12
-                                .copyWith(color: AppColors.primaryOrange)),
-                        Text(controller.selectedUnitCode.value,
-                            style: AppFonts.fUrbanistBold14
-                                .copyWith(color: AppColors.secondaryText)),
-                      ],
-                    ),
-                  ],
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(height: 1, thickness: 0.5),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => controller.pickDate(context),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Total Liter",
+                        Text("Tanggal Transaksi",
                             style: AppFonts.fUrbanistMedium12
                                 .copyWith(color: AppColors.primaryOrange)),
-                        Text(
-                            "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
-                            style: AppFonts.fUrbanistBold14
-                                .copyWith(color: AppColors.secondaryText)),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(controller.selectedDateDisplay.value,
+                                  style: AppFonts.fUrbanistBold14.copyWith(
+                                      color: AppColors.secondaryText),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.calendar_month,
+                                size: 16, color: AppColors.primaryOrange),
+                          ],
+                        ),
                       ],
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text("Total Transaksi",
-                            style: AppFonts.fUrbanistMedium12
-                                .copyWith(color: AppColors.primaryOrange)),
-                        Text("${controller.totalQty.value} Unit",
-                            style: AppFonts.fUrbanistBold14
-                                .copyWith(color: AppColors.secondaryText)),
-                      ],
-                    ),
-                  ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text("Kode Unit",
+                          style: AppFonts.fUrbanistMedium12
+                              .copyWith(color: AppColors.primaryOrange)),
+                      Text(controller.selectedUnitCode.value,
+                          style: AppFonts.fUrbanistBold14
+                              .copyWith(color: AppColors.secondaryText),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
                 ),
               ],
-            )),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, thickness: 0.5),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Total Liter",
+                          style: AppFonts.fUrbanistMedium12
+                              .copyWith(color: AppColors.primaryOrange)),
+                      Text(
+                          "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
+                          style: AppFonts.fUrbanistBold14
+                              .copyWith(color: AppColors.secondaryText),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text("Total Transaksi",
+                          style: AppFonts.fUrbanistMedium12
+                              .copyWith(color: AppColors.primaryOrange)),
+                      Text("${controller.totalQty.value} Unit",
+                          style: AppFonts.fUrbanistBold14
+                              .copyWith(color: AppColors.secondaryText),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        )),
       ),
     );
   }
 
+  // 1. UPDATE: Tambahkan parameter isAlphaNumeric untuk mengaktifkan validasi Cost Center
   Widget _buildTableInputField(
-      {required TextEditingController controller, required String hint}) {
+      {required TextEditingController controller, required String hint, bool isAlphaNumeric = false}) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: TextFormField(
         controller: controller,
         style:
-            AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+        AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+        // Force Uppercase untuk Cost Center
+        textCapitalization: isAlphaNumeric ? TextCapitalization.characters : TextCapitalization.none,
+        // Regex validasi hanya angka dan huruf (tanpa spasi dan karakter khusus)
+        inputFormatters: isAlphaNumeric
+            ? [
+          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+          UpperCaseTextFormatter(), // Menggunakan custom formatter agar saat diketik langsung jadi kapital
+        ]
+            : [],
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: AppFonts.fUrbanistLight12
@@ -107,15 +136,15 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
           filled: true,
           fillColor: AppColors.white,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide:
-                  BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
+              BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide:
-                  BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
+              BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppColors.primaryOrange)),
@@ -124,9 +153,12 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
     );
   }
 
-  Widget _buildDataTable() {
+  Widget _buildDataTable(BuildContext context) {
+    // 3. UPDATE: Menggunakan rasio tinggi layar agar responsif di HP yang lebih kecil/besar
+    final double tableHeight = MediaQuery.of(context).size.height * 0.5;
+
     return Container(
-      height: 320, // Tinggi table disesuaikan
+      height: tableHeight,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.secondaryText.withOpacity(0.2)),
@@ -138,7 +170,7 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
           if (controller.isLoading.value) {
             return const Center(
                 child:
-                    CircularProgressIndicator(color: AppColors.primaryOrange));
+                CircularProgressIndicator(color: AppColors.primaryOrange));
           }
           if (controller.dailyTransactionList.isEmpty) {
             return Center(
@@ -170,7 +202,7 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
               scrollDirection: Axis.vertical,
               child: DataTable(
                 headingRowColor:
-                    MaterialStateProperty.all(AppColors.fieldBackground),
+                MaterialStateProperty.all(AppColors.fieldBackground),
                 columnSpacing: 20,
                 horizontalMargin: 15,
                 dataRowHeight: 60,
@@ -206,18 +238,26 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                           style: AppFonts.fUrbanistMedium12)),
                       DataCell(Text(item.noIo ?? "-",
                           style: AppFonts.fUrbanistMedium12)),
-                      DataCell(SizedBox(
-                          width: 140,
+                      DataCell(
+                        // 3. UPDATE: Sedikit melebarkan field agar lebih lega diketik di HP apapun
+                        Container(
+                          width: 150,
+                          alignment: Alignment.center,
                           child: _buildTableInputField(
-                              controller:
-                                  controller.getCostCenterController(uniqueKey),
-                              hint: "Cost Center"))),
-                      DataCell(SizedBox(
+                              controller: controller.getCostCenterController(uniqueKey),
+                              hint: "Cost Center",
+                              isAlphaNumeric: true), // Aktifkan uppercase dan validasi angka huruf
+                        ),
+                      ),
+                      DataCell(
+                        Container(
                           width: 160,
+                          alignment: Alignment.center,
                           child: _buildTableInputField(
-                              controller:
-                                  controller.getNoteController(uniqueKey),
-                              hint: "Keterangan"))),
+                              controller: controller.getNoteController(uniqueKey),
+                              hint: "Keterangan"),
+                        ),
+                      ),
                     ],
                   );
                 }).toList(),
@@ -241,29 +281,33 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Column(children: [
-            Text("Total Transaksi", style: AppFonts.fUrbanistRegular12),
-            Obx(() => Text("${controller.totalQty.value}",
-                style: AppFonts.fUrbanistBold18
-                    .copyWith(color: AppColors.primaryOrange)))
-          ]),
+          Expanded(
+            child: Column(children: [
+              Text("Total Transaksi", style: AppFonts.fUrbanistRegular12, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Obx(() => Text("${controller.totalQty.value}",
+                  style: AppFonts.fUrbanistBold18
+                      .copyWith(color: AppColors.primaryOrange)))
+            ]),
+          ),
           Container(
               height: 30,
               width: 1,
               color: AppColors.secondaryText.withOpacity(0.3)),
-          Column(children: [
-            Text("Total Volume", style: AppFonts.fUrbanistRegular12),
-            Obx(() => Text(
-                "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
-                style: AppFonts.fUrbanistBold18
-                    .copyWith(color: AppColors.primaryOrange)))
-          ]),
+          Expanded(
+            child: Column(children: [
+              Text("Total Volume", style: AppFonts.fUrbanistRegular12, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Obx(() => Text(
+                  "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
+                  style: AppFonts.fUrbanistBold18
+                      .copyWith(color: AppColors.primaryOrange)))
+            ]),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSignatureSection() {
+  Widget _buildSignatureSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -292,13 +336,13 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Obx(() => Text(
-                              controller.userName.value.toUpperCase(),
-                              textAlign: TextAlign.end,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: AppFonts.fUrbanistBold12
-                                  .copyWith(color: AppColors.darkText),
-                            )),
+                          controller.userName.value.toUpperCase(),
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.darkText),
+                        )),
                       )
                     ])),
             Padding(
@@ -312,26 +356,28 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Obx(() => Text(
-                              controller.userJabatan.value,
-                              textAlign: TextAlign.end,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: AppFonts.fUrbanistSemiBold12
-                                  .copyWith(color: AppColors.darkText),
-                            )),
+                          controller.userJabatan.value,
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: AppFonts.fUrbanistSemiBold12
+                              .copyWith(color: AppColors.darkText),
+                        )),
                       )
                     ])),
           ]),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text("Tanda Tangan Asst. Traksi",
-              style: AppFonts.fUrbanistSemiBold14),
+          Flexible(
+            child: Text("Tanda Tangan Asst. Traksi",
+                style: AppFonts.fUrbanistSemiBold14, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
           GestureDetector(
               onTap: () => controller.clearSignature(),
               child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                       color: AppColors.alertSoftRed.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6)),
@@ -339,9 +385,11 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                       style: AppFonts.fUrbanistSemiBold10
                           .copyWith(color: AppColors.alertSoftRed))))
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
+
+        // 2. UPDATE: Mengurangi tinggi (height) signature pad dari 200 ke 150 agar lebih *simple* dan pas di HP kecil.
         Container(
-            height: 200,
+            height: 150,
             decoration: BoxDecoration(
                 color: AppColors.fieldBackground.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(16),
@@ -368,7 +416,7 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                 const SizedBox(height: 16),
                 _buildCompactHeader(context),
                 const SizedBox(height: 16),
-                _buildDataTable(),
+                _buildDataTable(context),
                 const SizedBox(height: 20),
               ],
             ),
@@ -419,7 +467,7 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
                 const SizedBox(height: 16),
                 _buildSummaryCard(),
                 const SizedBox(height: 24),
-                _buildSignatureSection(),
+                _buildSignatureSection(context),
                 const SizedBox(height: 24),
               ],
             ),
@@ -503,6 +551,18 @@ class PengeluaranBpbHarianView extends GetView<PengeluaranBpbHarianController> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// FORMATTER TAMBAHAN: Untuk mengubah text otomatis menjadi Uppercase secara real-time saat mengetik.
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }

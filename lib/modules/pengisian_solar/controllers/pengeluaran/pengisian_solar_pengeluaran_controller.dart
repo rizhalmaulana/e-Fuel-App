@@ -64,6 +64,10 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   String get currentDocType => 'FOT';
 
+  final isSensorApiActive = false.obs;
+  final isRefreshingSensor = false.obs;
+  String activeStorageCode = "";
+
   @override
   void onInit() {
     super.onInit();
@@ -84,33 +88,75 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   void _loadArguments() {
     final Map<String, dynamic> args = Get.arguments ?? {};
+    final Map<String, dynamic> payload = args['payload'] ?? {};
 
     noDoc.value = args['noDoc'] ?? '-';
-    noIO.value = args['noIO'] ?? '-';
-    unitIO.value = args['unitIO'] ?? '-';
-    noPolisi.value = args['noPolisi'] ?? '-';
-    namaSupir.value = args['nama_supir'] ?? '-';
     tanggal.value = args['tanggal'] ?? DateFormat('dd/MM/yyyy').format(DateTime.now());
-    KmPengisian.value = (args['km_pengisian'] ?? '0').toString();
-    jumlahSolarArg.value = (args['jumlah_pengisian_solar'] ?? '0').toString();
-    status.value = args['status'] ?? 'pengisian_solar';
-    tipeUnit.value = (args['tipe_unit'] ?? '-').toString();
-    statusSupir.value = args['status_supir'] ?? 'Internal';
+    status.value = args['status'] ?? 'pengisian_solar_pengeluaran';
 
-    _ratioArg = (args['ratio'] ?? '0').toString();
-    _hmKmAkhirArg = (args['hm_km_akhir'] ?? '0').toString();
-    _tanggalAkhirArg = (args['tanggal_akhir'] ?? '').toString();
+    // Parse data murni dari payload
+    // unitIO.value = payload['unit_io']?.toString() ?? args['unitIO'] ?? '-';
+    noIO.value = payload['no_io']?.toString() ?? '-';
+    noPolisi.value = payload['nopol_check']?.toString() ?? '-';
+    namaSupir.value = payload['supir_check']?.toString() ?? '-';
+    KmPengisian.value = (payload['km_pengisian'] ?? '0').toString();
+    jumlahSolarArg.value = (payload['jumlah_pengisian_solar'] ?? '0').toString();
+    tipeUnit.value = (payload['tipe_unit_io'] ?? '-').toString();
+    statusSupir.value = payload['status_supir']?.toString() ?? 'Internal';
 
-    String initialDocType = args['docType'] ?? 'FOT';
+    _ratioArg = (payload['ratio'] ?? '0').toString();
+    _hmKmAkhirArg = (payload['hm_km_akhir'] ?? '0').toString();
+    _tanggalAkhirArg = (payload['tanggal_akhir'] ?? '').toString();
 
-    if(initialDocType == 'BPB') {
-      selectedJenisPengeluaran.value = 'BPB';
-    } else {
-      selectedJenisPengeluaran.value = 'Bon Sementara';
-    }
+    String initialDocType = payload['doc_type'] ?? 'FOT';
+    selectedJenisPengeluaran.value = (initialDocType == 'BPB') ? 'BPB' : 'Bon Sementara';
+
+    // Ambil storage code aktif dari Home Controller
+    String rawStorage = _homeController.selectedStorage.value;
+    activeStorageCode = rawStorage.contains('-') ? rawStorage.split('-').last.trim() : rawStorage.trim();
 
     estimasiSolarC.text = jumlahSolarArg.value;
     aktualSolarC.text = "";
+
+    refreshSensorMonitoring();
+  }
+
+  Future<void> refreshSensorMonitoring() async {
+    if (isRefreshingSensor.value) return;
+    isRefreshingSensor.value = true;
+
+    try {
+      String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      final stockStorageData = await _apiService.fetchLatestStockStorage(
+          unitId: _currentUserUnitCode,
+          storageCode: activeStorageCode,
+          dateLog: today
+      );
+
+      if (stockStorageData != null) {
+        double flowOut = stockStorageData.totalLatestVolumeFlowout;
+
+        if (flowOut > 0) {
+          isSensorApiActive.value = true;
+          // Set text tapi tetap bisa diedit manual
+          aktualSolarC.text = flowOut % 1 == 0
+              ? flowOut.toInt().toString()
+              : flowOut.toStringAsFixed(2).replaceAll('.', ',');
+          _calculateVarian();
+        } else {
+          // Jika flowout 0, biarkan user ketik manual
+          isSensorApiActive.value = false;
+        }
+      } else {
+        isSensorApiActive.value = false;
+      }
+    } catch (e) {
+      print("Gagal refresh sensor pengeluaran: $e");
+      isSensorApiActive.value = false;
+    } finally {
+      isRefreshingSensor.value = false;
+    }
   }
 
   void _loadUserInfo() {
@@ -362,6 +408,7 @@ class PengisianSolarPengeluaranController extends GetxController {
         "km_pengisian": finalKm,
         "jumlah_pengisian_solar": estimasiSolar,
         "aktual_liter": finalSolar,
+        "varian_liter": finalVarianLiter
       };
 
       await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value!.path, fotoSupir.value!.path);
@@ -405,6 +452,7 @@ class PengisianSolarPengeluaranController extends GetxController {
         supirCheck: payload['supir_check'],
         kmPengisian: payload['km_pengisian'],
         liter: payload['jumlah_pengisian_solar'],
+        varian: payload['varian_liter'],
         jumlahPengisianSolar: payload['aktual_liter'],
         userName: auth.user.username,
         dateOutbound: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),

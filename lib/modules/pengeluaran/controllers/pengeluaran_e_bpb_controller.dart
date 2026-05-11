@@ -1,7 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:signature/signature.dart';
 import '../../../configs/app_colors.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
@@ -12,7 +16,7 @@ import '../../auth/services/login_service.dart';
 import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import '../services/bon_sementara_local_service.dart';
 
-class PengeluaranBpbHarianController extends GetxController {
+class PengeluaranEBpbController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
   final BonSementaraLocalService _localService = BonSementaraLocalService();
   final PengeluaranApiService _apiService = PengeluaranApiService();
@@ -42,6 +46,7 @@ class PengeluaranBpbHarianController extends GetxController {
   late SignatureController signatureController;
   var userName = "-".obs;
   var userJabatan = "-".obs;
+  var userLevelApproval = "-".obs;
 
   TextEditingController getCostCenterController(String id) {
     return costCenterControllers.putIfAbsent(id, () => TextEditingController());
@@ -82,6 +87,7 @@ class PengeluaranBpbHarianController extends GetxController {
       selectedUnitCode.value = authData.currentKodeUnit ?? 'Unknown';
       userName.value = "${authData.user.firstName} ${authData.user.lastName}";
       userJabatan.value = authData.user.jabatan?.namaJabatan ?? "Asst. Traksi";
+      userLevelApproval.value = authData.user.otorisasi.first;
     }
   }
 
@@ -191,7 +197,7 @@ class PengeluaranBpbHarianController extends GetxController {
     for (var item in dailyTransactionList) {
       String key = item.id.toString();
       fotPayload.add({
-        "no_doc": item.noIo ?? "-",
+        "no_doc": item.noDoc ?? "-",
         "cost_center": costCenterControllers[key]?.text ?? "",
         "keterangan": noteControllers[key]?.text ?? ""
       });
@@ -200,7 +206,7 @@ class PengeluaranBpbHarianController extends GetxController {
     Get.dialog(
       DialogFlexible(
         logo: LottiesHelper().getLottieQuestion(),
-        title: "Konfirmasi BPB",
+        title: "Konfirmasi E-BPB",
         message: "Buat E-BPB untuk ${dailyTransactionList.length} item?",
         primaryColor: AppColors.primaryOrange,
         secondaryButtonText: "Batal",
@@ -215,6 +221,19 @@ class PengeluaranBpbHarianController extends GetxController {
     );
   }
 
+  Future<File?> _getSignatureFile() async {
+    if (signatureController.isEmpty) return null;
+
+    final Uint8List? data = await signatureController.toPngBytes();
+    if (data == null) return null;
+
+    final tempDir = await getTemporaryDirectory();
+    final file = await File('${tempDir.path}/signature_ebpb_${DateTime.now().millisecondsSinceEpoch}.png').create();
+
+    file.writeAsBytesSync(data);
+    return file;
+  }
+
   void _processSubmitApi(List<Map<String, dynamic>> fotPayload) async {
     Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange)), barrierDismissible: false);
 
@@ -225,15 +244,50 @@ class PengeluaranBpbHarianController extends GetxController {
         "fot": fotPayload
       };
 
-      await _apiService.createTransactionBpb(payload: payload);
+      // HIT API CREATE TRANSACTION BPB
+      var responseBpb = await _apiService.createTransactionEBPB(payload: payload);
 
-      Get.back();
+      String noDoc = responseBpb['no_doc']?.toString() ?? "";
+      if (noDoc.isEmpty) {
+        throw Exception("Gagal mendapatkan Nomor Dokumen dari server.");
+      }
 
+      // Mulai Flow Approval untuk Fuel Level 1
+      if (userLevelApproval.value == "fuel_level_1") {
+        // HIT API CREATE APPROVAL EBPB
+        await _apiService.createTransactionEBPBApproval(
+            noDoc: noDoc,
+            kodeUnit: selectedUnitCode.value
+        );
+
+        // HIT API UPLOAD SIGNATURE
+        File? signatureFile = await _getSignatureFile();
+        if (signatureFile != null) {
+          await _apiService.uploadSignatureEBPB(
+            noDoc: noDoc,
+            levelApproval: userLevelApproval.value,
+            imageSign: signatureFile,
+          );
+        }
+
+        // HIT API UPDATE STATUS (APPROVED untuk level 1)
+        await _apiService.updateStatusEBPB(
+          noDoc: noDoc,
+          statusApprove: "APPROVED",
+          levelApproval: userLevelApproval.value,
+          catatan: "",
+          isSign: signatureFile != null,
+        );
+      }
+
+      Get.back(); // Tutup loading dialog
+
+      // Tampilkan Dialog Sukses
       Get.dialog(
         DialogFlexible(
           logo: LottiesHelper().getLottieSuccess(),
           title: "Berhasil",
-          message: "Dokumen E-BPB berhasil dibuat.",
+          message: "Dokumen E-BPB ($noDoc) berhasil dibuat dan diajukan.",
           primaryColor: AppColors.primaryOrange,
           primaryButtonText: "OK",
           onPrimaryPressed: () {
@@ -244,10 +298,12 @@ class PengeluaranBpbHarianController extends GetxController {
         barrierDismissible: false,
       );
     } catch (e) {
-      Get.back();
+      Get.back(); // Tutup loading dialog
       String errorMessage = "Terjadi kesalahan pada server";
       if (e is DioException && e.response != null) {
         errorMessage = e.response?.data['message'] ?? errorMessage;
+      } else {
+        errorMessage = e.toString();
       }
       Get.snackbar("Gagal", errorMessage, backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
     }

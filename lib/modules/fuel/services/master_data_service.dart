@@ -44,7 +44,7 @@ class MasterDataService {
     }
   }
 
-  // 1. GET STORAGE FROM UNIT
+  // GET STORAGE FROM UNIT
   Future<List<UnitToStorageModel>> getStorageFromUnit({
     required String unitId,
   }) async {
@@ -76,7 +76,7 @@ class MasterDataService {
     }
   }
 
-  // 2. GET TANK FROM STORAGE
+  // GET TANK FROM STORAGE
   Future<List<StorageToTankModel>> getTankFromStorage({
     required String unitId,
     required String storageId,
@@ -105,7 +105,6 @@ class MasterDataService {
     }
   }
 
-  // 3. GET DETAIL VOLUME TANK
   Future<List<VolumeTankDetailModel>> getTankDetailFromStorage({
     required String unitId,
     required String storageId,
@@ -125,50 +124,9 @@ class MasterDataService {
         return listData.map((e) => VolumeTankDetailModel.fromJson(e)).toList();
       }
       return [];
-
     } catch (e) {
       _logError("GetTankDetail", e);
       return [];
-    }
-  }
-
-  // 4. GET LITER FROM KALIBRASI
-  Future<double?> getLiterFromCalibration({
-    required int kapasitas,
-    required double tinggiMm,
-  }) async {
-    try {
-      final response = await _dio.get(
-        UrlApiStatic.API_GET_LITER_KABLIBRASI,
-        queryParameters: {
-          'capacity': kapasitas,
-          'mm_full': (tinggiMm % 1 == 0) ? tinggiMm.toInt() : tinggiMm,
-        },
-        options: _getAuthOptionsJson(),
-      );
-
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        final data = response.data['data'];
-        if (data != null && data['liter'] != null) {
-          return (data['liter'] as num).toDouble();
-        }
-      }
-      return null;
-
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        final detailMsg = e.response?.data['detail'] ?? "Data kalibrasi tidak ditemukan";
-
-        print("ℹ️ Kalibrasi Info: $detailMsg");
-        return null;
-      }
-
-      _logError("GetKalibrasi", e);
-      return null;
-
-    } catch (e) {
-      print("⚠️ Error Get Kalibrasi General: $e");
-      return null;
     }
   }
 
@@ -217,6 +175,46 @@ class MasterDataService {
     } catch (e) {
       _logError("GetInboundOpenList", e);
       return [];
+    }
+  }
+
+  // GET LITER FROM KALIBRASI
+  Future<double?> getLiterFromCalibration({
+    required int kapasitas,
+    required double tinggiMm,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_LITER_KABLIBRASI,
+        queryParameters: {
+          'capacity': kapasitas,
+          'mm_full': (tinggiMm % 1 == 0) ? tinggiMm.toInt() : tinggiMm,
+        },
+        options: _getAuthOptionsJson(),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data != null && data['liter'] != null) {
+          return (data['liter'] as num).toDouble();
+        }
+      }
+      return null;
+
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        final detailMsg = e.response?.data['detail'] ?? "Data kalibrasi tidak ditemukan";
+
+        print("ℹ️ Kalibrasi Info: $detailMsg");
+        return null;
+      }
+
+      _logError("GetKalibrasi", e);
+      return null;
+
+    } catch (e) {
+      print("⚠️ Error Get Kalibrasi General: $e");
+      return null;
     }
   }
 }

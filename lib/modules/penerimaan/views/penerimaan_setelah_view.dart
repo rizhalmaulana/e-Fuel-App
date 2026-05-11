@@ -119,15 +119,13 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
           // SELISIH TOTAL (VARIAN)
           Obx(() {
             double variantTotal = controller.totalVolumeManualSesudah.value - controller.totalManualBefore.value;
-            String symbol = variantTotal > 0 ? "+" : "";
-
-            // Variasi positif menggunakan biru agar tidak tabrakan dengan warna input
+            String symbol = variantTotal >= 0 ? "+" : "";
             Color variantColor = variantTotal > 0 ? Colors.blue : (variantTotal < 0 ? Colors.red : AppColors.secondaryText);
 
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Total Selisih (Varian):", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText)),
+                Text("Total Penerimaan:", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText)),
                 Text(
                     "$symbol${TextConvertHelper().formatNumber(variantTotal)} Ltr",
                     style: AppFonts.fUrbanistBold14.copyWith(color: variantColor)
@@ -149,11 +147,9 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
       String displayCode = controller.iotSesudahMap[tankCode]?['display_code'] ?? tankCode;
       bool isApiActive = controller.isSensorApiActive.value;
 
-      // Ambil data Sebelum
       double volSebelum = controller.getVolumeManualSebelum(tankCode);
       double heightSebelum = controller.getHeightManualSebelum(tankCode);
 
-      // Trigger re-build untuk Varian saat input diketik
       var _ = controller.refreshTrigger.value;
 
       double varianVol = controller.getVarianVolume(tankCode);
@@ -165,7 +161,6 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
       String strVarianVol = (varianVol > 0 ? "+" : "") + TextConvertHelper().formatNumber(varianVol);
       String strVarianHeight = (varianHeight > 0 ? "+" : "") + TextConvertHelper().formatNumber(varianHeight);
 
-      // Variasi positif menggunakan biru
       Color volColor = varianVol > 0 ? Colors.blue : (varianVol < 0 ? Colors.red : AppColors.secondaryText);
       Color heightColor = varianHeight > 0 ? Colors.blue : (varianHeight < 0 ? Colors.red : AppColors.secondaryText);
 
@@ -207,7 +202,7 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text("IoT Active", style: AppFonts.fUrbanistBold10.copyWith(color: Colors.green)),
+                      child: Text("Sensor Aktif", style: AppFonts.fUrbanistBold10.copyWith(color: Colors.green)),
                     )
                 ],
               ),
@@ -255,20 +250,40 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
                       Row(
                         children: [
                           Text("Input Sesudah Pengisian ", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.darkText)),
-                          if (!isApiActive)
-                            Text("(Wajib diisi)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.alertSoftRed)),
+                          Text("(Wajib diisi)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.alertSoftRed)),
                         ],
                       ),
                       const SizedBox(height: 12),
+
                       Row(
-                        children: [
+                        children: isApiActive ? [
+                          // JIKA SENSOR AKTIF: VOLUME DI KIRI (BISA DIEDIT), TINGGI DI KANAN (AUTO)
+                          Expanded(
+                              child: _buildCustomTextField(
+                                label: "Volume (Ltr)",
+                                controller: ctrls['volume']!,
+                                hint: "0",
+                                isReadOnly: false,
+                                activeFillColor: AppColors.alertSoftPrimarySecond,
+                              )
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildCustomTextField(
+                                label: "Tinggi (mm)",
+                                controller: ctrls['height']!,
+                                hint: "Auto",
+                                isReadOnly: true,
+                              )
+                          ),
+                        ] : [
+                          // JIKA SENSOR MATI: TINGGI DI KIRI (BISA DIEDIT), VOLUME DI KANAN (AUTO)
                           Expanded(
                               child: _buildCustomTextField(
                                 label: "Tinggi (mm)",
                                 controller: ctrls['height']!,
                                 hint: "0",
-                                isReadOnly: isApiActive,
-                                // Berikan warna alertSoftPrimarySecond jika IoT mati (harus input manual)
+                                isReadOnly: false,
                                 activeFillColor: AppColors.alertSoftPrimarySecond,
                               )
                           ),
@@ -278,7 +293,7 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
                                 label: "Volume (Ltr)",
                                 controller: ctrls['volume']!,
                                 hint: "Auto",
-                                isReadOnly: true, // Volume SELALU read-only karena otomatis dihitung dari kalibrasi atau IoT
+                                isReadOnly: true,
                               )
                           ),
                         ],
@@ -289,7 +304,11 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
 
                   // BLOK VARIAN (Hitungan Live)
                   Row(
-                    children: [
+                    children: isApiActive ? [
+                      Expanded(child: _buildVarianItem("Varian Volume", "$strVarianVol Ltr", volColor)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildVarianItem("Varian Tinggi", "$strVarianHeight mm", heightColor)),
+                    ] : [
                       Expanded(child: _buildVarianItem("Varian Tinggi", "$strVarianHeight mm", heightColor)),
                       const SizedBox(width: 12),
                       Expanded(child: _buildVarianItem("Varian Volume", "$strVarianVol Ltr", volColor)),
@@ -353,7 +372,6 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
     );
   }
 
-  // Helper UI untuk menampilkan box Selisih/Varian
   Widget _buildVarianItem(String label, String value, Color valueColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

@@ -18,10 +18,12 @@ import '../../../datas/models/widgets/capture_image_detail.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/component/custom_camera_view.dart';
 import '../../auth/services/login_service.dart';
+import '../../fuel/services/fuel_data_service.dart';
 
 class PenerimaanSebelumController extends GetxController {
   final LoginService _loginService = Get.find<LoginService>();
   late PenerimaanSebelumRepository _repository;
+  final FuelDataService _fuelDataService = Get.find<FuelDataService>();
 
   final totalVolume = 0.0.obs;
   final tankListDisplay = <Map<String, String>>[].obs;
@@ -62,9 +64,11 @@ class PenerimaanSebelumController extends GetxController {
   void onInit() {
     super.onInit();
     _initializeDate();
+    _initializeRepository();
+    _loadStorageLocations();
+    _loadStorageFromContext();
     _preFetchLocation();
     _checkRouteParameters();
-    _initializeRepository();
 
     tinggiTeraSpbController.addListener(_calculateTerraDiff);
     tinggiTeraSoundingController.addListener(_calculateTerraDiff);
@@ -77,6 +81,13 @@ class PenerimaanSebelumController extends GetxController {
     });
   }
 
+  void _initializeDate() {
+    final now = DateTime.now();
+    dateInputController.text = DateFormat('dd/MM/yyyy', 'id_ID').format(now);
+    String day = DateFormat('EEEE', 'id_ID').format(now);
+    dayInputController.text = day.isNotEmpty ? day[0].toUpperCase() + day.substring(1) : day;
+  }
+
   Future<void> _initializeRepository() async {
     final auth = await _loginService.getAuthOrLoad();
     if (auth != null) {
@@ -86,6 +97,84 @@ class PenerimaanSebelumController extends GetxController {
       _loadInitialData();
     } else {
       Get.offAllNamed(Routes.LOGIN);
+    }
+  }
+
+  void _loadStorageLocations() {
+    storageLocations.clear();
+
+    final cachedTanks = _fuelDataService.getApiManualTanks();
+
+    debugPrint("Cached Tanks: $cachedTanks");
+
+    final Set<String> uniqueStorages = {};
+
+    for (var tank in cachedTanks) {
+      final storageName = tank.masterStorage?.namaStorage;
+      if (storageName != null && storageName.isNotEmpty) {
+        uniqueStorages.add(storageName);
+      }
+    }
+
+    if (uniqueStorages.isNotEmpty) {
+      storageLocations.assignAll(uniqueStorages.toList());
+    } else {
+      storageLocations.assignAll(['Pilih Lokasi Storage']);
+    }
+  }
+
+  void _loadStorageFromContext() {
+    String targetStorageCode = '';
+
+    if (Get.arguments != null) {
+      targetStorageCode = Get.arguments['storage_code'] ?? '';
+    }
+
+    if (targetStorageCode.isEmpty || targetStorageCode == 'Pilih Lokasi Storage') {
+      targetStorageCode = _fuelDataService.getLastSelectedStorageCode();
+    }
+
+    if (targetStorageCode.isNotEmpty) {
+      selectedStorage.value = targetStorageCode;
+    } else {
+      selectedStorage.value = storageLocations.first;
+    }
+  }
+
+  Future<void> _preFetchLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+
+    if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+      try {
+        lastKnownPosition.value = await Geolocator.getLastKnownPosition();
+        if (lastKnownPosition.value == null) {
+          lastKnownPosition.value = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 5));
+        }
+        isLocationReady.value = true;
+      } catch (e) {
+        debugPrint("Gagal pre-fetch lokasi: $e");
+      }
+    }
+  }
+
+  void _checkRouteParameters() {
+    final Map<String, String?>? parameters = Get.parameters;
+    if (parameters != null && parameters.containsKey('step')) {
+      try {
+        final String? stepValue = parameters['step'];
+        if (stepValue != null) {
+          int targetStep = int.parse(stepValue);
+          if (targetStep >= 0 && targetStep <= 2) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              pageController.jumpToPage(targetStep);
+              currentPage.value = targetStep;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint("Invalid step parameter: ${parameters['step']}");
+      }
     }
   }
 
@@ -330,50 +419,6 @@ class PenerimaanSebelumController extends GetxController {
     return true;
   }
 
-  void _initializeDate() {
-    final now = DateTime.now();
-    dateInputController.text = DateFormat('dd/MM/yyyy', 'id_ID').format(now);
-    String day = DateFormat('EEEE', 'id_ID').format(now);
-    dayInputController.text = day.isNotEmpty ? day[0].toUpperCase() + day.substring(1) : day;
-  }
-
-  Future<void> _preFetchLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
-
-    if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
-      try {
-        lastKnownPosition.value = await Geolocator.getLastKnownPosition();
-        if (lastKnownPosition.value == null) {
-          lastKnownPosition.value = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low, timeLimit: const Duration(seconds: 5));
-        }
-        isLocationReady.value = true;
-      } catch (e) {
-        debugPrint("Gagal pre-fetch lokasi: $e");
-      }
-    }
-  }
-
-  void _checkRouteParameters() {
-    final Map<String, String?>? parameters = Get.parameters;
-    if (parameters != null && parameters.containsKey('step')) {
-      try {
-        final String? stepValue = parameters['step'];
-        if (stepValue != null) {
-          int targetStep = int.parse(stepValue);
-          if (targetStep >= 0 && targetStep <= 2) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              pageController.jumpToPage(targetStep);
-              currentPage.value = targetStep;
-            });
-          }
-        }
-      } catch (e) {
-        debugPrint("Invalid step parameter: ${parameters['step']}");
-      }
-    }
-  }
-
   Future<void> takeSpecificPhoto(int index) async {
     try {
       isTakingPhoto.value = true;
@@ -440,6 +485,15 @@ class PenerimaanSebelumController extends GetxController {
   }
 
   void goToNextPage() async {
+    String currentStorage = _getStorageCode(selectedStorage.value);
+
+    debugPrint("Storage Choose: $currentStorage");
+
+    if (currentStorage == 'Pilih Lokasi Storage' || currentStorage.isEmpty) {
+      Get.snackbar('Mohon Maaf', 'Silahkan pilih lokasi storage yang valid di halaman Home terlebih dahulu.', backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      return;
+    }
+
     if (!_validateCurrentStep()) return;
     if (currentPage.value < 2) {
       pageController.nextPage(duration: const Duration(milliseconds: 800), curve: Curves.easeIn);
@@ -450,6 +504,12 @@ class PenerimaanSebelumController extends GetxController {
 
   void onPageChanged(int index) { currentPage.value = index; }
 
+  String _getStorageCode(String storageString) {
+    final parts = storageString.split(' - ');
+    if (parts.length > 1) return parts.last.trim();
+    return storageString.trim();
+  }
+  
   @override
   void onClose() {
     tinggiTeraSpbController.removeListener(_calculateTerraDiff);
