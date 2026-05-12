@@ -31,20 +31,6 @@ class PengeluaranApiService {
     }
   }
 
-  Options _getOptionsDBK() {
-    try {
-      final token = UrlApiStatic.TOKEN_API_KEY;
-
-      return Options(
-        headers: {
-          "ApiKey": token,
-        },
-      );
-    } catch (e) {
-      return Options();
-    }
-  }
-
   Future<List<MasterIoModel>> getMasterIoList() async {
     try {
       final response = await _dio.get(
@@ -92,33 +78,6 @@ class PengeluaranApiService {
       return [];
     }
   }
-
-  // Future<KaryawanPagedResponse> getEmployees({
-  //   int page = 1,
-  //   int pageSize = 20,
-  //   String? search,
-  //   required String kodeUnit
-  // }) async {
-  //   final String url = UrlApiStatic.API_END_POINT_DBK + UrlApiStatic.API_GET_EMPLOYEE_DBK;
-  //   print("Requesting URL: $url");
-  //
-  //   final response = await _dio.get(
-  //     url,
-  //     options: _getOptionsDBK(),
-  //     queryParameters: {
-  //       'page': page,
-  //       'pageSize': pageSize,
-  //       'search': search,
-  //       'unit': kodeUnit,
-  //     },
-  //   );
-  //
-  //   if (response.statusCode == 200) {
-  //     return KaryawanPagedResponse.fromJson(response.data);
-  //   } else {
-  //     throw Exception('Gagal mengambil data karyawan');
-  //   }
-  // }
 
   Future<List<KonfigurasiApprovalModel>> getKonfigurasiApproval({
     required String transactionType,
@@ -216,15 +175,12 @@ class PengeluaranApiService {
     required List<File?> photos,
   }) async {
     try {
-      // 1. Convert Payload Map ke JSON String
       String jsonPayload = jsonEncode(payloadMap);
 
-      // 2. Siapkan FormData
       FormData formData = FormData.fromMap({
-        'payload': jsonPayload, // Key 'payload' berisi JSON String
+        'payload': jsonPayload,
       });
 
-      // 3. Attach Foto (foto1, foto2, foto3)
       for (int i = 0; i < photos.length; i++) {
         if (photos[i] != null && photos[i]!.existsSync()) {
           formData.files.add(MapEntry(
@@ -243,7 +199,6 @@ class PengeluaranApiService {
         options: _getOptions(),
       );
 
-      // 5. Handle Response
       if (response.statusCode == 200) {
         return response.data;
       } else {
@@ -266,18 +221,13 @@ class PengeluaranApiService {
     final loginService = Get.find<LoginService>();
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
-
     String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_APPROVAL;
 
-    // Payload Sesuai Request Baru
     Map<String, dynamic> payloadData = {
       "no_doc": noDoc,
       "kode_unit": kodeUnit,
       "transaction_type": transactionType,
     };
-
-    print("🔵 [DEBUG] URL Step 3: $url");
-    print("🔵 [DEBUG] Payload Step 3: $payloadData");
 
     try {
       var response = await _dio.post(
@@ -317,7 +267,6 @@ class PengeluaranApiService {
       url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
     }
 
-    // Payload JSON Murni
     Map<String, dynamic> payloadData = {
       "status_approve": statusApprove,
       "level_approval": levelApproval,
@@ -325,9 +274,6 @@ class PengeluaranApiService {
       "is_sign": isSign,
       "is_partner_sign": isPartnerSign,
     };
-
-    print("🔵 [DEBUG] URL Step 4 (Update Status): $url");
-    print("🔵 [DEBUG] Payload Step 4: $payloadData");
 
     try {
       var response = await _dio.put(
@@ -369,7 +315,6 @@ class PengeluaranApiService {
       url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
     }
 
-    // Gunakan FormData untuk Upload File
     FormData formData = FormData.fromMap({
       'level_approval': levelApproval,
       'image_sign1': await MultipartFile.fromFile(
@@ -381,8 +326,6 @@ class PengeluaranApiService {
         filename: imageSign2.path.split('/').last,
       ),
     });
-
-    print("🔵 [DEBUG] URL Step 5 (Upload Signature): $url");
 
     try {
       var response = await _dio.post(
@@ -438,8 +381,6 @@ class PengeluaranApiService {
         filename: foto3.path.split('/').last,
       ),
     });
-
-    print("🔵 [DEBUG] URL Upload Image Pengeluaran: $url");
 
     try {
       var response = await _dio.post(
@@ -509,9 +450,6 @@ class PengeluaranApiService {
       'aktual_liter': aktual,
       'varian_liter': varianLiter
     };
-
-    print("🔵 [DEBUG] URL Update Aktual Liter: $url");
-    print("🔵 [DEBUG] Payload: $payload");
 
     try {
       var response = await _dio.post(
@@ -589,7 +527,6 @@ class PengeluaranApiService {
         "level_approval": levelApproval,
       });
 
-      // FILTER KARAKTER: Ganti '/' dengan '_' dan hapus spasi agar aman untuk penamaan file
       String safeFileNameDoc = noDoc.replaceAll('/', '_').replaceAll(' ', '');
 
       FormData formData = FormData.fromMap({

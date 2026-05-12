@@ -1,5 +1,5 @@
 class UrlApiStatic {
-  static String API_END_POINT = 'https://digilink.teladanprima.com/api/';
+  static String API_END_POINT = 'https://digilink.teladanprima.com/api';
   // static String API_END_POINT_VPS = 'http://148.230.98.90:8000/api';
 
   // static String API_END_POINT_DBK = 'http://192.168.1.8:8085/api';
