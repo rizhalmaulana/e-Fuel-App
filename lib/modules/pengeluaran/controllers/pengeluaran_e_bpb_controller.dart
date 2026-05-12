@@ -97,7 +97,8 @@ class PengeluaranEBpbController extends GetxController {
 
   void nextStep() {
     if (dailyTransactionList.isEmpty) {
-      Get.snackbar("Data Kosong", "Tidak ada transaksi untuk diproses.", backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      Get.snackbar("Data Kosong", "Tidak ada transaksi untuk diproses.",
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       return;
     }
 
@@ -112,27 +113,35 @@ class PengeluaranEBpbController extends GetxController {
     }
 
     if (!isValid) {
-      Get.snackbar("Data Belum Lengkap", "Cost Center wajib diisi pada semua item.", backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      Get.snackbar(
+          "Data Belum Lengkap", "Cost Center wajib diisi pada semua item.",
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       return;
     }
 
     currentStep.value = 1;
-    pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    pageController.nextPage(
+        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
   }
 
   void prevStep() {
     currentStep.value = 0;
-    pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    pageController.previousPage(
+        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
   }
 
   Future<void> pickDate(BuildContext context) async {
     DateTime initialDate = DateTime.now();
     try {
-      if (selectedDateApi.value.isNotEmpty) initialDate = DateFormat('yyyy-MM-dd').parse(selectedDateApi.value);
+      if (selectedDateApi.value.isNotEmpty)
+        initialDate = DateFormat('yyyy-MM-dd').parse(selectedDateApi.value);
     } catch (e) {}
 
     DateTime? picked = await showDatePicker(
-      context: context, initialDate: initialDate, firstDate: DateTime(2024), lastDate: DateTime(2030),
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2030),
     );
 
     if (picked != null) {
@@ -145,7 +154,8 @@ class PengeluaranEBpbController extends GetxController {
   Future<void> fetchDailyTransactions() async {
     isLoading.value = true;
     try {
-      var data = await _apiService.getDailyTransactions(dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);
+      var data = await _apiService.getDailyTransactions(
+          dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);
       dailyTransactionList.assignAll(data);
       _calculateTotals();
     } catch (e) {
@@ -174,7 +184,9 @@ class PengeluaranEBpbController extends GetxController {
       fetchDailyTransactions();
     } else {
       var filtered = dailyTransactionList.where((item) {
-        return (item.namaUnit ?? "").toLowerCase().contains(query.toLowerCase()) ||
+        return (item.namaUnit ?? "")
+                .toLowerCase()
+                .contains(query.toLowerCase()) ||
             (item.noIo ?? "").toLowerCase().contains(query.toLowerCase());
       }).toList();
       dailyTransactionList.assignAll(filtered);
@@ -183,12 +195,15 @@ class PengeluaranEBpbController extends GetxController {
 
   void _calculateTotals() {
     totalQty.value = dailyTransactionList.length;
-    totalVolume.value = dailyTransactionList.fold(0.0, (sum, item) => sum + (item.aktualLiter ?? 0.0));
+    totalVolume.value = dailyTransactionList.fold(
+        0.0, (sum, item) => sum + (item.aktualLiter ?? 0.0));
   }
 
   Future<void> submitBpb() async {
     if (signatureController.isEmpty) {
-      Get.snackbar("Tanda Tangan Kosong", "Harap tanda tangan terlebih dahulu sebelum submit.", backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      Get.snackbar("Tanda Tangan Kosong",
+          "Harap tanda tangan terlebih dahulu sebelum submit.",
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       return;
     }
 
@@ -228,14 +243,19 @@ class PengeluaranEBpbController extends GetxController {
     if (data == null) return null;
 
     final tempDir = await getTemporaryDirectory();
-    final file = await File('${tempDir.path}/signature_ebpb_${DateTime.now().millisecondsSinceEpoch}.png').create();
+    final file = await File(
+            '${tempDir.path}/signature_ebpb_${DateTime.now().millisecondsSinceEpoch}.png')
+        .create();
 
     file.writeAsBytesSync(data);
     return file;
   }
 
   void _processSubmitApi(List<Map<String, dynamic>> fotPayload) async {
-    Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange)), barrierDismissible: false);
+    Get.dialog(
+        const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryOrange)),
+        barrierDismissible: false);
 
     try {
       Map<String, dynamic> payload = {
@@ -244,23 +264,18 @@ class PengeluaranEBpbController extends GetxController {
         "fot": fotPayload
       };
 
-      // HIT API CREATE TRANSACTION BPB
-      var responseBpb = await _apiService.createTransactionEBPB(payload: payload);
+      var responseBpb =
+          await _apiService.createTransactionEBPB(payload: payload);
 
       String noDoc = responseBpb['no_doc']?.toString() ?? "";
       if (noDoc.isEmpty) {
         throw Exception("Gagal mendapatkan Nomor Dokumen dari server.");
       }
 
-      // Mulai Flow Approval untuk Fuel Level 1
       if (userLevelApproval.value == "fuel_level_1") {
-        // HIT API CREATE APPROVAL EBPB
         await _apiService.createTransactionEBPBApproval(
-            noDoc: noDoc,
-            kodeUnit: selectedUnitCode.value
-        );
+            noDoc: noDoc, kodeUnit: selectedUnitCode.value);
 
-        // HIT API UPLOAD SIGNATURE
         File? signatureFile = await _getSignatureFile();
         if (signatureFile != null) {
           await _apiService.uploadSignatureEBPB(
@@ -270,7 +285,6 @@ class PengeluaranEBpbController extends GetxController {
           );
         }
 
-        // HIT API UPDATE STATUS (APPROVED untuk level 1)
         await _apiService.updateStatusEBPB(
           noDoc: noDoc,
           statusApprove: "APPROVED",
@@ -280,9 +294,8 @@ class PengeluaranEBpbController extends GetxController {
         );
       }
 
-      Get.back(); // Tutup loading dialog
+      Get.back();
 
-      // Tampilkan Dialog Sukses
       Get.dialog(
         DialogFlexible(
           logo: LottiesHelper().getLottieSuccess(),
@@ -298,14 +311,15 @@ class PengeluaranEBpbController extends GetxController {
         barrierDismissible: false,
       );
     } catch (e) {
-      Get.back(); // Tutup loading dialog
+      Get.back();
       String errorMessage = "Terjadi kesalahan pada server";
       if (e is DioException && e.response != null) {
         errorMessage = e.response?.data['message'] ?? errorMessage;
       } else {
         errorMessage = e.toString();
       }
-      Get.snackbar("Gagal", errorMessage, backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      Get.snackbar("Gagal", errorMessage,
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
     }
   }
 }
