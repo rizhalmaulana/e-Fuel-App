@@ -31,7 +31,7 @@
         android:label="E-Fuel"
         android:name="${applicationName}"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
 
         <activity
             android:name=".MainActivity"

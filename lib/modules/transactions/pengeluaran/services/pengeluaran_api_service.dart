@@ -31,14 +31,14 @@ class PengeluaranApiService {
     }
   }
 
-  Future<List<MasterIoModel>> getMasterIoList() async {
+  Future<List<MasterIoModel>> getMasterIoList({String? unitId}) async {
     try {
       final response = await _dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_MASTER_IO_LIST,
         options: _getOptions(),
         queryParameters: {
           'internal_order': null,
-          'nama_unit': null,
+          'unit_id': unitId,
           'is_active': true,
         },
       );
@@ -53,12 +53,45 @@ class PengeluaranApiService {
           dataRaw = [];
         }
 
-        return dataRaw.map((e) => MasterIoModel.fromJson(e)).toList();
+        return dataRaw.map((e) {
+          String? namaUnit = e['nama_unit'];
+          final bool namaKosong = namaUnit == null ||
+              namaUnit.toString().trim().isEmpty ||
+              namaUnit.toString().trim() == '-' ||
+              namaUnit.toString().trim() == '--';
+          if (namaKosong) {
+            String desc = e['deskripsi_unit'] ?? '';
+            if (desc.trim().isNotEmpty) {
+              e['nama_unit'] = desc.length > 20 ? '${desc.substring(0, 20)}...' : desc;
+            } else {
+              e['nama_unit'] = '-';
+            }
+          }
+          return MasterIoModel.fromJson(e);
+        }).toList();
       } else {
         throw Exception('Gagal mengambil data unit');
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getMasterIoDetail(String internalOrder) async {
+    try {
+      String endpoint = UrlApiStatic.API_GET_MASTER_IO_DETAIL
+          .replaceAll('{internal_order}', internalOrder);
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + endpoint,
+        options: _getOptions(),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print("Error getMasterIoDetail ($internalOrder): $e");
+      return null;
     }
   }
 
@@ -79,6 +112,50 @@ class PengeluaranApiService {
     }
   }
 
+  Future<List<MasterIoModel>> getVendorList() async {
+    String urlTarget = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_MASTER_IO_VENDOR_LIST.trim();
+    try {
+      final response = await _dio.get(
+        urlTarget,
+        options: _getOptions(),
+        queryParameters: {
+          'is_active': 'true',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List dataRaw;
+        if (response.data is List) {
+          dataRaw = response.data;
+        } else if (response.data is Map && response.data['data'] != null) {
+          dataRaw = response.data['data'];
+        } else {
+          dataRaw = [];
+        }
+
+        return dataRaw.map<MasterIoModel>((e) {
+          return MasterIoModel(
+            // Trim untuk membersihkan kemungkinan trailing whitespace/tab dari API
+            internalOrder: e['internal_order']?.toString().trim(),
+            kodeUnit: e['kode_unit']?.toString(),
+            namaUnit: e['nama_unit']?.toString(),
+            isActive: true,
+          );
+        }).toList();
+      } else {
+        throw Exception('Gagal mengambil data vendor');
+      }
+    } on DioException catch (e) {
+      print("❌ [DEBUG] Error 404 API VENDOR URL: $urlTarget");
+      print("❌ [DEBUG] Full URI Requested: ${e.requestOptions.uri}");
+      print("Error getVendorList: $e");
+      rethrow;
+    } catch (e) {
+      print("Error getVendorList: $e");
+      rethrow;
+    }
+  }
+
   Future<List<KonfigurasiApprovalModel>> getKonfigurasiApproval({
     required String transactionType,
     required String kodeUnit,
@@ -86,7 +163,7 @@ class PengeluaranApiService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
         queryParameters: {
           'transaction_type': transactionType,
           'kode_unit': kodeUnit,
@@ -105,20 +182,23 @@ class PengeluaranApiService {
   Future<VolumeStorage?> fetchLatestStockStorage({
     required String unitId,
     required String storageCode,
+    String? internalOrder,
     required String dateLog,
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_LATEST_STORAGE_STOCK,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LATEST_STORAGE_STOCK,
         queryParameters: {
           'kode_unit': unitId,
           'kode_storage': storageCode,
+          'internal_order': internalOrder,
           'date_log': dateLog,
         },
         options: _getOptions(),
       );
       if (response.data != null && response.data.isNotEmpty) {
         Map<String, dynamic> dataMap;
+
         if (response.data is String) {
           dataMap = jsonDecode(response.data);
         } else {
@@ -154,7 +234,7 @@ class PengeluaranApiService {
       }
 
       final response = await _dio.post(
-        UrlApiStatic.API_CREATE_INBOUND_OPEN,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_OPEN,
         data: formData,
         options: _getOptions(),
       );

@@ -113,7 +113,10 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildInfoItem("No. IO", controller.noIO.value, Icons.confirmation_number_outlined),
+                          Obx(() {
+                            if (controller.unitIO.value.isNotEmpty && controller.unitIO.value == "TAMU") return _buildInfoItem("Cost Center", controller.costCenter.value, Icons.confirmation_number_outlined);
+                            return _buildInfoItem("No. IO", controller.noIO.value, Icons.confirmation_number_outlined);
+                          }),
                           const SizedBox(height: 8),
                           Obx(() => _buildInfoItem(_getLabelNamaSupir(), controller.namaSupir.value, Icons.person_outline)),
                         ],
@@ -124,11 +127,10 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                 const SizedBox(height: 8),
                 const Divider(),
 
-                // =========================================================
-                // 1. AKTUAL PENGELUARAN (INPUT)
-                // =========================================================
                 Obx(() {
+                  if (controller.isRefreshingSensor.value) return const SizedBox.shrink();
                   if (controller.isSensorApiActive.value) return const SizedBox.shrink();
+                  if (controller.messageResponse.value.isEmpty) return const SizedBox.shrink();
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -144,7 +146,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            "Sensor tidak merespon atau data (0). Silakan masukkan liter aktual secara manual.",
+                            controller.messageResponse.value,
                             style: AppFonts.fUrbanistMedium10.copyWith(color: Colors.orange.shade900),
                           ),
                         ),
@@ -155,7 +157,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Aktual Pengeluaran Solar (Ltr)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                    Text("Aktual Pengeluaran Solar (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: controller.aktualSolarC,
@@ -180,9 +182,6 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                   ],
                 ),
                 const SizedBox(height: 8),
-                // =========================================================
-                // 2. ESTIMASI & VARIAN (SIDE BY SIDE - READ ONLY)
-                // =========================================================
                 Row(
                   children: [
                     // KIRI: ESTIMASI
@@ -261,7 +260,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Bukti Dokumentasi (Wajib)",
+          "Wajib Foto",
           style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
         ),
         const SizedBox(height: 12),
@@ -269,8 +268,8 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
           children: [
             // FOTO DISPENSER
             _buildPhotoItem(
-              label: "Foto Dispenser Pom",
-              icon: Icons.local_gas_station_rounded,
+              label: "Angka Meter Dispenser",
+              icon: Icons.gas_meter_sharp,
               imageFile: controller.fotoDispenser.value,
               onTap: () => controller.takePhoto(false), // False = Dispenser
               onRemove: () => controller.removePhoto(false),
@@ -279,7 +278,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
             // FOTO SUPIR
             _buildPhotoItem(
               label: controller.namaSupir.value,
-              icon: Icons.person_pin_circle_outlined,
+              icon: Icons.person_4_rounded,
               imageFile: controller.fotoSupir.value,
               onTap: () => controller.takePhoto(true), // True = Supir
               onRemove: () => controller.removePhoto(true),

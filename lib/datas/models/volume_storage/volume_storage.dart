@@ -1,39 +1,43 @@
 class VolumeStorage {
-  final String kodeStorage;
-  final String kodeUnit;
+  final bool success;
+  final String errorCode;
   final String dateLog;
-  final int totalTanks;
-  final double totalStockVolume;
-  final double totalLatestVolumeFlowout;
+  final double volume;
+  final String idCard;
+  final String vehicleId;
+  final String message;
 
   VolumeStorage({
-    required this.kodeStorage,
-    required this.kodeUnit,
+    required this.success,
+    required this.errorCode,
     required this.dateLog,
-    required this.totalTanks,
-    required this.totalStockVolume,
-    required this.totalLatestVolumeFlowout,
+    required this.volume,
+    required this.idCard,
+    required this.vehicleId,
+    required this.message
   });
 
   factory VolumeStorage.fromJson(Map<String, dynamic> json) {
     return VolumeStorage(
-      kodeStorage: json['kode_storage'] ?? '',
-      kodeUnit: json['kode_unit'] ?? '',
+      success: json['success'],
+      errorCode: json['error_code']?.toString() ?? '',
       dateLog: json['date_log'] ?? '',
-      totalTanks: json['total_tanks'] ?? 0,
-      totalStockVolume: (json['total_stock_volume'] as num?)?.toDouble() ?? 0.0,
-      totalLatestVolumeFlowout: (json['total_latest_volume_flowout'] as num?)?.toDouble() ?? 0.0,
+      volume: (json['volume'] != null) ? (json['volume'] as num).toDouble() : 0.0,
+      idCard: json['id_card'] ?? '',
+      vehicleId: json['vehicle_id'] ?? json['vehicle_id'] ?? '', // Handle possible typo in key
+      message: json['message'] ?? ''
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'kode_storage': kodeStorage,
-      'kode_unit': kodeUnit,
+      'success': success,
+      'error_code': errorCode,
       'date_log': dateLog,
-      'total_tanks': totalTanks,
-      'total_stock_volume': totalStockVolume,
-      'total_latest_volume_flowout': totalLatestVolumeFlowout,
+      'volume': volume,
+      'id_card': idCard,
+      'vehicle_id': vehicleId,
+      'message': message
     };
   }
 }

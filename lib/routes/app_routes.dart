@@ -24,6 +24,7 @@ abstract class Routes {
 
   // Approval
   static const APPROVAL = _Paths.APPROVAL;
+  static const APPROVAL_EBPB = _Paths.APPROVAL_EBPB;
 
   // Report
   static const REPORT_PENERIMAAN = _Paths.REPORT_PENERIMAAN;
@@ -52,6 +53,7 @@ abstract class _Paths {
   static const PENGELUARAN_EBPB = '/pengeluaran-ebpb';
 
   static const APPROVAL = '/approval';
+  static const APPROVAL_EBPB = '/approval-ebpb';
 
   static const REPORT_PENERIMAAN = '/report-penerimaan';
   static const REPORT_DETAIL_PENERIMAAN = '/report-detail-penerimaan';

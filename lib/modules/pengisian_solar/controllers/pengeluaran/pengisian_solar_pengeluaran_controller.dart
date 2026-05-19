@@ -31,6 +31,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   // Arguments Data
   final noDoc = '-'.obs;
   final noIO = '-'.obs;
+  final costCenter = '-'.obs;
   final unitIO = '-'.obs;
   final noPolisi = '-'.obs;
   final namaSupir = '-'.obs;
@@ -40,8 +41,9 @@ class PengisianSolarPengeluaranController extends GetxController {
   final status = '-'.obs;
   final tipeUnit = '-'.obs;
   final statusSupir = 'Internal'.obs;
+  final messageResponse = ''.obs;
+  final dateLogResponse = ''.obs;
 
-  // --- STATE UNTUK JENIS PENGELUARAN ---
   final List<String> jenisPengeluaranOptions = ['Bon Sementara', 'BPB'];
   final selectedJenisPengeluaran = 'Bon Sementara'.obs;
 
@@ -58,6 +60,7 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   // User Info
   late String _currentUserUnitCode;
+  late String _currentInternalOrder;
   late String _ratioArg;
   late String _hmKmAkhirArg;
   late String _tanggalAkhirArg;
@@ -71,8 +74,8 @@ class PengisianSolarPengeluaranController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadArguments();
     _loadUserInfo();
+    _loadArguments();
 
     aktualSolarC.addListener(_calculateVarian);
   }
@@ -91,19 +94,21 @@ class PengisianSolarPengeluaranController extends GetxController {
     final Map<String, dynamic> payload = args['payload'] ?? {};
 
     noDoc.value = args['noDoc'] ?? '-';
+    unitIO.value = args['unitIO'] ?? '-';
     tanggal.value = args['tanggal'] ?? DateFormat('dd/MM/yyyy').format(DateTime.now());
     status.value = args['status'] ?? 'pengisian_solar_pengeluaran';
 
     // Parse data murni dari payload
-    // unitIO.value = payload['unit_io']?.toString() ?? args['unitIO'] ?? '-';
-    noIO.value = payload['no_io']?.toString() ?? '-';
+    noIO.value = payload['no_io']?.toString() ?? args['no_io'] ?? '-';
+    costCenter.value = payload['cost_center']?.toString() ?? '-';
     noPolisi.value = payload['nopol_check']?.toString() ?? '-';
     namaSupir.value = payload['supir_check']?.toString() ?? '-';
     KmPengisian.value = (payload['km_pengisian'] ?? '0').toString();
     jumlahSolarArg.value = (payload['jumlah_pengisian_solar'] ?? '0').toString();
-    tipeUnit.value = (payload['tipe_unit_io'] ?? '-').toString();
+    tipeUnit.value = (payload['tipe_unit_io'] ?? args['tipe_unit_io'] ?? '-').toString();
     statusSupir.value = payload['status_supir']?.toString() ?? 'Internal';
 
+    _currentInternalOrder = noIO.value;
     _ratioArg = (payload['ratio'] ?? '0').toString();
     _hmKmAkhirArg = (payload['hm_km_akhir'] ?? '0').toString();
     _tanggalAkhirArg = (payload['tanggal_akhir'] ?? '').toString();
@@ -131,25 +136,30 @@ class PengisianSolarPengeluaranController extends GetxController {
       final stockStorageData = await _apiService.fetchLatestStockStorage(
           unitId: _currentUserUnitCode,
           storageCode: activeStorageCode,
+          internalOrder: _currentInternalOrder,
           dateLog: today
       );
 
-      if (stockStorageData != null) {
-        double flowOut = stockStorageData.totalLatestVolumeFlowout;
+      if (stockStorageData!.success && stockStorageData.errorCode.isEmpty) {
+        double flowOut = stockStorageData.volume;
 
-        if (flowOut > 0) {
-          isSensorApiActive.value = true;
-          // Set text tapi tetap bisa diedit manual
-          aktualSolarC.text = flowOut % 1 == 0
-              ? flowOut.toInt().toString()
-              : flowOut.toStringAsFixed(2).replaceAll('.', ',');
-          _calculateVarian();
-        } else {
-          // Jika flowout 0, biarkan user ketik manual
-          isSensorApiActive.value = false;
-        }
+        isSensorApiActive.value = true;
+        messageResponse.value = stockStorageData.message;
+        dateLogResponse.value = stockStorageData.dateLog;
+
+        aktualSolarC.text = flowOut % 1 == 0
+            ? flowOut.toInt().toString()
+            : flowOut.toStringAsFixed(2).replaceAll('.', ',');
+
+        _calculateVarian();
+      } else if (!stockStorageData.success && stockStorageData.dateLog.isNotEmpty) {
+        isSensorApiActive.value = false;
+
+        messageResponse.value = stockStorageData.message;
+        dateLogResponse.value = stockStorageData.dateLog;
       } else {
         isSensorApiActive.value = false;
+        messageResponse.value = stockStorageData.message;
       }
     } catch (e) {
       print("Gagal refresh sensor pengeluaran: $e");
@@ -170,16 +180,10 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   void _calculateVarian() {
     double estimasi = double.tryParse(estimasiSolarC.text.replaceAll(',', '.')) ?? 0;
-
-    // Parse Aktual
     String cleanAktual = aktualSolarC.text.replaceAll(',', '.');
     double aktual = double.tryParse(cleanAktual) ?? 0;
-
-    // Rumus: Varian = Aktual - Estimasi
     double result = aktual - estimasi;
 
-    // Format tampilan (kembali ke koma, max 2 desimal)
-    // Jika bulat tampilkan bulat, jika desimal tampilkan 2 angka di belakang koma
     String formatted = result % 1 == 0
         ? result.toInt().toString()
         : result.toStringAsFixed(2).replaceAll('.', ',');
@@ -241,7 +245,7 @@ class PengisianSolarPengeluaranController extends GetxController {
       isTakingPhoto.value = true;
 
       // Label kamera dinamis
-      String labelCamera = isSupir ? "Foto Supir" : "Foto Dispenser (Jumlah Liter)";
+      String labelCamera = isSupir ? "Supir" : "Angka Meter Dispenser";
 
       final String? resultPath = await Get.to(() => CustomCameraView(
         label: labelCamera,
@@ -297,7 +301,6 @@ class PengisianSolarPengeluaranController extends GetxController {
   }
 
   Future<void> submitTransaction() async {
-    // Cek Koneksi sebelum submit
     if (!await ConnectivityHelper.validateNetwork()) return;
 
     Get.dialog(
@@ -351,7 +354,6 @@ class PengisianSolarPengeluaranController extends GetxController {
 
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // 3. Update Status
       await _apiService.updateStatusTransactionApproval(
         noDoc: finalNoDoc,
         levelApproval: myConfig.levelApproval ?? "1",
@@ -387,7 +389,6 @@ class PengisianSolarPengeluaranController extends GetxController {
             ? currentStorageName.split('-').last.trim()
             : currentStorageName.trim();
 
-        // Panggil HomeService untuk update
         await _homeService.updateUnitAfterTransaction(
             noIO.value,
             double.tryParse(KmPengisian.value.replaceAll(',', '.')) ?? 0, // Pakai KmPengisian

@@ -1,8 +1,5 @@
 class UrlApiStatic {
-  static String API_END_POINT = 'https://digilink.teladanprima.com/api';
-  // static String API_END_POINT_VPS = 'http://148.230.98.90:8000/api';
-
-  // static String API_END_POINT_DBK = 'http://192.168.1.8:8085/api';
+  static const String API_END_POINT = 'https://digilink.teladanprima.com/api';
   static String TOKEN_API_KEY = r"Xy9$2fG7!LpQz#8VmRt6&NsWb@3KdEj4UhPoYxCq";
 
   // POST
@@ -19,10 +16,12 @@ class UrlApiStatic {
 
   // EBPB
   static String API_GET_APPROVAL_LIST_EBPB = '/e_fuel/transaksi-approval-ebpb/list'; // Mengambil Transkasi Approval EBPB
-  static String API_CREATE_TRANSACTION_EBPB = '/e_fuel/transaksi-ebpb/create';
   static String API_CREATE_TRANSACTION_EBPB_APPROVAL = '/e_fuel/transaksi-approval-ebpb/create';
   static String API_UPLOAD_SIGNATURE_EBPB = '/e_fuel/transaksi-approval-ebpb/upload-signature';
   static String API_UPDATE_STATUS_EBPB = '/e_fuel/transaksi-approval-ebpb/update-status';
+
+  static String API_CREATE_TRANSACTION_EBPB = '/e_fuel/transaksi-ebpb/create';
+  static String API_GET_TRANSACTION_DETAIL_EBPB = '/e_fuel/transaksi-ebpb/detail';
 
   // GET
   static String API_GET_UNIT = '/unit-list/';
@@ -42,6 +41,7 @@ class UrlApiStatic {
   static String API_GET_TRANSACTION_PENGELUARAN_DAILY = '/e_fuel/transaksi-fot/daily';
 
   static String API_GET_MASTER_IO_LIST = '/e_fuel/master-io/list';
+  static String API_GET_MASTER_IO_VENDOR_LIST = '/e_fuel/master-io/vendor/list';
   static String API_GET_MASTER_IO_DETAIL = '/e_fuel/master-io/{internal_order}';
   static String API_EXPORT_PDF_DOC = '/e_fuel/inbound-all-approved/export-pdf/{no_doc}';
 

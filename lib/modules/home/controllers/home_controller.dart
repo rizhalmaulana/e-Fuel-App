@@ -600,10 +600,7 @@ class HomeController extends GetxController {
     }
 
     if (source == 'api_ebpb' && status.toUpperCase() == 'PENDING') {
-      Get.dialog(
-        const DialogOnDevelopment(),
-        barrierDismissible: true,
-      );
+      Get.toNamed(Routes.APPROVAL_EBPB, arguments: {'noDoc': noBast, 'type': type});
       return;
     }
   }

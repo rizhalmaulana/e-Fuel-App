@@ -11,6 +11,7 @@ import '../../fuel/services/master_data_service.dart';
 class FuelSensorService extends GetxService {
   late Box<List<dynamic>> _sensorBox;
   Box? _configBox;
+  bool _isInitialized = false;
 
   final RxList<VolumeTankDetailModel> iotData = <VolumeTankDetailModel>[].obs;
   final RxList<VolumeTankDetailModel> snapshotData = <VolumeTankDetailModel>[].obs;
@@ -21,48 +22,49 @@ class FuelSensorService extends GetxService {
     final boxName = AppConfig.isDevMode
         ? '${ValueKeyStatic.FUEL_DATA_IOT_BOX}_dev_$username'
         : '${ValueKeyStatic.FUEL_DATA_IOT_BOX}_$username';
-
     final configBoxName = '${boxName}_${username}_config';
 
-    if (Hive.isBoxOpen(boxName)) {
-      _sensorBox = Hive.box<List<dynamic>>(boxName);
+    // ✅ Cek migrasi dulu SEBELUM buka box utama
+    bool needsMigration = false;
+    if (await Hive.boxExists(configBoxName)) {
+      try {
+        final tempBox = await Hive.openBox(configBoxName);
+        final version = tempBox.get('data_version', defaultValue: 1);
+        await tempBox.close(); // ✅ Tutup setelah cek
+        needsMigration = version < 2;
+      } catch (e) {
+        needsMigration = true;
+      }
     } else {
+      needsMigration = true; // belum ada config = perlu migrate
+    }
+
+    if (needsMigration) {
+      if (await Hive.boxExists(boxName)) await Hive.deleteBoxFromDisk(boxName);
+      if (await Hive.boxExists(configBoxName)) await Hive.deleteBoxFromDisk(configBoxName);
+    }
+
+    // ✅ Buka box utama SEKALI saja
+    try {
+      if (Hive.isBoxOpen(boxName)) {
+        _sensorBox = Hive.box<List<dynamic>>(boxName);
+      } else {
+        _sensorBox = await Hive.openBox<List<dynamic>>(boxName);
+      }
+    } catch (e) {
+      print("Error opening box, force deleting: $e");
+      await Hive.deleteBoxFromDisk(boxName);
       _sensorBox = await Hive.openBox<List<dynamic>>(boxName);
     }
 
+    // ✅ Buka config box
     if (Hive.isBoxOpen(configBoxName)) {
-      await Hive.box(configBoxName).close();
+      _configBox = Hive.box(configBoxName);
+    } else {
+      _configBox = await Hive.openBox(configBoxName);
     }
-
-    if (await Hive.boxExists(boxName)) {
-      bool needsMigration = true;
-      if (await Hive.boxExists(configBoxName)) {
-        try {
-          final tempBox = await Hive.openBox(configBoxName);
-          final version = tempBox.get('data_version', defaultValue: 1);
-          await tempBox.close();
-          needsMigration = version < 2;
-        } catch (e) { needsMigration = true; }
-      }
-      if (needsMigration) {
-        await Hive.deleteBoxFromDisk(boxName);
-        if (await Hive.boxExists(configBoxName)) {
-          await Hive.deleteBoxFromDisk(configBoxName);
-        }
-      }
-    }
-
-    try {
-      _sensorBox = await Hive.openBox<List>(boxName);
-    } catch (e) {
-      print("Error opening box, force deleting...");
-      await Hive.deleteBoxFromDisk(boxName);
-      _sensorBox = await Hive.openBox<List>(boxName);
-    }
-    _configBox = await Hive.openBox(configBoxName);
 
     final currentVersion = _configBox!.get('data_version', defaultValue: 1);
-
     if (currentVersion < 2) {
       await _migrateFromV1ToV2();
       await _configBox!.put('data_version', 2);
@@ -87,8 +89,8 @@ class FuelSensorService extends GetxService {
   }
 
   void _loadLocalIotData() {
-    if (_sensorBox == null) return;
-    final data = _sensorBox!.get(ValueKeyStatic.LIST_STORAGE_TANK_IOT_KEY, defaultValue: []);
+    if (!_isInitialized) return;
+    final data = _sensorBox.get(ValueKeyStatic.LIST_STORAGE_TANK_IOT_KEY, defaultValue: []);
     if (data is List) {
       final list = data.cast<dynamic>().map((e) => e as VolumeTankDetailModel).toList();
       iotData.assignAll(list);
@@ -123,7 +125,7 @@ class FuelSensorService extends GetxService {
     snapshotData.clear();
   }
 
-  Future<void> fetchDataDetailTank({
+  Future<List<dynamic>> fetchDataDetailTank({
     required String unitId,
     required String targetStorageCode
   }) async {
@@ -136,9 +138,14 @@ class FuelSensorService extends GetxService {
       if (tanks.isNotEmpty) {
         final List<VolumeTankDetailModel> validTanks = tanks.map((e) => e).toList();
         await _saveLocalIotData(validTanks);
+
+        return validTanks;
       }
+
+      return [];
     } catch (e) {
       debugPrint("⚠️ Gagal refresh sensor data: $e");
+      return [];
     }
   }
 }

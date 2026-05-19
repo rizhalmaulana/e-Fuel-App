@@ -1,5 +1,7 @@
 import 'package:e_fuel/modules/approval/bindings/approval_bindings.dart';
+import 'package:e_fuel/modules/approval/bindings/approval_ebpb_binding.dart';
 import 'package:e_fuel/modules/approval/views/approval_views.dart';
+import 'package:e_fuel/modules/approval/views/approval_ebpb_view.dart';
 import 'package:e_fuel/modules/home/views/home_view.dart';
 import 'package:e_fuel/modules/penerimaan/bindings/penerimaan_binding.dart';
 import 'package:e_fuel/modules/penerimaan/bindings/penerimaan_sebelum_binding.dart';
@@ -58,6 +60,7 @@ class AppPages {
   static const PENGELUARAN_VERIFIKASI_DOC = Routes.PENGELUARAN_VERIFIKASI_DOC;
   static const PENGELUARAN_TRACKING = Routes.PENGELUARAN_TRACKING;
   static const APPROVAL = Routes.APPROVAL;
+  static const APPROVAL_EBPB = Routes.APPROVAL_EBPB;
 
   static const REPORT_PENERIMAAN = Routes.REPORT_PENERIMAAN;
   static const REPORT_PENGELUARAN = Routes.REPORT_PENGELUARAN;
@@ -160,6 +163,13 @@ class AppPages {
       name: Routes.APPROVAL,
       page: () => const ApprovalView(),
       binding: ApprovalBindings(),
+      transition: Transition.rightToLeftWithFade,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.APPROVAL_EBPB,
+      page: () => const ApprovalEbpbView(),
+      binding: ApprovalEbpbBinding(),
       transition: Transition.rightToLeftWithFade,
       transitionDuration: const Duration(milliseconds: 500),
     ),

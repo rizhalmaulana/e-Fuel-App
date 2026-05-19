@@ -24,7 +24,14 @@ class PengisianSolarPenerimaanRepository {
         dateLog: dateLog
     );
   }
-  
+
+  Future<List<dynamic>> getDetailStorageTank({
+    required String unitId,
+    required String storageCode,
+  }) async {
+    return await _penerimaanService.getDetailStorageTank(unitId: unitId, storageCode: storageCode);
+  }
+
   Future<void> getDetailTanks({required String unitId, required String storageCode}) async {
     await _sensorService.fetchDataDetailTank(unitId: unitId, targetStorageCode: storageCode);
   }

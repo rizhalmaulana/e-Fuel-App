@@ -126,6 +126,7 @@ class PenerimaanApiService {
       "no_doc": noDoc,
       "kode_unit": kodeUnit,
       "transaction_type": transactionType,
+      "dtime_after": DateTime.now().toIso8601String()
     };
 
     print("🔵 [DEBUG] URL Step 3: $url");
@@ -323,6 +324,30 @@ class PenerimaanApiService {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<List<dynamic>> getDetailStorageTank({
+    required String unitId,
+    required String storageCode,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK,
+        queryParameters: {
+          'kode_unit': unitId,
+          'kode_storage': storageCode,
+        },
+        options: _getOptions(),
+      );
+
+      if (response.data['success'] == true && response.data['data'] != null) {
+        return response.data['data'] as List<dynamic>;
+      }
+      return [];
+    } catch (e) {
+      print("Error getDetailStorageTank: $e");
+      return [];
     }
   }
 
