@@ -5,13 +5,21 @@ class ApiClientNetwork {
   static final Dio _dio = Dio(
     BaseOptions(
       baseUrl: UrlApiStatic.API_END_POINT,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 20),
+      sendTimeout: const Duration(seconds: 15),
       headers: {
         'Content-Type': 'application/json',
       },
     ),
   );
 
-  static Dio get dio => _dio;
+  static bool _initialized = false;
+
+  static Dio get dio {
+    if (!_initialized) {
+      _initialized = true;
+    }
+    return _dio;
+  }
 }

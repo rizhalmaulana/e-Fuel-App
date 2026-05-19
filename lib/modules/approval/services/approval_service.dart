@@ -123,6 +123,31 @@ class ApprovalService {
     }
   }
 
+  Future<Map<String, dynamic>?> getEbpbDetail(String noDoc) async {
+    try {
+      final auth = _loginService.getCurrentAuth();
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TRANSACTION_DETAIL_EBPB,
+        queryParameters: {
+          'no_doc': noDoc,
+        },
+        options: Options(
+          headers: {
+            "Authorization": "Bearer ${auth?.access ?? ''}",
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching detail EBPB: $e");
+      return null;
+    }
+  }
+
   Future<bool> submitPenerimaanApprovalDecision({
     required String noDoc,
     required String levelApproval,

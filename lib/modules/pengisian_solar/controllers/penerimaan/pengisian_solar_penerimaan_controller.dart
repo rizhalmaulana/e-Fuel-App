@@ -43,7 +43,10 @@ class PengisianSolarPenerimaanController extends GetxController {
     final auth = _loginService.getCurrentAuth();
     if (auth != null) {
       _repository = PengisianSolarPenerimaanRepository(auth.user.username);
+      debugPrint("🔑 currentKodeUnit: ${auth?.currentKodeUnit}");
     }
+
+    debugPrint("🏪 activeStorageCode: $activeStorageCode");
 
     _loadArguments();
     refreshSensorMonitoring();
@@ -116,32 +119,42 @@ class PengisianSolarPenerimaanController extends GetxController {
     isRefreshingSensor.value = true;
 
     try {
-      String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final auth = _loginService.getCurrentAuth();
+      final unitId = auth?.currentKodeUnit;
 
-      if (auth?.currentKodeUnit != null && activeStorageCode.isNotEmpty) {
-        await _repository.getDetailTanks(
-            unitId: auth!.currentKodeUnit!,
-            storageCode: activeStorageCode
-        );
+      // ✅ Log untuk debug jika unit null
+      if (unitId == null) {
+        debugPrint("⚠️ currentKodeUnit null, tidak bisa fetch volume sensor");
+        isRefreshingSensor.value = false;
+        return;
+      }
 
-        final stockStorageData = await _repository.getDataStockStorage(
-            unitId: auth.currentKodeUnit!,
-            storageCode: activeStorageCode,
-            dateLog: today
-        );
+      if (activeStorageCode.isEmpty) {
+        debugPrint("⚠️ activeStorageCode kosong");
+        isRefreshingSensor.value = false;
+        return;
+      }
 
-        if (stockStorageData.totalStockVolume != 0) {
-          currentVolume.value = stockStorageData.totalStockVolume;
-          lastUpdateSensor.value = DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now());
-        } else {
-          currentVolume.value = 0.0;
-          lastUpdateSensor.value = DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now());
+      final tankDataList = await _repository.getDetailStorageTank(
+        unitId: unitId,
+        storageCode: activeStorageCode,
+      );
+
+      double kalkulasiTotalVolume = 0.0;
+      if (tankDataList.isNotEmpty) {
+        for (var tank in tankDataList) {
+          if (tank['volume'] != null) {
+            kalkulasiTotalVolume += (tank['volume'] as num).toDouble();
+          }
         }
       }
+
+      currentVolume.value = kalkulasiTotalVolume;
+      lastUpdateSensor.value = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
       await Future.delayed(const Duration(seconds: 2));
     } catch (e) {
-      print("Gagal refresh sensor: $e");
+      debugPrint("Gagal refresh sensor: $e");
     } finally {
       isRefreshingSensor.value = false;
     }

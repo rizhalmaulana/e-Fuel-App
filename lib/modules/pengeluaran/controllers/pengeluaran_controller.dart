@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:e_fuel/configs/app_colors.dart';
@@ -42,14 +43,24 @@ class PengeluaranController extends GetxController {
 
   // --- Data Logic ---
   final List<String> jenisBonList = ['Bon Sementara', 'BPB'];
-  final jenisKategoriList =
-      ['INTERNAL LKE', 'INTERNAL NON LKE', 'VENDOR', 'TAMU'].obs;
+  final jenisKategoriList = <String>[].obs;
+  var userInitialTitle = "LKE";
   final List<String> statusSupirList = ['Internal', 'Eksternal'];
 
   var isLoadingUnit = false.obs;
   var filteredUnitList = <MasterIoModel>[].obs;
   List<MasterIoModel> _allUnitList = [];
   var selectedUnit = Rxn<MasterIoModel>();
+
+  // --- Unit Pengganti ---
+  var isUnitPengganti = false.obs;
+  var selectedReplacedUnit = Rxn<MasterIoModel>(); // Unit Utama yang digantikan
+  var filteredMainUnitList = <MasterIoModel>[].obs;  // Hanya Unit Utama (status U)
+  String _lastSearchMainKeyword = '';
+
+  var filterStatusUnit = Rxn<String>();
+  var filterTipeUnit = Rxn<String>();
+  String _lastSearchKeyword = '';
 
   var isLoadingUnitsPerArea = false.obs;
 
@@ -107,29 +118,44 @@ class PengeluaranController extends GetxController {
   }
 
   bool get isTipeGenset => (tipeUnit.value?.toUpperCase() ?? '') == 'GS';
-
   bool get isBpbMode => selectedJenisBon.value == 'BPB';
-
-  bool get isTamu =>
-      selectedKategoriKendaraan.value == 'TAMU' ||
-      selectedKategoriKendaraan.value == 'VENDOR';
+  bool get isTamu => selectedKategoriKendaraan.value == 'TAMU';
 
   @override
   void onInit() {
     super.onInit();
 
-    selectedJenisBon.value = jenisBonList.first;
-    selectedKategoriKendaraan.value = jenisKategoriList.first;
-    selectedStatusSupir.value = statusSupirList.first;
-
     final auth = _loginService.getCurrentAuth();
     if (auth != null) {
       _kodeUnit = auth.currentKodeUnit ?? "Null";
       _draftService = DraftPengeluaranService(auth.user.username);
+
+      String namaUnit = auth.currentNamaUnit ?? "";
+      if (namaUnit.isNotEmpty) {
+        var parts = namaUnit.trim().split(" ");
+        if (parts.isNotEmpty) {
+          userInitialTitle = parts.last;
+        }
+      }
     }
 
+    jenisKategoriList.assignAll([
+      'INTERNAL $userInitialTitle',
+      'INTERNAL NON $userInitialTitle',
+      'VENDOR',
+      'TAMU'
+    ]);
+
+    selectedJenisBon.value = jenisBonList.first;
+    selectedKategoriKendaraan.value = jenisKategoriList.first;
+    selectedStatusSupir.value = statusSupirList.first;
+
+    selectedKodeKebunPabrik.value =
+        userTitleUnit.value.isNotEmpty ? userTitleUnit.value : null;
+    selectedKodeUnitKebunPabrik.value =
+        userKodeUnit.value.isNotEmpty ? userKodeUnit.value : null;
+
     _setupInternalMode();
-    fetchUnitList();
     fetchUnitsPerArea();
 
     // Listener yang sudah ada
@@ -166,6 +192,20 @@ class PengeluaranController extends GetxController {
     super.onClose();
   }
 
+  void onKodeKebunPabrikChanged(String? val) {
+    selectedKodeKebunPabrik.value = val;
+    if (val != null) {
+      int idx = listTitleUnitPerArea.indexOf(val);
+      if (idx != -1 && idx < listKodeUnitPerArea.length) {
+        selectedKodeUnitKebunPabrik.value = listKodeUnitPerArea[idx];
+      }
+    } else {
+      selectedKodeUnitKebunPabrik.value = null;
+    }
+
+    fetchUnitList();
+  }
+
   void switchKategoriKendaraan(String? val) {
     if (val == null) return;
     selectedKategoriKendaraan.value = val;
@@ -175,20 +215,23 @@ class PengeluaranController extends GetxController {
     platController.clear();
     isPlatReadOnly.value = false;
 
-    if (val == 'TAMU' || val == 'VENDOR') {
+    if (val == 'TAMU') {
       _setupTamuMode(val);
-      selectedKodeKebunPabrik.value = null; // or "-"
-      selectedKodeUnitKebunPabrik.value = null;
+      selectedKodeKebunPabrik.value = userTitleUnit.value;
+      selectedKodeUnitKebunPabrik.value = userKodeUnit.value;
     } else {
       _setupInternalMode();
       searchUnit('');
-      if (!val.contains('NON')) {
+
+      if (val == 'VENDOR' || (!val.contains('NON') && val.contains('INTERNAL'))) {
         selectedKodeKebunPabrik.value = userTitleUnit.value;
         selectedKodeUnitKebunPabrik.value = userKodeUnit.value;
       } else {
         selectedKodeKebunPabrik.value = null;
         selectedKodeUnitKebunPabrik.value = null;
       }
+
+      fetchUnitList();
     }
     update();
   }
@@ -210,7 +253,8 @@ class PengeluaranController extends GetxController {
         namaUnit: kategori,
         description: "External $kategori",
         internalOrder: "-",
-        noPolisi: "-");
+        noPolisi: "-",
+        isActive: true);
     selectedUnit.value = tamuUnit;
 
     tipeUnit.value = "KD";
@@ -288,37 +332,27 @@ class PengeluaranController extends GetxController {
   }
 
   void _calculateAutomatedValues() {
-    // Cek jika Tamu, skip kalkulasi
     if (isTamu) return;
 
-    // Cek jika Genset, skip ke logic khusus genset
     if (isTipeGenset) {
       _calculateGensetDiff();
       return;
     }
 
-    // Ambil Tipe Unit (KD/AB)
     String tipe = tipeUnit.value?.trim().toUpperCase() ?? "";
-
-    // Ambil Nilai Meteran (Gunakan Helper)
     double awal = TextConvertHelper().parseToDouble(hmKmAwalC.text);
     double akhir = TextConvertHelper().parseToDouble(hmKmAkhirC.text);
     double ratioVal = TextConvertHelper().parseToDouble(ratioInput.text);
-
-    // Hitung Selisih (Varian)
     double diff = (akhir - awal) > 0 ? (akhir - awal) : 0;
-
-    // Cek dulu apakah nilai di text field beda dengan hasil hitungan biar cursor ga lompat
     String newVarianStr =
         diff % 1 == 0 ? diff.toInt().toString() : diff.toString();
+
     if (varianC.text != newVarianStr) {
       varianC.text = newVarianStr;
     }
 
-    // Hitung Estimasi Liter
     double estimasiLiter = 0;
 
-    // Logic Perhitungan
     if (diff > 0) {
       String tipe = tipeUnit.value?.trim().toUpperCase() ?? "";
       if (tipe == 'KD' || tipe == 'AD') {
@@ -330,12 +364,9 @@ class PengeluaranController extends GetxController {
       }
     }
 
-    // Menggunakan .round() untuk membulatkan ke integer terdekat (cth: 5.6 -> 6, 5.2 -> 5)
     String newLiterStr = estimasiLiter.round().toString();
 
-    // Cek agar kursor tidak lompat/reset saat user mengetik
     if (pengisianSolarC.text != newLiterStr) {
-      // Hanya update jika user TIDAK sedang mengetik desimal gantung (misal "5.")
       if (!pengisianSolarC.text.endsWith('.')) {
         pengisianSolarC.text = newLiterStr;
       }
@@ -374,19 +405,30 @@ class PengeluaranController extends GetxController {
   void fetchUnitList() async {
     try {
       isLoadingUnit.value = true;
-      var data = await _apiService.getMasterIoList();
+
+      final isVendor = (selectedKategoriKendaraan.value ?? '').toUpperCase() == 'VENDOR';
+      final isTamuKategori = selectedKategoriKendaraan.value?.contains('TAMU') ?? false;
+      String? currentUnitId = selectedKodeUnitKebunPabrik.value;
+
+      List<MasterIoModel> data;
+
+      if (isVendor) {
+        data = await _apiService.getVendorList();
+      } else {
+        data = await _apiService.getMasterIoList(
+            unitId: isTamuKategori ? null : currentUnitId);
+      }
 
       _allUnitList = data;
       filteredUnitList.assignAll(data);
 
-      _checkAndRestoreDraft();
+      update();
+      // _checkAndRestoreDraft();
     } on DioException catch (e) {
-      // Handling Error Koneksi Spesifik Dio
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.connectionError ||
           e.error is SocketException) {
-        // Tampilkan Pesan Offline
         Get.snackbar(
           'Koneksi Terputus',
           'Gagal terhubung ke server. Pastikan perangkat Anda terhubung ke internet.',
@@ -415,13 +457,17 @@ class PengeluaranController extends GetxController {
     final auth = _loginService.getCurrentAuth();
     if (auth != null && auth.currentKodeUnit != null) {
       isLoadingUnitsPerArea.value = true;
+
       try {
         var data = await _apiService.getUnitsPerArea(auth.currentKodeUnit!);
         List<String> titles = [];
         List<String> units = [];
 
-        String defaultTitle = "LKE";
-        String defaultUnit = "E031";
+        String defaultTitle = userInitialTitle;
+        String defaultUnit = auth.currentKodeUnit ?? "";
+        if (data.isNotEmpty && defaultUnit.isEmpty) {
+          defaultUnit = data.first['kode_unit']?.toString() ?? "";
+        }
 
         for (var item in data) {
           String title = item['title_unit']?.toString() ?? "";
@@ -436,13 +482,18 @@ class PengeluaranController extends GetxController {
           }
         }
 
+        String oldCategory = selectedKategoriKendaraan.value ?? '';
+        String? oldKebun = selectedKodeKebunPabrik.value;
+
+        selectedKategoriKendaraan.value = null;
+        selectedKodeKebunPabrik.value = null;
+
         listTitleUnitPerArea.assignAll(titles);
         listKodeUnitPerArea.assignAll(units);
 
         userTitleUnit.value = defaultTitle;
         userKodeUnit.value = defaultUnit;
 
-        // --- UPDATE DYNAMIC CATEGORIES ---
         jenisKategoriList.assignAll([
           'INTERNAL $defaultTitle',
           'INTERNAL NON $defaultTitle',
@@ -450,41 +501,63 @@ class PengeluaranController extends GetxController {
           'TAMU'
         ]);
 
-        // Sesuaikan kembali kategori yang dipilih agar label baru teraplikasikan
-        if (selectedKategoriKendaraan.value!.startsWith('INTERNAL')) {
-          if (selectedKategoriKendaraan.value!.contains('NON')) {
-            selectedKategoriKendaraan.value = 'INTERNAL NON $defaultTitle';
-            selectedKodeKebunPabrik.value = null;
-          } else {
-            selectedKategoriKendaraan.value = 'INTERNAL $defaultTitle';
-            selectedKodeKebunPabrik.value = defaultTitle;
-          }
-        }
+        selectedKategoriKendaraan.value = 'INTERNAL $defaultTitle';
+        selectedKodeKebunPabrik.value = defaultTitle;
+        selectedKodeUnitKebunPabrik.value = defaultUnit;
       } catch (e) {
         print("Error fetchUnitsPerArea: $e");
       } finally {
         isLoadingUnitsPerArea.value = false;
+        fetchUnitList();
       }
     }
   }
 
   void searchUnit(String keyword) {
-    if (keyword.isEmpty) {
-      filteredUnitList.assignAll(_allUnitList);
-    } else {
-      var result = _allUnitList.where((unit) {
-        var shortName = (unit.namaUnit ?? '').toLowerCase();
-        var longName = (unit.description ?? '').toLowerCase();
-        var io = (unit.internalOrder ?? '').toLowerCase();
-        var plat = (unit.noPolisi ?? '').toLowerCase();
-        var input = keyword.toLowerCase();
-        return shortName.contains(input) ||
-            longName.contains(input) ||
-            io.contains(input) ||
-            plat.contains(input);
-      }).toList();
-      filteredUnitList.assignAll(result);
-    }
+    _lastSearchKeyword = keyword;
+    applyUnitFilter();
+  }
+
+  void setFilterStatus(String? status) {
+    filterStatusUnit.value = (status == null || filterStatusUnit.value == status) ? null : status;
+    applyUnitFilter();
+  }
+
+  void resetUnitFilters() {
+    filterStatusUnit.value = null;
+    _lastSearchKeyword = '';
+    filteredUnitList.assignAll(_allUnitList);
+  }
+
+  void applyUnitFilter() {
+    var result = _allUnitList.where((unit) {
+      bool matchKeyword = true;
+      if (_lastSearchKeyword.isNotEmpty) {
+        final input = _lastSearchKeyword.toLowerCase();
+        matchKeyword =
+            (unit.namaUnit ?? '').toLowerCase().contains(input) ||
+                (unit.description ?? '').toLowerCase().contains(input) ||
+                (unit.internalOrder ?? '').toLowerCase().contains(input) ||
+                (unit.noPolisi ?? '').toLowerCase().contains(input);
+      }
+
+      bool matchStatus = true;
+      if (filterStatusUnit.value != null) {
+        matchStatus = (unit.statusUnit ?? '').toUpperCase() == filterStatusUnit.value;
+      }
+
+      return matchKeyword && matchStatus;
+    }).toList();
+
+    result.sort((a, b) {
+      const order = {'U': 0, 'S': 1};
+      int rankA = order[(a.statusUnit ?? '').toUpperCase()] ?? 2;
+      int rankB = order[(b.statusUnit ?? '').toUpperCase()] ?? 2;
+      if (rankA != rankB) return rankA.compareTo(rankB);
+      return (a.namaUnit ?? '').compareTo(b.namaUnit ?? '');
+    });
+
+    filteredUnitList.assignAll(result);
   }
 
   void onUnitSelected(MasterIoModel unit) async {
@@ -493,7 +566,7 @@ class PengeluaranController extends GetxController {
 
     tipeUnit.value = null;
     selectedUnit.value = unit;
-    ioController.text = unit.internalOrder ?? '-';
+    selectedReplacedUnit.value = null;
 
     _resetToManualInput();
 
@@ -503,21 +576,85 @@ class PengeluaranController extends GetxController {
     isLiterReadOnly.value = false;
     isIoReadOnly.value = true;
 
-    String plat = (unit.noPolisi ?? "").trim();
-    if (plat.isNotEmpty && plat != "-") {
-      platController.text = plat;
-      isPlatReadOnly.value = true;
-    } else {
-      platController.text = '';
-      isPlatReadOnly.value = false;
-    }
+    // Cek apakah Unit Pengganti (status S)
+    final statusUnit = (unit.statusUnit ?? '').toUpperCase();
+    isUnitPengganti.value = (statusUnit == 'S');
 
-    await _fetchDetailFromLocal(unit.internalOrder);
+    if (isUnitPengganti.value) {
+      // No Plat dari Unit Pengganti
+      String plat = (unit.noPolisi ?? "").trim();
+      if (plat.isNotEmpty && plat != "-") {
+        platController.text = plat;
+        isPlatReadOnly.value = true;
+      } else {
+        platController.text = '';
+        isPlatReadOnly.value = false;
+      }
+      // IO dikosongkan dulu, menunggu user pilih Unit Utama
+      ioController.text = '';
+      // Populate list Unit Utama (filter hanya status U)
+      _populateMainUnitList();
+    } else {
+      isUnitPengganti.value = false;
+      ioController.text = unit.internalOrder ?? '-';
+
+      String plat = (unit.noPolisi ?? "").trim();
+      if (plat.isNotEmpty && plat != "-") {
+        platController.text = plat;
+        isPlatReadOnly.value = true;
+      } else {
+        platController.text = '';
+        isPlatReadOnly.value = false;
+      }
+
+      await _fetchDetailFromApi(unit.internalOrder);
+
+      if (tipeUnit.value == null) {
+        _determineTipeByNamaUnit(unit);
+      }
+    }
+    searchUnit('');
+  }
+
+  /// Dipanggil saat user memilih Unit Utama yang digantikan (field kedua)
+  Future<void> onReplacedUnitSelected(MasterIoModel unit) async {
+    selectedReplacedUnit.value = unit;
+    // IO diambil dari Unit Utama yang dipilih
+    ioController.text = unit.internalOrder ?? '-';
+    isIoReadOnly.value = true;
+
+    await _fetchDetailFromApi(unit.internalOrder);
 
     if (tipeUnit.value == null) {
       _determineTipeByNamaUnit(unit);
     }
-    searchUnit('');
+    Get.back(); // tutup bottom sheet
+  }
+
+  void _populateMainUnitList() {
+    // Filter hanya Unit Utama (status U) dari list yang sudah ada
+    final mainUnits = _allUnitList
+        .where((u) => (u.statusUnit ?? '').toUpperCase() == 'U')
+        .toList();
+    filteredMainUnitList.assignAll(mainUnits);
+  }
+
+  void searchMainUnit(String keyword) {
+    _lastSearchMainKeyword = keyword;
+    if (keyword.isEmpty) {
+      _populateMainUnitList();
+      return;
+    }
+    final input = keyword.toLowerCase();
+    final result = _allUnitList
+        .where((u) => (u.statusUnit ?? '').toUpperCase() == 'U')
+        .where((u) =>
+            (u.namaUnit ?? '').toLowerCase().contains(input) ||
+            (u.description ?? '').toLowerCase().contains(input) ||
+            (u.internalOrder ?? '').toLowerCase().contains(input) ||
+            (u.noPolisi ?? '').toLowerCase().contains(input))
+        .toList();
+    filteredMainUnitList.assignAll(result);
   }
 
   void _determineTipeByNamaUnit(MasterIoModel unit) {
@@ -549,34 +686,71 @@ class PengeluaranController extends GetxController {
     satuanC.text = hasilSatuan;
   }
 
-  Future<void> _fetchDetailFromLocal(String? io) async {
-    if (io == null) return;
+  /// Fetch detail unit dari API (HM/KM/Tanggal/Tipe/Ratio) berdasarkan internal order
+  Future<void> _fetchDetailFromApi(String? io) async {
+    if (io == null || io == '-') return;
 
-    final detail = _homeService.getUnitData(io);
-
-    if (detail != null) {
-      tipeUnit.value = detail.tipe;
-      satuan.value = detail.satuan;
-      tipeUnitC.text = detail.tipe ?? "";
-      satuanC.text = detail.satuan ?? "";
-
-      if (detail.hmKmAwal != null) {
-        double val = double.tryParse(detail.hmKmAwal.toString()) ?? 0.0;
-
-        // Cek apakah bulat (misal 12000.0) -> ubah jadi 12000
-        hmKmAwalC.text =
-            (val % 1 == 0) ? val.toInt().toString() : val.toString();
+    try {
+      final detail = await _apiService.getMasterIoDetail(io);
+      if (detail == null) {
+        // Fallback ke data lokal jika API gagal
+        final localDetail = _homeService.getUnitData(io);
+        if (localDetail != null) {
+          _applyLocalDetail(localDetail);
+        }
+        return;
       }
 
-      if (detail.ratio != null) {
-        // Konversi String ke Double dulu
-        double ratioVal = double.tryParse(detail.ratio.toString()) ?? 0.0;
+      // Tipe Unit dari API
+      String? tipeApi = detail['tipe_unit_io']?.toString().toUpperCase();
 
-        // Cek apakah komanya .0 (bulat)
-        String ratioClean = (ratioVal % 1 == 0)
-            ? ratioVal.toInt().toString()
-            : ratioVal.toString();
+      if (tipeApi != null && tipeApi.isNotEmpty) {
+        tipeUnit.value = tipeApi;
+        tipeUnitC.text = tipeApi;
+        // Satuan berdasarkan tipe
+        String satuanVal = (tipeApi == 'AB') ? 'HM' : (tipeApi == 'GS') ? 'Hour' : 'KM';
+        satuan.value = satuanVal;
+        satuanC.text = satuanVal;
+      }
 
+      // Ambil HM/KM (untuk tipe KD / AB)
+      if (tipeApi == 'KD' || tipeApi == 'AB' || tipeApi == 'AD' || tipeApi == null || tipeApi.isEmpty) {
+        String? hmKmAwalRaw = detail['hm_km_awal']?.toString();
+        if (hmKmAwalRaw != null && hmKmAwalRaw != 'null') {
+          double val = double.tryParse(hmKmAwalRaw) ?? 0.0;
+          hmKmAwalC.text = (val % 1 == 0) ? val.toInt().toString() : val.toString();
+          isHmKmAwalReadOnly.value = true;
+        }
+      }
+
+      // Ambil Tanggal (untuk tipe GS)
+      if (tipeApi == 'GS') {
+        String? tglAwal = detail['tanggal_awal']?.toString();
+        String? tglAkhir = detail['tanggal_akhir']?.toString();
+        if (tglAwal != null && tglAwal != 'null' && tglAwal.isNotEmpty) {
+          try {
+            // Format dari API: yyyy-MM-dd → tampilkan dd/MM/yyyy
+            final parsed = DateTime.parse(tglAwal);
+            dateAwalC.text = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+            dateAwal.value = tglAwal;
+            isDateAwalReadOnly.value = true;
+          } catch (_) {}
+        }
+        if (tglAkhir != null && tglAkhir != 'null' && tglAkhir.isNotEmpty) {
+          try {
+            final parsed = DateTime.parse(tglAkhir);
+            dateAkhirC.text = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+            dateAkhir.value = tglAkhir;
+            isDateAkhirReadOnly.value = true;
+          } catch (_) {}
+        }
+      }
+
+      // Ambil Ratio
+      String? ratioRaw = detail['ratio']?.toString();
+      if (ratioRaw != null && ratioRaw != 'null') {
+        double ratioVal = double.tryParse(ratioRaw) ?? 0.0;
+        String ratioClean = (ratioVal % 1 == 0) ? ratioVal.toInt().toString() : ratioVal.toString();
         ratioC.text = ratioClean;
         ratioInput.text = ratioClean;
       } else {
@@ -585,7 +759,34 @@ class PengeluaranController extends GetxController {
       }
 
       _calculateAutomatedValues();
+    } catch (e) {
+      print("Error _fetchDetailFromApi: $e");
     }
+  }
+
+  /// Fallback: apply data dari local (HomeService) jika API tidak tersedia
+  void _applyLocalDetail(dynamic detail) {
+    tipeUnit.value = detail.tipe;
+    satuan.value = detail.satuan;
+    tipeUnitC.text = detail.tipe ?? "";
+    satuanC.text = detail.satuan ?? "";
+
+    if (detail.hmKmAwal != null) {
+      double val = double.tryParse(detail.hmKmAwal.toString()) ?? 0.0;
+      hmKmAwalC.text = (val % 1 == 0) ? val.toInt().toString() : val.toString();
+    }
+
+    if (detail.ratio != null) {
+      double ratioVal = double.tryParse(detail.ratio.toString()) ?? 0.0;
+      String ratioClean = (ratioVal % 1 == 0) ? ratioVal.toInt().toString() : ratioVal.toString();
+      ratioC.text = ratioClean;
+      ratioInput.text = ratioClean;
+    } else {
+      ratioC.text = "0";
+      ratioInput.text = "0";
+    }
+
+    _calculateAutomatedValues();
   }
 
   void _resetToManualInput() {
@@ -606,6 +807,11 @@ class PengeluaranController extends GetxController {
 
     pengisianSolarC.clear();
     isLiterReadOnly.value = false;
+
+    // Reset Unit Pengganti state
+    isUnitPengganti.value = false;
+    selectedReplacedUnit.value = null;
+    filteredMainUnitList.clear();
 
     if (selectedUnit.value == null) {
       tipeUnit.value = null;
@@ -680,7 +886,6 @@ class PengeluaranController extends GetxController {
     }
   }
 
-  // Fungsi untuk membatalkan/menghapus foto jika user ingin foto ulang
   void hapusFotoOdometer() {
     fotoOdometer.value = null;
   }
@@ -728,7 +933,7 @@ class PengeluaranController extends GetxController {
     double inputSolar = double.tryParse(
             TextConvertHelper().cleanNumber(pengisianSolarC.text)) ??
         0;
-    if (inputSolar <= 0) {
+    if (inputSolar <= 0 && !isTamu) {
       Get.snackbar(
           'Validasi Solar', 'Jumlah pengisian solar harus lebih dari 0',
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
@@ -786,6 +991,19 @@ class PengeluaranController extends GetxController {
           backgroundColor: AppColors.alertSoftRed,
           colorText: Colors.white,
           margin: const EdgeInsets.all(16));
+      return false;
+    }
+
+    // Validasi: jika Unit Pengganti, wajib pilih Unit yang Digantikan
+    if (isUnitPengganti.value && selectedReplacedUnit.value == null) {
+      Get.snackbar(
+        'Data Belum Lengkap',
+        'Unit Pengganti dipilih. Harap pilih Unit Utama yang digantikan terlebih dahulu!',
+        backgroundColor: AppColors.alertSoftRed,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      );
       return false;
     }
 
@@ -858,6 +1076,15 @@ class PengeluaranController extends GetxController {
       double ratioUser = TextConvertHelper().parseToDouble(ratioInput.text);
 
       Map<String, dynamic> payloadRequestAPI = {
+        "unit_pengganti": () {
+          if (!isUnitPengganti.value) return "-";
+          final unit = selectedUnit.value;
+          if (unit == null) return "-";
+          final nama = (unit.namaUnit ?? "").trim();
+          if (nama.isNotEmpty && nama != "-" && nama != "--") return nama;
+          final desc = (unit.description ?? "").trim();
+          return desc.isNotEmpty ? desc : "-";
+        }(),
         "supir_check": namaSupirFinal.toUpperCase(),
         "keterangan": keteranganC.text.isEmpty ? "-" : keteranganC.text,
         "km_pengisian": double.tryParse(cleanKm) ?? 0,
@@ -877,20 +1104,28 @@ class PengeluaranController extends GetxController {
         "tanggal_akhir": (dateAkhir.value == null || dateAkhir.value == "")
             ? ""
             : dateAkhir.value,
-        "kategori_kendaraan": selectedKategoriKendaraan.value ?? "",
+        "kategori_kendaraan": () {
+          final kategori = (selectedKategoriKendaraan.value ?? "").toUpperCase();
+          if (kategori.contains("INTERNAL NON")) return "INC";
+          if (kategori.contains("INTERNAL")) return "INT";
+          if (kategori.contains("TAMU")) return "TMU";
+          if (kategori.contains("VENDOR")) return "VEN";
+          return selectedKategoriKendaraan.value ?? "";
+        }(),
         "tanggal_awal": (dateAwal.value == null || dateAwal.value == "")
             ? ""
             : dateAwal.value,
         "nopol_check": platController.text.toUpperCase(),
-        "jenis_pengeluaran": selectedJenisBon.value ?? "",
+        "jenis_pengeluaran": selectedJenisBon.value ?? "-",
         "satuan": satuanC.text,
-        "kode_unit": selectedKodeUnitKebunPabrik.value ?? ""
+        "kode_unit": userKodeUnit.value,
+        "kode_unit_original": selectedKodeUnitKebunPabrik.value ?? ""
       };
 
-      // print("=== PAYLOAD PENGELUARAN ===");
-      // const encoder = JsonEncoder.withIndent('  ');
-      // print(encoder.convert(payloadRequestAPI));
-      // print("==========================");
+      print("=== PAYLOAD PENGELUARAN ===");
+      final encoder = JsonEncoder.withIndent('  ');
+      print(encoder.convert(payloadRequestAPI));
+      print("==========================");
 
       List<File?> photos = [fotoOdometer.value, null, null];
       final response = await _apiService.createInboundFot(
@@ -1013,43 +1248,55 @@ class PengeluaranController extends GetxController {
       backgroundColor: AppColors.alertSoftRed,
       colorText: Colors.white,
       snackPosition: SnackPosition.TOP,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(days: 365), // Dibuat lama agar tidak auto-close
+      isDismissible: true, // Bisa di-swipe untuk tutup
       margin: const EdgeInsets.all(16),
       icon: const Icon(Icons.error_outline, color: Colors.white),
+      mainButton: TextButton(
+        onPressed: () {
+          if (Get.isSnackbarOpen) {
+            Get.closeCurrentSnackbar();
+          }
+        },
+        child: const Text(
+          "Tutup",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
     );
   }
 
-  Future<void> _checkAndRestoreDraft() async {
-    if (Get.isDialogOpen == true) return;
-    try {
-      var draft = await _draftService.getDraft();
-      if (draft != null && draft.isNotEmpty) {
-        Get.dialog(
-          DialogFlexible(
-            logo: LottiesHelper().getLottieQuestion(),
-            title: "Draft Ditemukan",
-            message:
-                "Terdapat data pengeluaran yang belum tersimpan. Apakah Anda ingin melanjutkannya?",
-            primaryColor: AppColors.primaryOrange,
-            secondaryColor: AppColors.secondaryOrange,
-            secondaryButtonText: "Buang",
-            onSecondaryPressed: () {
-              Get.back();
-              _clearDraft();
-            },
-            primaryButtonText: "Lanjutkan",
-            onPrimaryPressed: () {
-              Get.back();
-              _restoreDataToUI(draft);
-            },
-          ),
-          barrierDismissible: false,
-        );
-      }
-    } catch (e) {
-      print("Error reading draft: $e");
-    }
-  }
+  // Future<void> _checkAndRestoreDraft() async {
+  //   if (Get.isDialogOpen == true) return;
+  //   try {
+  //     var draft = await _draftService.getDraft();
+  //     if (draft != null && draft.isNotEmpty) {
+  //       Get.dialog(
+  //         DialogFlexible(
+  //           logo: LottiesHelper().getLottieQuestion(),
+  //           title: "Draft Ditemukan",
+  //           message:
+  //               "Terdapat data pengeluaran yang belum tersimpan. Apakah Anda ingin melanjutkannya?",
+  //           primaryColor: AppColors.primaryOrange,
+  //           secondaryColor: AppColors.secondaryOrange,
+  //           secondaryButtonText: "Buang",
+  //           onSecondaryPressed: () {
+  //             Get.back();
+  //             _clearDraft();
+  //           },
+  //           primaryButtonText: "Lanjutkan",
+  //           onPrimaryPressed: () {
+  //             Get.back();
+  //             _restoreDataToUI(draft);
+  //           },
+  //         ),
+  //         barrierDismissible: false,
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print("Error reading draft: $e");
+  //   }
+  // }
 
   void _restoreDataToUI(Map<dynamic, dynamic> draft) {
     ioController.text = draft['no_io'] ?? '';
@@ -1063,7 +1310,7 @@ class PengeluaranController extends GetxController {
     if (savedUnitName != null && _allUnitList.isNotEmpty) {
       try {
         final unit = _allUnitList.firstWhere((e) => e.namaUnit == savedUnitName,
-            orElse: () => MasterIoModel());
+            orElse: () => MasterIoModel(isActive: true));
         if (unit.namaUnit != null) onUnitSelected(unit);
       } catch (e) {
         print("Gagal restore unit: $e");

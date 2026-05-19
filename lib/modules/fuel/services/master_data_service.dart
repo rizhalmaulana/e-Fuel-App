@@ -44,7 +44,6 @@ class MasterDataService {
     }
   }
 
-  // GET STORAGE FROM UNIT
   Future<List<UnitToStorageModel>> getStorageFromUnit({
     required String unitId,
   }) async {
@@ -52,7 +51,7 @@ class MasterDataService {
       final currentAuth = _loginService.getCurrentAuth();
 
       final response = await _dio.get(
-        UrlApiStatic.API_GET_CHILD_UNIT_TO_STORAGE,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_UNIT_TO_STORAGE,
         queryParameters: {
           'unit_id': unitId,
         },
@@ -62,9 +61,7 @@ class MasterDataService {
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
-        // Handle jika data array atau object tunggal
         final responseBody = response.data;
-        // Jika API mengembalikan object tunggal tapi kita butuh List
         final singleUnitStorage = UnitToStorageModel.fromJson(responseBody);
         return [singleUnitStorage];
       }
@@ -84,7 +81,7 @@ class MasterDataService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_CHILD_STORAGE_TO_TANK,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_STORAGE_TO_TANK,
         queryParameters: {
           'unit_id': unitId,
           'storage_id': storageId,
@@ -111,7 +108,7 @@ class MasterDataService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK,
         queryParameters: {
           'unit_id': unitId,
           'storage_id': storageId,
@@ -133,7 +130,7 @@ class MasterDataService {
   Future<List<Map<String, dynamic>>> getAllUnits() async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_UNIT,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_UNIT,
         options: _getAuthOptionsJson(),
       );
 
@@ -154,7 +151,7 @@ class MasterDataService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_INBOUND_OPEN_LIST,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_INBOUND_OPEN_LIST,
         queryParameters: {
           'kode_unit': kodeUnit,
           'status_inbound': statusInbound,
@@ -185,7 +182,7 @@ class MasterDataService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_GET_LITER_KABLIBRASI,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LITER_KABLIBRASI,
         queryParameters: {
           'capacity': kapasitas,
           'mm_full': (tinggiMm % 1 == 0) ? tinggiMm.toInt() : tinggiMm,

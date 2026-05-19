@@ -145,10 +145,10 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
               ]),
 
               // DATA PENGISIAN HM/KM & LITER
-              _buildSection("Data Pengisian FOT", [
+              _buildSection("Data Pengisian", [
                 _buildRow("HM/KM Awal", _val(data['hm_km_awal'])),
                 _buildRow("HM/KM Akhir", _val(data['hm_km_akhir'])),
-                _buildRow("Jarak/Pemakaian", _val(data['varian_hm_km_awal'])),
+                _buildRow("HM/KM Varian", _val(data['varian_hm_km_awal'])),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Divider(height: 1),

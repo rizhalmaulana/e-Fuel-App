@@ -48,8 +48,8 @@ class PengeluaranEBpbController extends GetxController {
   var userJabatan = "-".obs;
   var userLevelApproval = "-".obs;
 
-  TextEditingController getCostCenterController(String id) {
-    return costCenterControllers.putIfAbsent(id, () => TextEditingController());
+  TextEditingController getCostCenterController(String id, {String? initialValue}) {
+    return costCenterControllers.putIfAbsent(id, () => TextEditingController(text: initialValue ?? ""));
   }
 
   TextEditingController getNoteController(String id) {
@@ -104,17 +104,18 @@ class PengeluaranEBpbController extends GetxController {
 
     bool isValid = true;
     for (var item in dailyTransactionList) {
-      String key = item.id.toString();
-      String costCenter = costCenterControllers[key]?.text ?? "";
-      if (costCenter.trim().isEmpty) {
-        isValid = false;
-        break;
+      if (item.kategoriKendaraan == "TAMU") {
+        String costCenter = item.costCenter ?? "";
+        if (costCenter.trim().isEmpty) {
+          isValid = false;
+          break;
+        }
       }
     }
 
     if (!isValid) {
       Get.snackbar(
-          "Data Belum Lengkap", "Cost Center wajib diisi pada semua item.",
+          "Data Belum Lengkap", "Cost Center wajib diisi untuk kategori TAMU.",
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       return;
     }
@@ -189,6 +190,7 @@ class PengeluaranEBpbController extends GetxController {
                 .contains(query.toLowerCase()) ||
             (item.noIo ?? "").toLowerCase().contains(query.toLowerCase());
       }).toList();
+
       dailyTransactionList.assignAll(filtered);
     }
   }
@@ -213,7 +215,7 @@ class PengeluaranEBpbController extends GetxController {
       String key = item.id.toString();
       fotPayload.add({
         "no_doc": item.noDoc ?? "-",
-        "cost_center": costCenterControllers[key]?.text ?? "",
+        "cost_center": item.kategoriKendaraan == "TAMU" ? (item.costCenter ?? "") : "",
         "keterangan": noteControllers[key]?.text ?? ""
       });
     }

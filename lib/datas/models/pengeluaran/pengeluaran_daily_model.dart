@@ -9,6 +9,8 @@ class PengeluaranDailyModel {
   double? varian;
   String? dateInbound;
   String? namaSupir;
+  String? kategoriKendaraan;
+  String? costCenter;
   double? aktualLiter;
   double? varianLiter;
 
@@ -24,6 +26,8 @@ class PengeluaranDailyModel {
     this.varian,
     this.dateInbound,
     this.namaSupir,
+    this.kategoriKendaraan,
+    this.costCenter,
     this.aktualLiter,
     this.varianLiter,
   });
@@ -40,6 +44,8 @@ class PengeluaranDailyModel {
       varian: (json['varian'] is int) ? (json['varian'] as int).toDouble() : json['varian'],
       dateInbound: json['date_inbound'],
       namaSupir: json['nama_supir'],
+      kategoriKendaraan: json['kategori_kendaraan'],
+      costCenter: json['cost_center'],
       aktualLiter: (json['aktual_liter'] is int) ? (json['aktual_liter'] as int).toDouble() : json['aktual_liter'],
       varianLiter: (json['varian_liter'] is int) ? (json['varian_liter'] as int).toDouble() : json['varian_liter'],
     );

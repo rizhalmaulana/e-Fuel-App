@@ -1,10 +1,15 @@
+import 'package:dio/dio.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:get/get.dart';
+import '../../../datas/constant/url_api_static.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
+import '../../../datas/network/api_client_network.dart';
+import '../../auth/services/login_service.dart';
 import '../../pengeluaran/services/bon_sementara_local_service.dart';
 import '../repositories/home_repository.dart';
 
 class HomeService extends GetxService {
+  final Dio _dio = ApiClientNetwork.dio;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final BonSementaraLocalService _localService = BonSementaraLocalService();
   final HomeRepository repository = HomeRepository();
@@ -15,6 +20,22 @@ class HomeService extends GetxService {
   // Variabel lokal untuk menyimpan context saat ini (agar tidak perlu pass parameter terus menerus)
   String _currentUnitCode = "";
   String _currentStorageCode = "";
+
+  Options _getOptions() {
+    try {
+      final loginService = Get.find<LoginService>();
+      final auth = loginService.getCurrentAuth();
+      final token = auth?.access ?? ''; // Sesuaikan field token Anda
+
+      return Options(
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+      );
+    } catch (e) {
+      return Options();
+    }
+  }
 
   @override
   void onInit() {
@@ -633,6 +654,27 @@ class HomeService extends GetxService {
     }
   }
 
+  Future<dynamic> getLatestStockTanks({
+    required String unitId,
+    required String tankCode,
+    required String dateLog,
+  }) async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_GET_LATEST_TANK_STOCK,
+        queryParameters: {
+          'kode_unit': unitId,
+          'kode_tank': tankCode,
+          'date_log': dateLog,
+        },
+        options: _getOptions(),
+      );
+      return response.data;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> updateUnitAfterTransaction(
       String io,
       double kmAkhir,
@@ -641,7 +683,6 @@ class HomeService extends GetxService {
       String ratio,
       {String? unitCodeOverride, String? storageCodeOverride} // Parameter baru
       ) async {
-
     int index = masterList.indexWhere((element) => element.internalOrder == io);
 
     if (index != -1) {

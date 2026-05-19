@@ -16,7 +16,6 @@ class ApprovalView extends GetView<ApprovalController> {
     String valNum(dynamic v, [String suffix = ""]) => (v != null) ? "${double.tryParse(v.toString())?.toStringAsFixed(0) ?? v} $suffix" : "-";
 
     return SingleChildScrollView(
-      // OPTIMASI: Padding dikurangi dari 24 ke 16 agar layar kecil memiliki ruang lebih
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +130,7 @@ class ApprovalView extends GetView<ApprovalController> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16), // OPTIMASI: Dari 24 ke 16
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -256,7 +255,7 @@ class ApprovalView extends GetView<ApprovalController> {
           ),
           const SizedBox(height: 12),
           Container(
-            height: 160, // OPTIMASI: Dikecilkan sedikit untuk XCover
+            height: 160,
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               border: Border.all(color: const Color(0xFFE3E8F0)),

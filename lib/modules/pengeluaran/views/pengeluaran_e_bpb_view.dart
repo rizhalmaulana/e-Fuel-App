@@ -16,117 +16,123 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Obx(() => Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => controller.pickDate(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Tanggal Transaksi",
-                            style: AppFonts.fUrbanistMedium12
-                                .copyWith(color: AppColors.primaryOrange)),
-                        Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => controller.pickDate(context),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(controller.selectedDateDisplay.value,
-                                  style: AppFonts.fUrbanistBold14.copyWith(
-                                      color: AppColors.secondaryText),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                            Text("Tanggal Transaksi",
+                                style: AppFonts.fUrbanistMedium12
+                                    .copyWith(color: AppColors.primaryOrange)),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                      controller.selectedDateDisplay.value,
+                                      style: AppFonts.fUrbanistBold14.copyWith(
+                                          color: AppColors.secondaryText),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.calendar_month,
+                                    size: 16, color: AppColors.primaryOrange),
+                              ],
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.calendar_month,
-                                size: 16, color: AppColors.primaryOrange),
                           ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text("Kode Unit",
+                              style: AppFonts.fUrbanistMedium12
+                                  .copyWith(color: AppColors.primaryOrange)),
+                          Text(controller.selectedUnitCode.value,
+                              style: AppFonts.fUrbanistBold14
+                                  .copyWith(color: AppColors.secondaryText),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text("Kode Unit",
-                          style: AppFonts.fUrbanistMedium12
-                              .copyWith(color: AppColors.primaryOrange)),
-                      Text(controller.selectedUnitCode.value,
-                          style: AppFonts.fUrbanistBold14
-                              .copyWith(color: AppColors.secondaryText),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1, thickness: 0.5),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Total Liter",
+                              style: AppFonts.fUrbanistMedium12
+                                  .copyWith(color: AppColors.primaryOrange)),
+                          Text(
+                              "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
+                              style: AppFonts.fUrbanistBold14
+                                  .copyWith(color: AppColors.secondaryText),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text("Total Transaksi",
+                              style: AppFonts.fUrbanistMedium12
+                                  .copyWith(color: AppColors.primaryOrange)),
+                          Text("${controller.totalQty.value} Unit",
+                              style: AppFonts.fUrbanistBold14
+                                  .copyWith(color: AppColors.secondaryText),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, thickness: 0.5),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Total Liter",
-                          style: AppFonts.fUrbanistMedium12
-                              .copyWith(color: AppColors.primaryOrange)),
-                      Text(
-                          "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
-                          style: AppFonts.fUrbanistBold14
-                              .copyWith(color: AppColors.secondaryText),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text("Total Transaksi",
-                          style: AppFonts.fUrbanistMedium12
-                              .copyWith(color: AppColors.primaryOrange)),
-                      Text("${controller.totalQty.value} Unit",
-                          style: AppFonts.fUrbanistBold14
-                              .copyWith(color: AppColors.secondaryText),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        )),
+            )),
       ),
     );
   }
 
   // 1. UPDATE: Tambahkan parameter isAlphaNumeric untuk mengaktifkan validasi Cost Center
   Widget _buildTableInputField(
-      {required TextEditingController controller, required String hint, bool isAlphaNumeric = false}) {
+      {required TextEditingController controller,
+      required String hint,
+      bool isAlphaNumeric = false}) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: TextFormField(
         controller: controller,
         style:
-        AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
+            AppFonts.fUrbanistRegular12.copyWith(color: AppColors.primaryText),
         // Force Uppercase untuk Cost Center
-        textCapitalization: isAlphaNumeric ? TextCapitalization.characters : TextCapitalization.none,
+        textCapitalization: isAlphaNumeric
+            ? TextCapitalization.characters
+            : TextCapitalization.none,
         // Regex validasi hanya angka dan huruf (tanpa spasi dan karakter khusus)
         inputFormatters: isAlphaNumeric
             ? [
-          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-          UpperCaseTextFormatter(), // Menggunakan custom formatter agar saat diketik langsung jadi kapital
-        ]
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                UpperCaseTextFormatter(),
+                // Menggunakan custom formatter agar saat diketik langsung jadi kapital
+              ]
             : [],
         decoration: InputDecoration(
           hintText: hint,
@@ -136,15 +142,15 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
           filled: true,
           fillColor: AppColors.white,
           contentPadding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide:
-              BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
+                  BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide:
-              BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
+                  BorderSide(color: AppColors.secondaryText.withOpacity(0.3))),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppColors.primaryOrange)),
@@ -170,7 +176,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
           if (controller.isLoading.value) {
             return const Center(
                 child:
-                CircularProgressIndicator(color: AppColors.primaryOrange));
+                    CircularProgressIndicator(color: AppColors.primaryOrange));
           }
           if (controller.dailyTransactionList.isEmpty) {
             return Center(
@@ -202,7 +208,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
               scrollDirection: Axis.vertical,
               child: DataTable(
                 headingRowColor:
-                MaterialStateProperty.all(AppColors.fieldBackground),
+                    MaterialStateProperty.all(AppColors.fieldBackground),
                 columnSpacing: 20,
                 horizontalMargin: 15,
                 dataRowHeight: 60,
@@ -232,29 +238,40 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                   String uniqueKey = item.id.toString();
                   return DataRow(
                     cells: [
-                      DataCell(Text(item.namaUnit ?? "-",
-                          style: AppFonts.fUrbanistMedium12)),
+                      DataCell(
+                        item.kategoriKendaraan == "TMU"
+                            ? Center(
+                                child: Text("${item.kategoriKendaraan}",
+                                    style: AppFonts
+                                        .fUrbanistMedium12),
+                              )
+                            : Center(
+                                child: Text(item.namaUnit ?? "-",
+                                    style: AppFonts.fUrbanistMedium12),
+                              ),
+                      ),
                       DataCell(Text("${item.aktualLiter?.toStringAsFixed(0)}",
                           style: AppFonts.fUrbanistMedium12)),
                       DataCell(Text(item.noIo ?? "-",
                           style: AppFonts.fUrbanistMedium12)),
                       DataCell(
-                        // 3. UPDATE: Sedikit melebarkan field agar lebih lega diketik di HP apapun
-                        Container(
-                          width: 150,
-                          alignment: Alignment.center,
-                          child: _buildTableInputField(
-                              controller: controller.getCostCenterController(uniqueKey),
-                              hint: "Cost Center",
-                              isAlphaNumeric: true), // Aktifkan uppercase dan validasi angka huruf
-                        ),
+                        item.kategoriKendaraan == "TMU"
+                            ? Center(
+                                child: Text(item.costCenter ?? "-",
+                                    style: AppFonts.fUrbanistMedium12),
+                              )
+                            : Center(
+                                child: Text("-",
+                                    style: AppFonts.fUrbanistMedium12),
+                              ),
                       ),
                       DataCell(
                         Container(
                           width: 160,
                           alignment: Alignment.center,
                           child: _buildTableInputField(
-                              controller: controller.getNoteController(uniqueKey),
+                              controller:
+                                  controller.getNoteController(uniqueKey),
                               hint: "Keterangan"),
                         ),
                       ),
@@ -283,7 +300,10 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
         children: [
           Expanded(
             child: Column(children: [
-              Text("Total Transaksi", style: AppFonts.fUrbanistRegular12, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text("Total Transaksi",
+                  style: AppFonts.fUrbanistRegular12,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               Obx(() => Text("${controller.totalQty.value}",
                   style: AppFonts.fUrbanistBold18
                       .copyWith(color: AppColors.primaryOrange)))
@@ -295,7 +315,10 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
               color: AppColors.secondaryText.withOpacity(0.3)),
           Expanded(
             child: Column(children: [
-              Text("Total Volume", style: AppFonts.fUrbanistRegular12, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text("Total Volume",
+                  style: AppFonts.fUrbanistRegular12,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               Obx(() => Text(
                   "${controller.totalVolume.value.toStringAsFixed(0)} Ltr",
                   style: AppFonts.fUrbanistBold18
@@ -336,13 +359,13 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Obx(() => Text(
-                          controller.userName.value.toUpperCase(),
-                          textAlign: TextAlign.end,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          style: AppFonts.fUrbanistBold12
-                              .copyWith(color: AppColors.darkText),
-                        )),
+                              controller.userName.value.toUpperCase(),
+                              textAlign: TextAlign.end,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: AppFonts.fUrbanistBold12
+                                  .copyWith(color: AppColors.darkText),
+                            )),
                       )
                     ])),
             Padding(
@@ -356,13 +379,13 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Obx(() => Text(
-                          controller.userJabatan.value,
-                          textAlign: TextAlign.end,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          style: AppFonts.fUrbanistSemiBold12
-                              .copyWith(color: AppColors.darkText),
-                        )),
+                              controller.userJabatan.value,
+                              textAlign: TextAlign.end,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: AppFonts.fUrbanistSemiBold12
+                                  .copyWith(color: AppColors.darkText),
+                            )),
                       )
                     ])),
           ]),
@@ -371,13 +394,15 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Flexible(
             child: Text("Tanda Tangan Asst. Traksi",
-                style: AppFonts.fUrbanistSemiBold14, maxLines: 1, overflow: TextOverflow.ellipsis),
+                style: AppFonts.fUrbanistSemiBold14,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ),
           GestureDetector(
               onTap: () => controller.clearSignature(),
               child: Container(
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                       color: AppColors.alertSoftRed.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6)),
@@ -425,7 +450,8 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
 
         // 2. Tombol Sticky di Bawah
         Container(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+          padding: EdgeInsets.fromLTRB(
+              16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -447,7 +473,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                       borderRadius: BorderRadius.circular(12))),
               child: Text("Proses Tanda Tangan",
                   style:
-                  AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
+                      AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
             ),
           ),
         ),
@@ -476,7 +502,8 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
 
         // 2. Tombol Sticky di Bawah
         Container(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+          padding: EdgeInsets.fromLTRB(
+              16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -498,7 +525,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                       borderRadius: BorderRadius.circular(12))),
               child: Text("Submit E-BPB",
                   style:
-                  AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
+                      AppFonts.fUrbanistBold16.copyWith(color: Colors.white)),
             ),
           ),
         ),
