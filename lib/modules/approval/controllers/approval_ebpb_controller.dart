@@ -113,7 +113,6 @@ class ApprovalEbpbController extends GetxController {
       final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
       final kodeUnit = auth?.currentKodeUnit ?? '';
 
-      // Hit API Update Status EBPB
       await _pengeluaranService.updateStatusEBPB(
         noDoc: noDoc,
         statusApprove: status,
@@ -122,7 +121,6 @@ class ApprovalEbpbController extends GetxController {
         isSign: signFile != null,
       );
 
-      // Hit API Upload Signature jika Approved
       if (status == 'APPROVED' && signFile != null) {
         await _pengeluaranService.uploadSignatureEBPB(
           noDoc: noDoc,
@@ -131,8 +129,6 @@ class ApprovalEbpbController extends GetxController {
         );
       }
 
-      // Check jika Full Approved bisa di cek via _approvalService.getApprovalListEbpb atau fetchDetail kembali
-      // Tapi untuk sekarang kita arahkan kembali ke home saja setelah sukses
       Get.back(); // Tutup loading progress dialog
       Get.offAllNamed(Routes.HOME);
       Get.snackbar("Sukses", "Dokumen E-BPB berhasil diproses ($status)",

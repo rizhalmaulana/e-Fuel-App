@@ -240,7 +240,7 @@ class PengeluaranController extends GetxController {
     selectedUnit.value = null;
 
     ratioC.text = "0"; // Default 0
-    ratioInput.text = "0"; // UI 0
+    ratioInput.text = ""; // UI 0
     isRatioReadOnly.value = false;
 
     pengisianSolarC.text = "0";
@@ -268,7 +268,7 @@ class PengeluaranController extends GetxController {
     dateAkhirC.text = "";
     varianC.text = "0";
     ratioC.text = "0";
-    ratioInput.text = "0"; // UI
+    ratioInput.text = ""; // UI
 
     isHmKmAwalReadOnly.value = true;
     isHmKmAkhirReadOnly.value = true;
@@ -570,7 +570,7 @@ class PengeluaranController extends GetxController {
 
     _resetToManualInput();
 
-    ratioInput.text = "0";
+    ratioInput.text = "";
     isRatioReadOnly.value = false;
     pengisianSolarC.text = "0";
     isLiterReadOnly.value = false;
@@ -755,7 +755,7 @@ class PengeluaranController extends GetxController {
         ratioInput.text = ratioClean;
       } else {
         ratioC.text = "0";
-        ratioInput.text = "0";
+        ratioInput.text = "";
       }
 
       _calculateAutomatedValues();
@@ -783,7 +783,7 @@ class PengeluaranController extends GetxController {
       ratioInput.text = ratioClean;
     } else {
       ratioC.text = "0";
-      ratioInput.text = "0";
+      ratioInput.text = "";
     }
 
     _calculateAutomatedValues();
@@ -802,7 +802,7 @@ class PengeluaranController extends GetxController {
     isVarianReadOnly.value = false;
 
     ratioC.text = "0";
-    ratioInput.text = "0";
+    ratioInput.text = "";
     isRatioReadOnly.value = false;
 
     pengisianSolarC.clear();
@@ -1128,8 +1128,7 @@ class PengeluaranController extends GetxController {
       print("==========================");
 
       List<File?> photos = [fotoOdometer.value, null, null];
-      final response = await _apiService.createInboundFot(
-          payloadMap: payloadRequestAPI, photos: photos);
+      final response = await _apiService.createInboundFot(payloadMap: payloadRequestAPI, photos: photos);
       String noDoc = response['no_doc'] ?? "-";
 
       await _saveToOutstanding(noDoc, payloadRequestAPI, fotoOdometer.value);

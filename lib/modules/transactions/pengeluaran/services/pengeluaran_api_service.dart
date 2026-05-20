@@ -62,7 +62,8 @@ class PengeluaranApiService {
           if (namaKosong) {
             String desc = e['deskripsi_unit'] ?? '';
             if (desc.trim().isNotEmpty) {
-              e['nama_unit'] = desc.length > 20 ? '${desc.substring(0, 20)}...' : desc;
+              e['nama_unit'] =
+                  desc.length > 20 ? '${desc.substring(0, 20)}...' : desc;
             } else {
               e['nama_unit'] = '-';
             }
@@ -97,7 +98,8 @@ class PengeluaranApiService {
 
   Future<List<dynamic>> getUnitsPerArea(String kodeUnit) async {
     try {
-      String endpoint = UrlApiStatic.API_GET_UNIT_PER_AREA.replaceAll('{kode_unit}', kodeUnit);
+      String endpoint = UrlApiStatic.API_GET_UNIT_PER_AREA
+          .replaceAll('{kode_unit}', kodeUnit);
       final response = await _dio.get(
         UrlApiStatic.API_END_POINT + endpoint,
         options: _getOptions(),
@@ -113,7 +115,8 @@ class PengeluaranApiService {
   }
 
   Future<List<MasterIoModel>> getVendorList() async {
-    String urlTarget = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_MASTER_IO_VENDOR_LIST.trim();
+    String urlTarget = UrlApiStatic.API_END_POINT +
+        UrlApiStatic.API_GET_MASTER_IO_VENDOR_LIST.trim();
     try {
       final response = await _dio.get(
         urlTarget,
@@ -163,7 +166,8 @@ class PengeluaranApiService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
+        UrlApiStatic.API_END_POINT +
+            UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
         queryParameters: {
           'transaction_type': transactionType,
           'kode_unit': kodeUnit,
@@ -220,9 +224,7 @@ class PengeluaranApiService {
     try {
       String jsonPayload = jsonEncode(formMap);
 
-      FormData formData = FormData.fromMap({
-        'payload': jsonPayload
-      });
+      FormData formData = FormData.fromMap({'payload': jsonPayload});
 
       for (int i = 0; i < photos.length; i++) {
         if (photos[i] != null && photos[i]!.existsSync()) {
@@ -242,9 +244,9 @@ class PengeluaranApiService {
       if (response.statusCode == 200 && response.data['success'] == true) {
         return response.data;
       } else {
-        throw Exception(response.data['message'] ?? "Respon server sukses namun status false");
+        throw Exception(response.data['message'] ??
+            "Respon server sukses namun status false");
       }
-
     } catch (e) {
       rethrow;
     }
@@ -301,7 +303,8 @@ class PengeluaranApiService {
     final loginService = Get.find<LoginService>();
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
-    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_APPROVAL;
+    String url = UrlApiStatic.API_END_POINT +
+        UrlApiStatic.API_CREATE_TRANSACTION_APPROVAL;
 
     Map<String, dynamic> payloadData = {
       "no_doc": noDoc,
@@ -310,16 +313,14 @@ class PengeluaranApiService {
     };
 
     try {
-      var response = await _dio.post(
-        url,
-        data: payloadData,
-        options: Options(
-          contentType: 'application/json',
-          headers: {
-            "Authorization": "Bearer $token",
-          },
-        )
-      );
+      var response = await _dio.post(url,
+          data: payloadData,
+          options: Options(
+            contentType: 'application/json',
+            headers: {
+              "Authorization": "Bearer $token",
+            },
+          ));
       return response.data;
     } catch (e) {
       rethrow;
@@ -359,12 +360,9 @@ class PengeluaranApiService {
       var response = await _dio.put(
         url,
         data: payloadData,
-        options: Options(
-            contentType: 'application/json',
-            headers: {
-              "Authorization": "Bearer $token",
-            }
-        ),
+        options: Options(contentType: 'application/json', headers: {
+          "Authorization": "Bearer $token",
+        }),
       );
       return response.data;
     } on DioException catch (e) {
@@ -411,11 +409,9 @@ class PengeluaranApiService {
       var response = await _dio.post(
         url,
         data: formData,
-        options: Options(
-            headers: {
-              "Authorization": "Bearer $token",
-            }
-        ),
+        options: Options(headers: {
+          "Authorization": "Bearer $token",
+        }),
       );
       return response.data;
     } on DioException catch (e) {
@@ -429,7 +425,7 @@ class PengeluaranApiService {
 
   Future<dynamic> uploadImagePengeluaran({
     required String noDoc,
-    required File foto1,
+    File? foto1,
     required File foto2,
     required File foto3,
   }) async {
@@ -448,10 +444,6 @@ class PengeluaranApiService {
     }
 
     FormData formData = FormData.fromMap({
-      'foto1': await MultipartFile.fromFile(
-        foto1.path,
-        filename: foto1.path.split('/').last,
-      ),
       'foto2': await MultipartFile.fromFile(
         foto2.path,
         filename: foto2.path.split('/').last,
@@ -488,7 +480,8 @@ class PengeluaranApiService {
   }) async {
     try {
       final response = await _dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TRANSACTION_PENGELUARAN_DAILY,
+        UrlApiStatic.API_END_POINT +
+            UrlApiStatic.API_GET_TRANSACTION_PENGELUARAN_DAILY,
         queryParameters: {
           'date_inbound': dateInbound,
           'kode_unit': kodeUnit,
@@ -535,12 +528,9 @@ class PengeluaranApiService {
       var response = await _dio.post(
         url,
         data: payload,
-        options: Options(
-            contentType: 'application/json',
-            headers: {
-              "Authorization": "Bearer $token",
-            }
-        ),
+        options: Options(contentType: 'application/json', headers: {
+          "Authorization": "Bearer $token",
+        }),
       );
       return response.data;
     } on DioException catch (e) {
@@ -583,7 +573,8 @@ class PengeluaranApiService {
   }) async {
     try {
       final response = await _dio.post(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_EBPB_APPROVAL,
+        UrlApiStatic.API_END_POINT +
+            UrlApiStatic.API_CREATE_TRANSACTION_EBPB_APPROVAL,
         data: {
           "no_doc": noDoc,
           "kode_unit": kodeUnit,
@@ -613,7 +604,8 @@ class PengeluaranApiService {
         'payload': jsonPayload,
         'image_sign': await MultipartFile.fromFile(
           imageSign.path,
-          filename: 'sign_ebpb_$safeFileNameDoc.png', // Contoh output: sign_ebpb_02_E-BPB_AFDTR_02_2026.png
+          filename:
+              'sign_ebpb_$safeFileNameDoc.png', // Contoh output: sign_ebpb_02_E-BPB_AFDTR_02_2026.png
         ),
       });
 
