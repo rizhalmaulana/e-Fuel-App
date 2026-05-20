@@ -6,23 +6,23 @@ import '../../../../datas/models/report/report_transaction_model.dart';
 import '../../controllers/report_pengeluaran_controller.dart';
 
 class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
-  const ReportPengeluaranView({Key? key}) : super(key: key);
+  const ReportPengeluaranView({super.key});
 
   Widget _buildDateFilter(BuildContext context) {
-    return Padding(
+    return Obx(() => Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           Expanded(
-            child: _dateField(context, "Date From", controller.dateFromC),
+            child: _dateField(context, "dari Tanggal", controller.dateFromC),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: _dateField(context, "Date To", controller.dateToC),
+            child: _dateField(context, "ke Tanggal", controller.dateToC),
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _dateField(BuildContext context, String label, TextEditingController textCon) {
@@ -39,6 +39,7 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Pastikan teks mengambil data terbaru dari controller
                 Text(textCon.text, style: AppFonts.fUrbanistRegular12),
                 const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primaryOrange),
               ],
@@ -50,48 +51,103 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
   }
 
   Widget _buildCard(ReportTransactionModel item) {
-    bool isCompleted = (item.statusInbound == 'C' || item.statusInbound == 'P');
+    bool isCompleted = item.statusInbound == 'C';
     Color statusColorBg = isCompleted ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0);
     Color statusColorText = isCompleted ? const Color(0xFF4CAF50) : const Color(0xFFFF9800);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(item.noDoc ?? "-", style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: statusColorBg, borderRadius: BorderRadius.circular(6)),
-                child: Text(isCompleted ? "Selesai" : "Dalam Proses", style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText)),
-              )
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
-              const SizedBox(width: 4),
-              Text(item.dateInbound ?? "-", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
-              const SizedBox(width: 12),
-              const Icon(Icons.local_gas_station_outlined, size: 14, color: AppColors.primaryOrange),
-              const SizedBox(width: 4),
-              Text("${item.jumlahPengisianSolar ?? 0} Ltr", style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryOrange)),
-            ],
-          ),
+    final estimasi = item.estimasiPengisianSolar ?? 0;
+    final aktual = item.aktualPengisianSolar ?? 0;
+    final selisih = aktual - estimasi;
+    final isOver = selisih > 0;
 
-          if (isCompleted) ...[
+    return InkWell(
+      onTap: () {
+        Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(item.noDoc ?? "-", style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: statusColorBg, borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    isCompleted ? "Selesai" : "Dalam Proses",
+                    style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Text(item.dateInbound ?? "-", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
+                if (item.nopolCheck != null) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.directions_car_outlined, size: 14, color: AppColors.secondaryText),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      "${item.nopolCheck} • ${item.supirCheck ?? '-'}",
+                      style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // -- Divider --
+            Divider(color: Colors.grey.shade100, height: 1),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _buildLiterInfo(
+                    label: "Estimasi",
+                    value: estimasi,
+                    icon: Icons.show_chart_rounded,
+                    iconColor: AppColors.secondaryText,
+                    valueColor: AppColors.primaryText,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildLiterInfo(
+                    label: "Aktual",
+                    value: aktual,
+                    icon: Icons.local_gas_station_outlined,
+                    iconColor: AppColors.primaryOrange,
+                    valueColor: AppColors.primaryOrange,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSelisihInfo(selisih: selisih, isOver: isOver),
+                ),
+              ],
+            ),
+
+            // -- Tombol Lihat Detail (Sekarang selalu muncul agar user bisa cek berkas proses/selesai) --
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -106,10 +162,68 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
                 },
                 child: Text("Lihat Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryOrange)),
               ),
-            )
-          ]
-        ],
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildLiterInfo({
+    required String label,
+    required double value,
+    required IconData icon,
+    required Color iconColor,
+    required Color valueColor,
+  }) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 13, color: iconColor),
+            const SizedBox(width: 4),
+            Text(label, style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "${value % 1 == 0 ? value.toInt() : value.toStringAsFixed(2)} Ltr",
+          style: AppFonts.fUrbanistBold12.copyWith(color: valueColor),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelisihInfo({required double selisih, required bool isOver}) {
+    final Color color = isOver ? const Color(0xFFE53935) : const Color(0xFF4CAF50);
+    final IconData icon = isOver ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+    final String label = isOver ? "Lebih" : "Kurang";
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.compare_arrows_rounded, size: 13, color: AppColors.secondaryText),
+            const SizedBox(width: 4),
+            Text("Selisih", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 2),
+            Text(
+              "${selisih.abs() % 1 == 0 ? selisih.abs().toInt() : selisih.abs().toStringAsFixed(2)} Ltr",
+              style: AppFonts.fUrbanistBold12.copyWith(color: color),
+            ),
+          ],
+        ),
+        Text(label, style: AppFonts.fUrbanistMedium10.copyWith(color: color)),
+      ],
     );
   }
 
@@ -140,8 +254,7 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
               }
               if (controller.transactionList.isEmpty) {
                 return Center(
-                  child: Text("Tidak ada data pengeluaran",
-                      style: AppFonts.fUrbanistRegular16),
+                  child: Text("Tidak ada data pengeluaran", style: AppFonts.fUrbanistRegular16),
                 );
               }
               return ListView.separated(

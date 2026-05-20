@@ -6,10 +6,10 @@ import '../../../../datas/models/report/report_transaction_model.dart';
 import '../../controllers/report_penerimaan_controller.dart';
 
 class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
-  const ReportPenerimaanView({Key? key}) : super(key: key);
+  const ReportPenerimaanView({super.key});
 
   Widget _buildDateFilter(BuildContext context) {
-    return Padding(
+    return Obx(() => Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
@@ -22,7 +22,7 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _dateField(BuildContext context, String label, TextEditingController textCon) {
@@ -32,10 +32,16 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
         Text(label, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: () => controller.pickDate(context, textCon),
+          onTap: () async {
+            await controller.pickDate(context, textCon);
+            controller.transactionList.refresh();
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(color: AppColors.fieldBackground, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: AppColors.fieldBackground,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -50,65 +56,121 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
   }
 
   Widget _buildCard(ReportTransactionModel item) {
-    bool isCompleted = (item.statusInbound == 'C' || item.statusInbound == 'P');
-    Color statusColorBg = isCompleted ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0);
-    Color statusColorText = isCompleted ? const Color(0xFF4CAF50) : const Color(0xFFFF9800);
+    bool isOpen = item.statusInbound == 'O';
+    Color statusColorBg = isOpen ? const Color(0xFFFFF3E0) : const Color(0xFFE8F5E9);
+    Color statusColorText = isOpen ? const Color(0xFFFF9800) : const Color(0xFF4CAF50);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(item.noDoc ?? "-", style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: statusColorBg, borderRadius: BorderRadius.circular(6)),
-                child: Text(isCompleted ? "Selesai" : "Dalam Proses", style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText)),
-              )
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
-              const SizedBox(width: 4),
-              Text(item.dateInbound ?? "-", style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
-              const SizedBox(width: 12),
-              const Icon(Icons.water_drop_outlined, size: 14, color: AppColors.primary),
-              const SizedBox(width: 4),
-              Text("${item.volumeVendor ?? 0} Ltr", style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primary)),
-            ],
-          ),
-
-          if (isCompleted) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 36,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    return InkWell(
+      onTap: isOpen
+          ? null
+          : () {
+        Get.toNamed('/report-detail-penerimaan', arguments: {'no_doc': item.noDoc});
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.01),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(item.noDoc ?? "-", style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColorBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isOpen ? "Open" : "Approved",
+                    style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText),
+                  ),
                 ),
-                onPressed: () {
-                  Get.toNamed('/report-detail-penerimaan', arguments: {'no_doc': item.noDoc});
-                },
-                child: Text("Lihat Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary)),
-              ),
-            )
-          ]
-        ],
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+                const Icon(Icons.assignment_outlined, size: 14, color: AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Text(
+                    "PO: ${item.noPo ?? '-'}",
+                    style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)
+                ),
+                const SizedBox(width: 16),
+                const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Text(
+                    item.dateInbound ?? "-",
+                    style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            Row(
+              children: [
+                const Icon(Icons.store_mall_directory_outlined, size: 14, color: AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    "${item.storageName ?? '-'} (${item.storageCode ?? '-'})",
+                    style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            const Divider(height: 24, color: AppColors.fieldBackground),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Vol. Vendor (SPB)", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+                    const SizedBox(height: 2),
+                    Text(
+                      "${item.volumeVendor ?? 0} Ltr",
+                      style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
+                    ),
+                  ],
+                ),
+                if (!isOpen)
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      onPressed: () {
+                        Get.toNamed('/report-detail-penerimaan', arguments: {'no_doc': item.noDoc});
+                      },
+                      child: Text("Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary)),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -140,8 +202,7 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
               }
               if (controller.transactionList.isEmpty) {
                 return Center(
-                  child: Text("Tidak ada data penerimaan",
-                      style: AppFonts.fUrbanistRegular16),
+                  child: Text("Tidak ada data penerimaan", style: AppFonts.fUrbanistRegular16),
                 );
               }
               return ListView.separated(

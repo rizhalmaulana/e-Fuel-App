@@ -368,9 +368,8 @@ class PengisianSolarPengeluaranController extends GetxController {
       // 4. Upload Images
       await _apiService.uploadImagePengeluaran(
         noDoc: finalNoDoc,
-        foto1: fotoDispenser.value!,
-        foto2: fotoSupir.value!,
-        foto3: fotoSupir.value!,
+        foto2: fotoDispenser.value!,  // foto dispenser/angka meter
+        foto3: fotoSupir.value!,      // foto supir
       );
 
       // 5. Update Aktual Liter
@@ -381,10 +380,8 @@ class PengisianSolarPengeluaranController extends GetxController {
       );
 
       if (statusSupir.value == 'Internal') {
-        // Ambil Unit & Storage yang sedang aktif dipilih user di Home
         String currentUnit = _homeController.selectedUnitCode.value;
         String currentStorageName = _homeController.selectedStorage.value;
-        // Parse kode storage (misal: "Gudang A - SLKE01" -> "SLKE01")
         String storageCode = currentStorageName.contains('-')
             ? currentStorageName.split('-').last.trim()
             : currentStorageName.trim();

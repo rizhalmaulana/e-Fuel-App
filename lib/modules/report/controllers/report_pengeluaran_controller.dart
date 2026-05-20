@@ -46,6 +46,8 @@ class ReportPengeluaranController extends GetxController {
       String newDate = DateFormat('yyyy-MM-dd').format(picked);
       if (controller.text != newDate) {
         controller.text = newDate;
+
+        transactionList.refresh();
         fetchTransactions();
       }
     }

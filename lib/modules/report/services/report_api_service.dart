@@ -21,9 +21,6 @@ class ReportApiService {
     final kodeUnit = auth?.currentKodeUnit ?? '';
     final cacheKey = 'report_cache_${transactionType}_$kodeUnit';
 
-    // [DEBUG] Print Parameter
-    print("🔵 [API REQUEST] Type: $transactionType | Unit: $kodeUnit | Date: $startDate s/d $endDate");
-
     try {
       final response = await _dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_ALL_TRANSACTION_LIST,
