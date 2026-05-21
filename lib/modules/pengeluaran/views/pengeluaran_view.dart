@@ -969,7 +969,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
                             _buildLabel("Estimasi Liter"),
                             _buildTextField(
                               controller: controller.pengisianSolarC,
-                              readOnly: true,
+                              readOnly: !controller.isTipeGenset,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               hint: "Input Liter",
                               customFormatters: [

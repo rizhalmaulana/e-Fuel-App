@@ -98,6 +98,7 @@ class PengeluaranController extends GetxController {
   var isLiterReadOnly = true.obs;
   var isIoReadOnly = true.obs;
   var isTakingPhoto = false.obs;
+  var isGSReadOnly = false.obs;
 
   final tipeUnitC = TextEditingController();
   final satuanC = TextEditingController();
@@ -243,7 +244,7 @@ class PengeluaranController extends GetxController {
     ratioInput.text = ""; // UI 0
     isRatioReadOnly.value = false;
 
-    pengisianSolarC.text = "0";
+    pengisianSolarC.text = "";
     isLiterReadOnly.value = false;
     isIoReadOnly.value = true;
   }
@@ -675,7 +676,10 @@ class PengeluaranController extends GetxController {
         gabungan.contains("PC")) {
       hasilTipe = "AB";
       hasilSatuan = "HM";
-    } else if (gabungan.contains("GENSET") || gabungan.contains("GS")) {
+    } else if (gabungan.contains("GENSET") ||
+        gabungan.contains("GS") ||
+        gabungan.contains("WP") ||
+        gabungan.contains("GST")) {
       hasilTipe = "GS";
       hasilSatuan = "Hour";
     }
@@ -1121,11 +1125,6 @@ class PengeluaranController extends GetxController {
         "kode_unit": userKodeUnit.value,
         "kode_unit_original": selectedKodeUnitKebunPabrik.value ?? ""
       };
-
-      print("=== PAYLOAD PENGELUARAN ===");
-      final encoder = JsonEncoder.withIndent('  ');
-      print(encoder.convert(payloadRequestAPI));
-      print("==========================");
 
       List<File?> photos = [fotoOdometer.value, null, null];
       final response = await _apiService.createInboundFot(payloadMap: payloadRequestAPI, photos: photos);

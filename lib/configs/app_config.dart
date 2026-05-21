@@ -2,6 +2,6 @@ class AppConfig {
   static const bool isDevMode = true;
   static const String appName = 'E-Fuel Mobile';
 
-  static const String versionDev = 'Dev 1.0.5';
-  static const String versionProd = '1.0.5';
+  static const String versionDev = 'Dev 1.0.6';
+  static const String versionProd = '1.0.6';
 }

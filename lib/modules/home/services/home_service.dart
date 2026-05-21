@@ -17,7 +17,6 @@ class HomeService extends GetxService {
   var masterList = <BonSementaraModel>[].obs;
   var isLoading = false.obs;
 
-  // Variabel lokal untuk menyimpan context saat ini (agar tidak perlu pass parameter terus menerus)
   String _currentUnitCode = "";
   String _currentStorageCode = "";
 

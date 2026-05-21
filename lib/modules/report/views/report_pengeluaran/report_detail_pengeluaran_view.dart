@@ -47,16 +47,20 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 2,
-            child: Text(label, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
+            flex: 5,
+            child: Text(
+              label,
+              style: AppFonts.fUrbanistMedium12.copyWith(color: Colors.grey),
+            ),
           ),
-          const SizedBox(width: 8),
+
+          const SizedBox(width: 12),
+
           Expanded(
-            flex: 3,
+            flex: 5,
             child: Text(
               value,
               textAlign: TextAlign.right,
@@ -70,7 +74,6 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
     );
   }
 
-  /// Widget khusus untuk menampilkan Estimasi vs Aktual secara berdampingan
   Widget _buildLiterComparison({
     required dynamic estimasi,
     required dynamic aktual,
@@ -167,17 +170,31 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
             border: Border.all(color: selisihColor.withOpacity(0.3)),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.compare_arrows_rounded, size: 16, color: AppColors.secondaryText),
-                  const SizedBox(width: 6),
-                  Text("Selisih (Aktual - Estimasi)",
-                      style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
-                ],
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2.0),
+                      child: Icon(Icons.compare_arrows_rounded, size: 16, color: AppColors.secondaryText),
+                    ),
+                    const SizedBox(width: 6),
+
+                    Expanded(
+                      child: Text(
+                        "Selisih (Aktual - Estimasi)",
+                        style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
+              const SizedBox(width: 8),
+
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(selisihIcon, size: 14, color: selisihColor),
                   const SizedBox(width: 4),

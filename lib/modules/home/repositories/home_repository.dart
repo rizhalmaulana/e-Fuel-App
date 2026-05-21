@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import '../../fuel/services/fuel_data_service.dart';
 import '../../fuel/services/master_data_service.dart';
-import '../../transactions/penerimaan/services/penerimaan_api_service.dart';
 
 class HomeRepository {
   HomeService get _homeService => Get.find<HomeService>();
@@ -44,10 +43,17 @@ class HomeRepository {
 
     await Future.wait(masterTanks.map((tank) async {
       try {
+        // Hit ke API Latest Stock
         final response = await _homeService.getLatestStockTanks(
           unitId: unitId,
           tankCode: tank.masterSolarTank?.kodeTank ?? '',
           dateLog: today,
+        );
+
+        // Ambil data dari cache lokal (Hive) sebagai fallback
+        final offlineTank = offlineData.firstWhere(
+              (o) => o.masterSolarTank?.kodeTank == tank.masterSolarTank?.kodeTank,
+          orElse: () => tank,
         );
 
         if (response != null && response is List && response.isNotEmpty) {
@@ -67,12 +73,8 @@ class HomeRepository {
             updatedAt: DateTime.now().toIso8601String(),
             capacity: tank.capacity,
           ));
-        } else {
-          final offlineTank = offlineData.firstWhere(
-                (o) => o.masterSolarTank?.kodeTank == tank.masterSolarTank?.kodeTank,
-            orElse: () => tank,
-          );
-
+        }
+        else {
           syncedList.add(VolumeTankDetailModel(
             id: tank.id,
             unit: tank.unit,
@@ -95,7 +97,7 @@ class HomeRepository {
           unit: tank.unit,
           masterStorage: tank.masterStorage,
           masterSolarTank: tank.masterSolarTank,
-          volume: offlineTank.volume,
+          volume: offlineTank.volume, // Gunakan data cache / Hive
           height: offlineTank.height,
           updatedAt: offlineTank.updatedAt,
           capacity: tank.capacity,
