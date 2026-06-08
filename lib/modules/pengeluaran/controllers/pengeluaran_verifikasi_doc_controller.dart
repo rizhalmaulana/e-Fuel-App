@@ -397,7 +397,8 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
       await _updateLocalStatus(finalNoDoc, payload, f1.path, f2.path, f3.path);
 
-      if (Get.isDialogOpen ?? false) Get.back();
+      // Tutup loading dialog
+      Get.back();
 
       Get.dialog(
         DialogFlexible(
@@ -415,7 +416,8 @@ class PengeluaranVerifikasiDocController extends GetxController {
         barrierDismissible: false,
       );
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back();
+      // Tutup loading dialog
+      Get.back();
       print("Error: $e");
       Get.snackbar("Gagal Verifikasi", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
     }

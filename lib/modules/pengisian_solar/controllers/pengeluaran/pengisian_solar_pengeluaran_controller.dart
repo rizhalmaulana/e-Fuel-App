@@ -411,7 +411,8 @@ class PengisianSolarPengeluaranController extends GetxController {
 
       await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value!.path, fotoSupir.value!.path);
 
-      if (Get.isDialogOpen ?? false) Get.back();
+      // Tutup loading dialog
+      Get.back();
 
       Get.dialog(
         DialogFlexible(
@@ -430,7 +431,8 @@ class PengisianSolarPengeluaranController extends GetxController {
       );
 
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back();
+      // Tutup loading dialog
+      Get.back();
       print("Error Submit: $e");
       Get.snackbar("Gagal", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
     }
