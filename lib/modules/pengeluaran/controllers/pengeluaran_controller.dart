@@ -89,9 +89,9 @@ class PengeluaranController extends GetxController {
 
   // State ReadOnly
   var isPlatReadOnly = true.obs;
-  var isHmKmAwalReadOnly = true.obs;
+  var isHmKmAwalReadOnly = false.obs;
   var isHmKmAkhirReadOnly = true.obs;
-  var isDateAwalReadOnly = true.obs;
+  var isDateAwalReadOnly = false.obs;
   var isDateAkhirReadOnly = true.obs;
   var isVarianReadOnly = true.obs;
   var isRatioReadOnly = true.obs;
@@ -720,7 +720,8 @@ class PengeluaranController extends GetxController {
       // Ambil HM/KM (untuk tipe KD / AB)
       if (tipeApi == 'KD' || tipeApi == 'AB' || tipeApi == 'AD' || tipeApi == null || tipeApi.isEmpty) {
         String? hmKmAwalRaw = detail['hm_km_awal']?.toString();
-        if (hmKmAwalRaw != null && hmKmAwalRaw != 'null') {
+
+        if (hmKmAwalRaw != null && hmKmAwalRaw != 'null' && hmKmAwalRaw != '0.0' && hmKmAwalRaw != '0') {
           double val = double.tryParse(hmKmAwalRaw) ?? 0.0;
           hmKmAwalC.text = (val % 1 == 0) ? val.toInt().toString() : val.toString();
           isHmKmAwalReadOnly.value = true;
@@ -731,15 +732,16 @@ class PengeluaranController extends GetxController {
       if (tipeApi == 'GS') {
         String? tglAwal = detail['tanggal_awal']?.toString();
         String? tglAkhir = detail['tanggal_akhir']?.toString();
+
         if (tglAwal != null && tglAwal != 'null' && tglAwal.isNotEmpty) {
           try {
-            // Format dari API: yyyy-MM-dd → tampilkan dd/MM/yyyy
             final parsed = DateTime.parse(tglAwal);
             dateAwalC.text = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
             dateAwal.value = tglAwal;
             isDateAwalReadOnly.value = true;
           } catch (_) {}
         }
+
         if (tglAkhir != null && tglAkhir != 'null' && tglAkhir.isNotEmpty) {
           try {
             final parsed = DateTime.parse(tglAkhir);
@@ -768,7 +770,6 @@ class PengeluaranController extends GetxController {
     }
   }
 
-  /// Fallback: apply data dari local (HomeService) jika API tidak tersedia
   void _applyLocalDetail(dynamic detail) {
     tipeUnit.value = detail.tipe;
     satuan.value = detail.satuan;
@@ -882,7 +883,6 @@ class PengeluaranController extends GetxController {
         minHeight: 1024,
       );
 
-      // Opsional: Hapus file original untuk menghemat storage
       await file.delete();
       return result != null ? File(result.path) : null;
     } catch (e) {
