@@ -414,7 +414,7 @@ class _MyAppState extends State<MyApp> {
               bottomNavigationBar: Padding(
                 padding: const EdgeInsets.only(bottom: 20.0),
                 child: Text(
-                  '${AppConfig.appName} versi ${AppConfig.versionDev}',
+                  '${AppConfig.appName} versi ${AppConfig.versionProd}',
                   textAlign: TextAlign.center,
                   style: AppFonts.fUrbanistMedium12.copyWith(
                     color: AppColors.secondaryText,

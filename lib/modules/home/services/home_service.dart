@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:get/get.dart';
 import '../../../datas/constant/url_api_static.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
@@ -10,15 +9,11 @@ import '../repositories/home_repository.dart';
 
 class HomeService extends GetxService {
   final Dio _dio = ApiClientNetwork.dio;
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final BonSementaraLocalService _localService = BonSementaraLocalService();
   final HomeRepository repository = HomeRepository();
 
   var masterList = <BonSementaraModel>[].obs;
   var isLoading = false.obs;
-
-  String _currentUnitCode = "";
-  String _currentStorageCode = "";
 
   Options _getOptions() {
     try {
@@ -43,14 +38,11 @@ class HomeService extends GetxService {
 
   Future<void> initDataFlow(String unitCode, String storageCode) async {
     isLoading.value = true;
-    _currentUnitCode = unitCode;
-    _currentStorageCode = storageCode;
 
     try {
       await loadInitialData();
-      await syncFromRealtimeDatabase(unitCode, storageCode);
     } catch (e) {
-      print("Error Init Unit Realtime: $e");
+      print("Error Init Unit: $e");
     } finally {
       isLoading.value = false;
     }
@@ -583,76 +575,6 @@ class HomeService extends GetxService {
     }
   }
 
-  Future<void> syncFromRealtimeDatabase(String unitCode, String storageCode) async {
-    if (unitCode.isEmpty || storageCode.isEmpty) {
-      print("⚠️ Skip Sync: Unit atau Storage belum dipilih.");
-      return;
-    }
-
-    try {
-      print("🔄[Firebase] Sinkronisasi Firebase pada: $unitCode / $storageCode ...");
-      final targetRef = _dbRef.child(unitCode).child(storageCode);
-
-      final results = await Future.wait([
-        targetRef.child('InitiateKM').get(),
-        targetRef.child('InitiateRatio').get(),
-      ]).timeout(const Duration(seconds: 10));
-
-      final DataSnapshot kmSnapshot = results[0];
-      final DataSnapshot ratioSnapshot = results[1];
-
-      bool isLocalUpdated = false;
-
-      for (var item in masterList) {
-        String io = item.internalOrder ?? "";
-        if (io.isEmpty) continue;
-
-        if (kmSnapshot.hasChild(io)) {
-          final data = Map<dynamic, dynamic>.from(kmSnapshot.child(io).value as Map);
-          var newKmAwal = data['KMAwal'];
-          var newDateAwal = data['DateAwal']?.toString();
-
-          if (item.hmKmAwal != newKmAwal || item.dateAwal != newDateAwal) {
-            item.hmKmAwal = newKmAwal;
-            item.dateAwal = newDateAwal;
-            isLocalUpdated = true;
-          }
-        } else {
-          // Push Data Lokal ke Path Baru jika kosong
-          Map<String, dynamic> initialData = {};
-          if (item.tipe == 'GS') {
-            initialData['DateAwal'] = DateTime.now().toIso8601String().split('T')[0];
-          } else {
-            initialData['KMAwal'] = item.hmKmAwal ?? 0;
-            initialData['DateAwal'] = DateTime.now().toIso8601String().split('T')[0];
-          }
-          // Set ke path spesifik
-          await targetRef.child('InitiateKM').child(io).set(initialData);
-        }
-
-        // --- SYNC RATIO ---
-        if (ratioSnapshot.hasChild(io)) {
-          final data = Map<dynamic, dynamic>.from(ratioSnapshot.child(io).value as Map);
-          var newRatio = data['Ratio']?.toString();
-          if (item.ratio != newRatio) {
-            item.ratio = newRatio;
-            isLocalUpdated = true;
-          }
-        } else {
-          Map<String, dynamic> ratioData = {'Ratio': item.ratio ?? "0"};
-          await targetRef.child('InitiateRatio').child(io).set(ratioData);
-        }
-      }
-
-      if (isLocalUpdated) {
-        masterList.refresh();
-        await _localService.saveMasterList(masterList);
-      }
-    } catch (e) {
-      print("❌ Gagal Sinkronisasi Realtime Database: $e");
-    }
-  }
-
   Future<dynamic> getLatestStockTanks({
     required String unitId,
     required String tankCode,
@@ -680,7 +602,7 @@ class HomeService extends GetxService {
       String dateAkhir,
       double liter,
       String ratio,
-      {String? unitCodeOverride, String? storageCodeOverride} // Parameter baru
+      {String? unitCodeOverride, String? storageCodeOverride}
       ) async {
     int index = masterList.indexWhere((element) => element.internalOrder == io);
 
@@ -699,45 +621,6 @@ class HomeService extends GetxService {
 
       masterList.refresh();
       await _localService.updateItem(masterList[index]);
-
-      // 2. Push ke Firebase
-      // Gunakan override jika ada, jika tidak pakai context _current
-      String targetUnit = unitCodeOverride ?? _currentUnitCode;
-      String targetStorage = storageCodeOverride ?? _currentStorageCode;
-
-      await _pushToFirebase(masterList[index], dateAkhir, targetUnit, targetStorage);
-    }
-  }
-
-  Future<void> _pushToFirebase(BonSementaraModel item, String dateAkhir, String unitCode, String storageCode) async {
-    if (unitCode.isEmpty || storageCode.isEmpty) return;
-
-    try {
-      final io = item.internalOrder!;
-      final targetRef = _dbRef.child(unitCode).child(storageCode);
-
-      Map<String, dynamic> kmUpdate = {};
-
-      // Menulis ke Node 'InitiateKM' di Firebase
-      if (item.tipe == 'GS') {
-        kmUpdate['DateAwal'] = dateAkhir;
-      } else {
-        // KMAwal di Firebase diset menjadi HM/KM Akhir transaksi ini
-        kmUpdate['KMAwal'] = item.hmKmAkhir;
-
-        // DateAwal di Firebase diset ke Hari Ini (Ready for next day/tx)
-        kmUpdate['DateAwal'] = DateTime.now().toIso8601String().split('T')[0];
-      }
-
-      await targetRef.child('InitiateKM').child(io).update(kmUpdate);
-
-      Map<String, dynamic> ratioUpdate = {'Ratio': item.ratio};
-      await targetRef.child('InitiateRatio').child(io).update(ratioUpdate);
-
-      print("✅ Firebase Updated: Next Start KM for $io is ${item.hmKmAkhir}");
-
-    } catch (e) {
-      print("❌ Gagal Push ke Firebase: $e");
     }
   }
 
