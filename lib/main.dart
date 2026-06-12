@@ -30,7 +30,6 @@ import 'package:e_fuel/modules/fuel/services/fuel_data_service.dart';
 import 'package:e_fuel/modules/master_flow_process/services/flow_process_service.dart';
 import 'package:e_fuel/routes/app_pages.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -89,6 +88,7 @@ Future<void> initializeDependencies() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.initVersion();
 
   await initializeDateFormatting('id_ID', null);
   await Hive.initFlutter();

@@ -16,7 +16,9 @@ class CustomCameraView extends StatefulWidget {
 
 class _CustomCameraViewState extends State<CustomCameraView> {
   CameraController? controller;
+
   bool isCameraInitialized = false;
+  bool isTakingPicture = false;
 
   @override
   void initState() {
@@ -55,13 +57,22 @@ class _CustomCameraViewState extends State<CustomCameraView> {
   }
 
   Future<void> _takePicture() async {
-    if (!isCameraInitialized || controller == null) return;
+    if (!isCameraInitialized || controller == null || isTakingPicture) return;
+
+    setState(() {
+      isTakingPicture = true;
+    });
 
     try {
       final image = await controller!.takePicture();
       Get.back(result: image.path);
     } catch (e) {
-      print(e);
+      print("Camera Error: $e");
+      if (mounted) {
+        setState(() {
+          isTakingPicture = false;
+        });
+      }
     }
   }
 
@@ -117,7 +128,6 @@ class _CustomCameraViewState extends State<CustomCameraView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Tombol Back
                 IconButton(
                   onPressed: () => Get.back(),
                   icon: const Icon(Icons.close, color: Colors.white, size: 30),
@@ -133,8 +143,14 @@ class _CustomCameraViewState extends State<CustomCameraView> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.grey.shade400, width: 4),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.camera_alt, size: 30, color: AppColors.primary),
+                    child: Center(
+                      child: isTakingPicture
+                          ? const SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
+                      )
+                          : const Icon(Icons.camera_alt, size: 30, color: AppColors.primary),
                     ),
                   ),
                 ),

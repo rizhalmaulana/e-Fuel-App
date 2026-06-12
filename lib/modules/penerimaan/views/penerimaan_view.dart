@@ -299,7 +299,7 @@ class PenerimaanView extends GetView<PenerimaanController> {
             if (Get.previousRoute.isEmpty || Get.previousRoute == '') {
               Get.offAllNamed(Routes.HOME);
             } else {
-              Get.back();
+              Navigator.of(context).pop();
             }
           },
         ),

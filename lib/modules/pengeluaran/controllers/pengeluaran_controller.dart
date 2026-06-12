@@ -724,7 +724,7 @@ class PengeluaranController extends GetxController {
         if (hmKmAwalRaw != null && hmKmAwalRaw != 'null' && hmKmAwalRaw != '0.0' && hmKmAwalRaw != '0') {
           double val = double.tryParse(hmKmAwalRaw) ?? 0.0;
           hmKmAwalC.text = (val % 1 == 0) ? val.toInt().toString() : val.toString();
-          isHmKmAwalReadOnly.value = true;
+          // isHmKmAwalReadOnly.value = true;
         }
       }
 

@@ -37,14 +37,14 @@ class PenerimaanSebelumView extends GetView<PenerimaanSebelumController> {
               curve: Curves.easeOut,
             );
           } else {
-            Get.back();
+            Navigator.of(context).pop();
           }
         },
         child: Stack(
           children: [
             Scaffold(
               backgroundColor: AppColors.white, // Pastikan background putih
-              appBar: _buildAppBar(titleText, isTakingPhoto),
+              appBar: _buildAppBar(context, titleText, isTakingPhoto),
               body: Column(
                 children: [
                   Expanded(
@@ -70,7 +70,7 @@ class PenerimaanSebelumView extends GetView<PenerimaanSebelumController> {
     });
   }
 
-  PreferredSizeWidget _buildAppBar(String title, bool isTakingPhoto) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, String title, bool isTakingPhoto) {
     return AppBar(
       title: Text(
         title,
@@ -90,7 +90,7 @@ class PenerimaanSebelumView extends GetView<PenerimaanSebelumController> {
               curve: Curves.easeOut,
             );
           } else {
-            Get.back();
+            Navigator.of(context).pop();
           }
         },
       ),

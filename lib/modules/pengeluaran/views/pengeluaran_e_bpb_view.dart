@@ -542,7 +542,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
         if (controller.currentStep.value == 1) {
           controller.prevStep();
         } else {
-          Get.back();
+          Navigator.of(context).pop();
         }
       },
       child: Scaffold(
@@ -564,7 +564,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
               if (controller.currentStep.value == 1) {
                 controller.prevStep();
               } else {
-                Get.back();
+                Navigator.of(context).pop();
               }
             },
           ),

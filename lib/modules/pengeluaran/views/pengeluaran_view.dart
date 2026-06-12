@@ -420,7 +420,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
                           : null,
                       onTap: () {
                         controller.onUnitSelected(unit);
-                        Get.back();
+                        Navigator.of(context).pop();
                       },
                     );
                   },
@@ -654,7 +654,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
         leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios,
                 color: AppColors.primaryOrange, size: 20),
-            onPressed: () => Get.back()),
+            onPressed: () => Navigator.of(context).pop()),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(

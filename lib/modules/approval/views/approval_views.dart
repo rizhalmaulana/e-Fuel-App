@@ -566,7 +566,7 @@ class ApprovalView extends GetView<ApprovalController> {
             if (controller.currentPage.value > 0) {
               controller.prevPage();
             } else {
-              Get.back();
+              Navigator.of(context).pop();
             }
           },
         ),
