@@ -94,8 +94,10 @@ class PenerimaanApiService {
 
   Future<bool> createInboundTank(Map<String, dynamic> payload) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_TANK;
+
       final response = await _dio.post(
-        UrlApiStatic.API_CREATE_INBOUND_TANK,
+        url,
         data: payload,
         options: _getOptions(),
       );
@@ -301,8 +303,10 @@ class PenerimaanApiService {
     required String dateLog,
   }) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LATEST_STORAGE_STOCK;
+
       final response = await _dio.get(
-        UrlApiStatic.API_GET_LATEST_STORAGE_STOCK,
+        url,
         queryParameters: {
           'kode_unit': unitId,
           'kode_storage': storageCode,
@@ -332,8 +336,10 @@ class PenerimaanApiService {
     required String storageCode,
   }) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK;
+
       final response = await _dio.get(
-        UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK,
+        url,
         queryParameters: {
           'kode_unit': unitId,
           'kode_storage': storageCode,
@@ -357,8 +363,10 @@ class PenerimaanApiService {
     required String dateLog,
   }) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LATEST_TANK_STOCK;
+
       final response = await _dio.get(
-        UrlApiStatic.API_GET_LATEST_TANK_STOCK,
+        url,
         queryParameters: {
           'kode_unit': unitId,
           'kode_tank': tankCode,
@@ -378,8 +386,10 @@ class PenerimaanApiService {
     required String dateLog,
   }) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TANK_STOCK_LIST;
+
       final response = await _dio.get(
-        UrlApiStatic.API_GET_TANK_STOCK_LIST,
+        url,
         queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
         options: _getOptions(),
       );
@@ -394,8 +404,10 @@ class PenerimaanApiService {
     required String dateLog,
   }) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_FLOW_IN;
+
       final response = await _dio.get(
-        UrlApiStatic.API_GET_FLOW_IN,
+        url,
         queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
         options: _getOptions(),
       );
@@ -410,8 +422,10 @@ class PenerimaanApiService {
     required String dateLog,
   }) async {
     try {
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_FLOW_OUT;
+
       final response = await _dio.get(
-        UrlApiStatic.API_GET_FLOW_OUT,
+        url,
         queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
         options: _getOptions(),
       );
