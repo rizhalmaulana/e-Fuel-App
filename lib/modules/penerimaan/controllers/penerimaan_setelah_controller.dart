@@ -12,16 +12,19 @@ import '../../../helpers/calibration_helper.dart';
 import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../auth/services/login_service.dart';
+import '../../fuel/services/fuel_data_service.dart';
 import '../repositories/penerimaan_setelah_repository.dart';
 
 class PenerimaanSetelahController extends GetxController {
   final _loginService = Get.find<LoginService>();
+  final _fuelDataService = Get.find<FuelDataService>();
   late PenerimaanSetelahRepository _repository;
 
   TransactionModel? currentTransaction;
   String activeNoBast = "";
   String activeNoPO = "";
   String _currentUsername = "";
+  final Map<String, int> _tankCapacities = {};
 
   final isRefreshing = false.obs;
   final isLoadingData = true.obs;
@@ -89,6 +92,7 @@ class PenerimaanSetelahController extends GetxController {
 
     if (_currentUsername.isNotEmpty && activeNoBast.isNotEmpty) {
       try {
+        await _fuelDataService.openFuelDataBox(_currentUsername);
         final trx = await _repository.getTransaction(activeNoBast);
         currentTransaction = trx;
 
@@ -98,10 +102,6 @@ class PenerimaanSetelahController extends GetxController {
         if (trx != null && trx.dataSebelum != null) {
           jsonManualString = trx.dataSebelum!.manualTankDetailsJson;
           jsonIoTString = trx.dataSebelum!.iotTankDetailsJson;
-
-          if (trx.dataSebelum!.storageCode != null) {
-            _initializeTankUI(trx.dataSebelum!.storageCode!);
-          }
         }
 
         if ((jsonManualString == null || jsonManualString.isEmpty) &&
@@ -115,6 +115,10 @@ class PenerimaanSetelahController extends GetxController {
 
         _processManualBeforeData(jsonManualString);
         _processIotBeforeData(jsonIoTString);
+
+        if (trx != null && trx.dataSebelum != null && trx.dataSebelum!.storageCode != null) {
+          _initializeTankUI(trx.dataSebelum!.storageCode!);
+        }
 
         await _restoreDraft();
         _setInitialSyncTime();
@@ -197,50 +201,93 @@ class PenerimaanSetelahController extends GetxController {
         .compareTo(b.masterSolarTank?.kodeTank ?? ''));
 
     List<String> tempCodes = [];
+    _tankCapacities.clear();
 
-    for (var tank in activeTanks) {
-      String code = tank.masterSolarTank?.kodeTank ?? '';
-      if (code.isEmpty) continue;
+    if (activeTanks.isNotEmpty) {
+      for (var tank in activeTanks) {
+        String code = tank.masterSolarTank?.kodeTank ?? '';
+        if (code.isEmpty) continue;
 
-      tempCodes.add(code);
-      int tankCapacity = tank.capacity;
+        tempCodes.add(code);
+        int tankCapacity = tank.capacity;
+        _tankCapacities[code] = tankCapacity;
 
-      iotSesudahMap[code] = {
-        'volume': tank.volume,
-        'height': tank.height,
-        'display_code': code.replaceAll('_', ' ')
-      };
+        iotSesudahMap[code] = {
+          'volume': tank.volume,
+          'height': tank.height,
+          'display_code': code.replaceAll('_', ' ')
+        };
 
-      if (!manualInputControllers.containsKey(code)) {
-        final volCtrl = TextEditingController();
-        final heightCtrl = TextEditingController();
+        _setupControllersForTank(code, tankCapacity);
+      }
+    } else {
+      final fallbackList = manualBeforeList.isNotEmpty ? manualBeforeList : iotBeforeList;
+      for (var item in fallbackList) {
+        String originalCode = item['code'] ?? '';
+        String code = originalCode.replaceAll(' ', '_');
+        if (code.isEmpty) continue;
 
-        volCtrl.addListener(() {
-          _updateTotalManual();
-          refreshTrigger.value++;
+        if (!tempCodes.contains(code)) {
+          tempCodes.add(code);
+        }
 
-          if (isSensorApiActive.value && !_isInjectingApiData) {
-            _onVolumeInputChanged(code, volCtrl.text, heightCtrl, tankCapacity);
-          }
+        int tankCapacity = _findCapacityForTank(code) ?? 0;
+        _tankCapacities[code] = tankCapacity;
 
-          _saveCurrentProgressToDraft();
-        });
+        iotSesudahMap[code] = {
+          'volume': 0.0,
+          'height': 0.0,
+          'display_code': originalCode
+        };
 
-        heightCtrl.addListener(() {
-          refreshTrigger.value++;
-
-          if (!isSensorApiActive.value && !_isInjectingApiData) {
-            _onHeightInputChanged(code, heightCtrl.text, volCtrl, tankCapacity);
-          }
-
-          _saveCurrentProgressToDraft();
-        });
-
-        manualInputControllers[code] = {'volume': volCtrl, 'height': heightCtrl};
+        _setupControllersForTank(code, tankCapacity);
       }
     }
+
     activeTankCodes.assignAll(tempCodes);
     _updateTotalManual();
+  }
+
+  int? _findCapacityForTank(String code) {
+    final cachedTanks = _fuelDataService.getApiManualTanks();
+    final match = cachedTanks.firstWhereOrNull((tank) {
+      String tankCode = tank.masterSolarTank?.kodeTank ?? '';
+      return tankCode.replaceAll('_', ' ').trim().toLowerCase() ==
+          code.replaceAll('_', ' ').trim().toLowerCase();
+    });
+    return match?.capacity;
+  }
+
+  void _setupControllersForTank(String code, int tankCapacity) {
+    if (!manualInputControllers.containsKey(code)) {
+      final volCtrl = TextEditingController();
+      final heightCtrl = TextEditingController();
+
+      volCtrl.addListener(() {
+        _updateTotalManual();
+        refreshTrigger.value++;
+
+        if (isSensorApiActive.value && !_isInjectingApiData) {
+          int currentCapacity = _tankCapacities[code] ?? tankCapacity;
+          _onVolumeInputChanged(code, volCtrl.text, heightCtrl, currentCapacity);
+        }
+
+        _saveCurrentProgressToDraft();
+      });
+
+      heightCtrl.addListener(() {
+        refreshTrigger.value++;
+
+        if (!isSensorApiActive.value && !_isInjectingApiData) {
+          int currentCapacity = _tankCapacities[code] ?? tankCapacity;
+          _onHeightInputChanged(code, heightCtrl.text, volCtrl, currentCapacity);
+        }
+
+        _saveCurrentProgressToDraft();
+      });
+
+      manualInputControllers[code] = {'volume': volCtrl, 'height': heightCtrl};
+    }
   }
 
   void _onVolumeInputChanged(String tankCode, String volumeText, TextEditingController heightCtrl, int capacity) {
@@ -330,6 +377,7 @@ class PenerimaanSetelahController extends GetxController {
 
         if (getDataTangki != null) {
           capacity = getDataTangki.capacity;
+          _tankCapacities[tankCode] = capacity;
         }
 
         final stockDataTanks = await _repository.fetchLatestTankStock(
@@ -343,8 +391,9 @@ class PenerimaanSetelahController extends GetxController {
 
           double vol = _toDouble(stockDataTanks['stock_volume']) ?? _toDouble(stockDataTanks['volume']) ?? 0.0;
           double height = 0.0;
-          if (vol > 0 && capacity > 0) {
-            height = CalibrationHelper.getHeightByVolume(capacity, vol).toDouble();
+          int currentCapacity = _tankCapacities[tankCode] ?? capacity;
+          if (vol > 0 && currentCapacity > 0) {
+            height = CalibrationHelper.getHeightByVolume(currentCapacity, vol).toDouble();
           }
 
           iotSesudahMap[tankCode] = {
@@ -377,7 +426,8 @@ class PenerimaanSetelahController extends GetxController {
       _isInjectingApiData = false;
       isSensorApiActive.value = false;
       print("Error refresh: $e");
-
+      Get.snackbar("Koneksi Sensor", "Gagal mendapat respon API. Mode input manual diaktifkan.",
+          backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.TOP);
     } finally {
       isRefreshing.value = false;
     }
@@ -412,8 +462,8 @@ class PenerimaanSetelahController extends GetxController {
       double volAfterMan = getVolumeManualSesudah(code);
       double hAfterMan = getHeightManualSesudah(code);
 
-      double volBeforeIoT = _iotBeforeVolMap[code] ?? 0.0;
-      double hBeforeIoT = _iotBeforeHeightMap[code] ?? 0.0;
+      double volBeforeIoT = _iotBeforeVolMap[code.replaceAll('_', ' ')] ?? 0.0;
+      double hBeforeIoT = _iotBeforeHeightMap[code.replaceAll('_', ' ')] ?? 0.0;
 
       var iotAfterData = iotSesudahMap[code];
       num volIoTNum = iotAfterData?['volume'] ?? 0;
@@ -537,10 +587,10 @@ class PenerimaanSetelahController extends GetxController {
   }
 
   double getVolumeManualSebelum(String code) =>
-      _manualBeforeVolMap[code] ?? 0.0;
+      _manualBeforeVolMap[code.replaceAll('_', ' ')] ?? 0.0;
 
   double getHeightManualSebelum(String code) =>
-      _manualBeforeHeightMap[code] ?? 0.0;
+      _manualBeforeHeightMap[code.replaceAll('_', ' ')] ?? 0.0;
 
   double getVolumeManualSesudah(String code) {
     String txt = manualInputControllers[code]?['volume']?.text ?? '0';
