@@ -15,6 +15,22 @@ class ApprovalView extends GetView<ApprovalController> {
     String val(dynamic v, [String suffix = ""]) => (v != null) ? "$v $suffix" : "-";
     String valNum(dynamic v, [String suffix = ""]) => (v != null) ? "${double.tryParse(v.toString())?.toStringAsFixed(0) ?? v} $suffix" : "-";
 
+    String formatDensity(dynamic v) {
+      if (v == null) return "-";
+      double? val = double.tryParse(v.toString());
+      if (val == null) return "-";
+      if (val > 2.0) val = val / 10000.0;
+      return val.toStringAsFixed(4);
+    }
+
+    String formatTemperature(dynamic v, [String suffix = ""]) {
+      if (v == null) return "-";
+      double? val = double.tryParse(v.toString());
+      if (val == null) return "-";
+      if (val > 100.0) val = val / 100.0;
+      return "${val.toStringAsFixed(2)}${suffix.isNotEmpty ? ' ' + suffix : ''}";
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
@@ -39,8 +55,8 @@ class ApprovalView extends GetView<ApprovalController> {
                 _buildSectionTitle("Data Pengiriman"),
                 _buildSummaryRow("No. PO", data['no_po'] ?? "-"),
                 _buildSummaryRow("Jumlah", valNum(data['volume_vendor'], "Ltr")),
-                _buildSummaryRow("Density", valNum(data['density_vendor'])),
-                _buildSummaryRow("Tempr (Obs)", valNum(data['temp_vendor'])),
+                _buildSummaryRow("Density", formatDensity(data['density_vendor'])),
+                _buildSummaryRow("Tempr (Obs)", formatTemperature(data['temp_vendor'])),
 
                 const SizedBox(height: 4),
 

@@ -20,6 +20,22 @@ class ReportDetailPenerimaanView extends GetView<ReportDetailPenerimaanControlle
     return "$formatted $suffix".trim();
   }
 
+  String _formatDensity(dynamic value) {
+    if (value == null || value.toString().isEmpty || value == "null") return "-";
+    double? parsed = double.tryParse(value.toString());
+    if (parsed == null) return "-";
+    if (parsed > 2.0) parsed = parsed / 10000.0;
+    return parsed.toStringAsFixed(4);
+  }
+
+  String _formatTemperature(dynamic value, [String suffix = ""]) {
+    if (value == null || value.toString().isEmpty || value == "null") return "-";
+    double? parsed = double.tryParse(value.toString());
+    if (parsed == null) return "-";
+    if (parsed > 100.0) parsed = parsed / 100.0;
+    return "${parsed.toStringAsFixed(2)}${suffix.isNotEmpty ? ' ' + suffix : ''}";
+  }
+
   Widget _buildSection(String title, List<Widget> children) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -157,8 +173,8 @@ class ReportDetailPenerimaanView extends GetView<ReportDetailPenerimaanControlle
               _buildRow("Nama Supir", _val(data['supir_vendor'])),
               _buildRow("Kapasitas Vendor", _formatLiter(data['kapasitas_vendor'])),
               _buildRow("Volume Vendor", _formatLiter(data['volume_vendor'])),
-              _buildRow("Density Vendor", _val(data['density_vendor'])),
-              _buildRow("Temp Vendor", _val(data['temp_vendor'], "°C")),
+              _buildRow("Density Vendor", _formatDensity(data['density_vendor'])),
+              _buildRow("Temp Vendor", _formatTemperature(data['temp_vendor'], "°C")),
             ]),
 
             _buildSection("Pemeriksaan Segel & Terra", [

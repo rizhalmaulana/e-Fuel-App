@@ -395,6 +395,20 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
 
               String valNum(double? v, [String suffix = ""]) => (v != null) ? "${v.toStringAsFixed(0)} $suffix" : "-";
 
+              String formatDensity(double? v) {
+                if (v == null) return "-";
+                double val = v;
+                if (val > 2.0) val = val / 10000.0;
+                return val.toStringAsFixed(4);
+              }
+
+              String formatTemperature(double? v, [String suffix = ""]) {
+                if (v == null) return "-";
+                double val = v;
+                if (val > 100.0) val = val / 100.0;
+                return "${val.toStringAsFixed(2)}${suffix.isNotEmpty ? ' ' + suffix : ''}";
+              }
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -411,8 +425,8 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   _buildSectionTitle("Data Pengiriman"),
                   _buildSummaryRow("No. PO", data?.purchNo ?? "-"),
                   _buildSummaryRow("Jumlah", valNum(data?.volumeVendor, "Ltr")),
-                  _buildSummaryRow("Density", valNum(data?.densityVendor)),
-                  _buildSummaryRow("Tempr (Obs)", valNum(data?.tempVendor)),
+                  _buildSummaryRow("Density", formatDensity(data?.densityVendor)),
+                  _buildSummaryRow("Tempr (Obs)", formatTemperature(data?.tempVendor)),
 
                   const SizedBox(height: 12),
 

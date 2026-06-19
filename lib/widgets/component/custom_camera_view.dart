@@ -1,6 +1,5 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 
@@ -97,7 +96,9 @@ class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBinding
 
     try {
       final image = await controller!.takePicture();
-      Get.back(result: image.path);
+      if (mounted) {
+        Navigator.of(context).pop(image.path);
+      }
     } catch (e) {
       print("Camera Error: $e");
       if (mounted) {
@@ -161,7 +162,7 @@ class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBinding
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close, color: Colors.white, size: 30),
                 ),
 
