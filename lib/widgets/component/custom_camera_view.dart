@@ -14,7 +14,7 @@ class CustomCameraView extends StatefulWidget {
   State<CustomCameraView> createState() => _CustomCameraViewState();
 }
 
-class _CustomCameraViewState extends State<CustomCameraView> {
+class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBindingObserver {
   CameraController? controller;
 
   bool isCameraInitialized = false;
@@ -23,19 +23,57 @@ class _CustomCameraViewState extends State<CustomCameraView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initCamera();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = controller;
+
+    // If camera controller is not initialized, do nothing
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      // Free camera resource when app goes to background
+      cameraController.dispose();
+      if (mounted) {
+        setState(() {
+          isCameraInitialized = false;
+        });
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // Re-initialize camera when app returns to foreground
+      _initCamera();
+    }
   }
 
   Future<void> _initCamera() async {
     if (cameras.isEmpty) {
-      cameras = await availableCameras();
+      try {
+        cameras = await availableCameras();
+      } catch (e) {
+        print("Camera Error: $e");
+        return;
+      }
     }
 
     if (cameras.isNotEmpty) {
+      // Use ResolutionPreset.medium (usually 720p or 480p) to prevent OOM errors on lower-end devices
       controller = CameraController(
         cameras[0],
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       try {
@@ -48,12 +86,6 @@ class _CustomCameraViewState extends State<CustomCameraView> {
         print("Camera Error: $e");
       }
     }
-  }
-
-  @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
   }
 
   Future<void> _takePicture() async {

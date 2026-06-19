@@ -98,6 +98,7 @@ class PengeluaranController extends GetxController {
   var isLiterReadOnly = true.obs;
   var isIoReadOnly = true.obs;
   var isTakingPhoto = false.obs;
+  var isSubmitting = false.obs;
   var isGSReadOnly = false.obs;
 
   final tipeUnitC = TextEditingController();
@@ -828,7 +829,14 @@ class PengeluaranController extends GetxController {
   }
 
   void validateAndProceed() {
-    if (_validateForm()) _processSubmitToApi();
+    if (isSubmitting.value) return;
+    try {
+      if (_validateForm()) _processSubmitToApi();
+    } catch (e, stack) {
+      print("Error validateAndProceed: $e\n$stack");
+      Get.snackbar("Terjadi Kesalahan", "Gagal memproses data: $e",
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+    }
   }
 
   Future<void> takeOdometerPhoto() async {
@@ -916,7 +924,15 @@ class PengeluaranController extends GetxController {
       return false;
     }
 
-    if (selectedKategoriKendaraan.value!.contains('INTERNAL NON') &&
+    if (selectedKategoriKendaraan.value == null) {
+      Get.snackbar('Data Belum Lengkap', 'Pilih Kategori terlebih dahulu!',
+          backgroundColor: AppColors.alertSoftRed,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16));
+      return false;
+    }
+
+    if ((selectedKategoriKendaraan.value ?? '').contains('INTERNAL NON') &&
         selectedKodeKebunPabrik.value == null) {
       Get.snackbar(
           'Data Belum Lengkap', 'Pilih Kode Kebun/Pabrik terlebih dahulu!',
@@ -1026,6 +1042,7 @@ class PengeluaranController extends GetxController {
         onSecondaryPressed: () => Get.back(),
         primaryButtonText: "Submit",
         onPrimaryPressed: () {
+          if (isSubmitting.value) return;
           Get.back();
           _submitDataToApi();
         },
@@ -1035,6 +1052,7 @@ class PengeluaranController extends GetxController {
   }
 
   Future<void> _submitDataToApi() async {
+    isSubmitting.value = true;
     Get.dialog(
       Dialog(
         backgroundColor: Colors.white,
@@ -1146,9 +1164,11 @@ class PengeluaranController extends GetxController {
         },
       );
     } on DioException catch (e) {
+      isSubmitting.value = false;
       Get.back();
       _handleApiError(e);
     } catch (e) {
+      isSubmitting.value = false;
       Get.back();
       Get.snackbar("Error", "Terjadi kesalahan aplikasi: $e",
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);

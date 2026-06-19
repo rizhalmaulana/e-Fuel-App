@@ -111,7 +111,6 @@ class ApprovalEbpbController extends GetxController {
 
       final auth = _loginService.getCurrentAuth();
       final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
-      final kodeUnit = auth?.currentKodeUnit ?? '';
 
       await _pengeluaranService.updateStatusEBPB(
         noDoc: noDoc,
@@ -129,10 +128,53 @@ class ApprovalEbpbController extends GetxController {
         );
       }
 
+      // Check for Full Approved
+      bool isFullApproved = false;
+      String? downloadedFilePath;
+
+      if (status == 'APPROVED') {
+        // Fetch updated details to verify all levels have approved
+        final updatedDetail = await _approvalService.getEbpbDetail(noDoc);
+        if (updatedDetail != null) {
+          final approvalsList = updatedDetail['approvals'] as List?;
+          isFullApproved = approvalsList != null &&
+              approvalsList.isNotEmpty &&
+              approvalsList.every((appv) => appv['status_approve']?.toUpperCase() == 'APPROVED');
+        }
+
+        if (isFullApproved) {
+          downloadedFilePath = await _approvalService.downloadPdfDocument(noDoc);
+        }
+      }
+
       Get.back(); // Tutup loading progress dialog
       Get.offAllNamed(Routes.HOME);
-      Get.snackbar("Sukses", "Dokumen E-BPB berhasil diproses ($status)",
-          backgroundColor: Colors.green, colorText: Colors.white);
+
+      if (isFullApproved) {
+        if (downloadedFilePath != null) {
+          Get.snackbar(
+            "Full Approved!",
+            "Dokumen E-BPB berhasil diunduh.",
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+
+          // 🟢 Buka file PDF secara otomatis!
+          await Future.delayed(const Duration(milliseconds: 500)); // Beri jeda sedikit agar transisi ke Home mulus
+          await OpenFilex.open(downloadedFilePath);
+        } else {
+          // Jika gagal mendownload dari server
+          Get.snackbar(
+            "Full Approved!",
+            "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+          );
+        }
+      } else {
+        Get.snackbar("Sukses", "Dokumen E-BPB berhasil diproses ($status)",
+            backgroundColor: Colors.green, colorText: Colors.white);
+      }
           
     } catch (e) {
       Get.back(); // Tutup loading progress dialog

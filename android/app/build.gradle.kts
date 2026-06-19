@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.teladan_prima_agro.efuel"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

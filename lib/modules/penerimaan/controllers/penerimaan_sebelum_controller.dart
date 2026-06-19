@@ -310,8 +310,8 @@ class PenerimaanSebelumController extends GetxController {
     noPoController.text = draft.purchNo ?? "";
     noDoController.text = draft.vendorSpb ?? "";
     jumlahLtrController.text = formatVal(draft.volumeVendor);
-    densityObsController.text = formatVal(draft.densityVendor);
-    temperatureObsController.text = formatVal(draft.tempVendor);
+    densityObsController.text = draft.densityVendor?.toStringAsFixed(4) ?? "";
+    temperatureObsController.text = draft.tempVendor?.toStringAsFixed(2) ?? "";
     noPolisiController.text = draft.nopolVendor ?? "";
     namaSopirController.text = draft.supirVendor ?? "";
     kapasitasTangkiController.text = formatVal(draft.kapasitasVendor);
@@ -352,8 +352,8 @@ class PenerimaanSebelumController extends GetxController {
       'purch_no': noPoController.text,
       'vendor_spb': noDoController.text,
       'volume_vendor': TextConvertHelper().cleanNumber(jumlahLtrController.text),
-      'density_vendor': TextConvertHelper().cleanNumber(densityObsController.text),
-      'temp_vendor': TextConvertHelper().cleanNumber(temperatureObsController.text),
+      'density_vendor': TextConvertHelper().parseToDouble(densityObsController.text),
+      'temp_vendor': TextConvertHelper().parseToDouble(temperatureObsController.text),
       'nopol_vendor': noPolisiController.text.toUpperCase(),
       'supir_vendor': namaSopirController.text.toUpperCase(),
       'kapasitas_vendor': TextConvertHelper().cleanNumber(kapasitasTangkiController.text),

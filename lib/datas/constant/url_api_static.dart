@@ -23,6 +23,7 @@ class UrlApiStatic {
 
   static String API_CREATE_TRANSACTION_EBPB = '/e_fuel/transaksi-ebpb/create';
   static String API_GET_TRANSACTION_DETAIL_EBPB = '/e_fuel/transaksi-ebpb/detail';
+  static String API_EXPORT_EBPB_PDF_DOC = '/e_fuel/transaksi-ebpb/export-pdf/{no_doc}';
 
   // GET
   static String API_GET_UNIT = '/unit-list';

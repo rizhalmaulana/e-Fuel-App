@@ -59,7 +59,12 @@ class ApprovalService {
   Future<String?> downloadPdfDocument(String noDoc) async {
     try {
       final auth = _loginService.getCurrentAuth();
-      String url = UrlApiStatic.API_EXPORT_PDF_DOC.replaceAll('{no_doc}', noDoc);
+      
+      bool isEbpb = noDoc.toUpperCase().contains('E-BPB');
+      String endpoint = isEbpb 
+          ? UrlApiStatic.API_EXPORT_EBPB_PDF_DOC 
+          : UrlApiStatic.API_EXPORT_PDF_DOC;
+      String url = endpoint.replaceAll('{no_doc}', noDoc);
 
       Directory? dir;
       if (Platform.isAndroid) {
@@ -71,7 +76,9 @@ class ApprovalService {
         dir = await getApplicationDocumentsDirectory();
       }
 
-      String savePath = '${dir?.path}/BAST_$noDoc.pdf';
+      String safeDocName = noDoc.replaceAll('/', '_').replaceAll(' ', '');
+      String prefix = isEbpb ? 'EBPB' : 'BAST';
+      String savePath = '${dir?.path}/${prefix}_$safeDocName.pdf';
 
       final response = await _dio.download(
         url,
@@ -85,12 +92,12 @@ class ApprovalService {
 
       if (response.statusCode == 200) {
         print("✅ Berhasil download PDF: $savePath");
-        return savePath; // 🟢 Kembalikan path file jika sukses
+        return savePath;
       }
-      return null; // 🟢 Kembalikan null jika gagal
+      return null;
     } catch (e) {
-      print("❌ Error download PDF BAST: $e");
-      return null; // 🟢 Kembalikan null jika error
+      print("❌ Error download PDF BAST/EBPB: $e");
+      return null;
     }
   }
 
