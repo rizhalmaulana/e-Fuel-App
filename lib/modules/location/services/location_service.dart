@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:e_fuel/widgets/component/custom_snackbar.dart';
+import 'package:e_fuel/configs/app_colors.dart';
 
 class LocationService extends GetxService {
   Position? currentPosition;
@@ -9,14 +11,22 @@ class LocationService extends GetxService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        Get.snackbar("Akses Ditolak", "Izin Lokasi diperlukan untuk mengambil foto dengan koordinat.");
+        CustomSnackbar.show(
+          title: "Akses Ditolak",
+          message: "Izin Lokasi diperlukan untuk mengambil foto dengan koordinat.",
+          backgroundColor: AppColors.error,
+        );
         return null;
       }
     }
 
     bool isServiceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!isServiceEnabled) {
-      Get.snackbar("Lokasi Mati", "Harap aktifkan layanan lokasi (GPS) Anda.");
+      CustomSnackbar.show(
+        title: "Lokasi Mati",
+        message: "Harap aktifkan layanan lokasi (GPS) Anda.",
+        backgroundColor: AppColors.error,
+      );
       return null;
     }
 

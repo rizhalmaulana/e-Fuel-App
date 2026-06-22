@@ -37,13 +37,15 @@ import '../modules/report/views/report_penerimaan/report_detail_penerimaan_view.
 import '../modules/report/views/report_penerimaan/report_penerimaan_view.dart';
 import '../modules/report/views/report_pengeluaran/report_detail_pengeluaran_view.dart';
 import '../modules/report/views/report_pengeluaran/report_pengeluaran_view.dart';
+import 'package:e_fuel/modules/splash/bindings/splash_binding.dart';
+import 'package:e_fuel/modules/splash/views/splash_view.dart';
 
 part 'app_routes.dart';
 
 class AppPages {
   AppPages._();
 
-  static const INITIAL = Routes.HOME;
+  static const INITIAL = Routes.SPLASH;
   static const LOGIN = Routes.LOGIN;
   static const HOME = Routes.HOME;
 
@@ -66,6 +68,13 @@ class AppPages {
   static const REPORT_PENGELUARAN = Routes.REPORT_PENGELUARAN;
 
   static final routes = [
+    GetPage(
+      name: Routes.SPLASH,
+      page: () => const SplashView(),
+      binding: SplashBinding(),
+      transition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
     GetPage(
       name: Routes.LOGIN,
       page: () => const LoginView(),

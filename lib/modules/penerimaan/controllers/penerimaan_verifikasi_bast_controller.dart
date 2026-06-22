@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:e_fuel/configs/app_lotties.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import 'package:lottie/lottie.dart';
 import 'package:signature/signature.dart';
 
@@ -156,7 +157,12 @@ class PenerimaanVerifikasiBastController extends GetxController {
       _calculateHeaderData(restoredList);
 
     } catch (e) {
-      Get.snackbar("Error Data", "Gagal memulihkan data pengukuran: $e");
+      CustomSnackbar.show(
+        title: "Error Data",
+        message: "Gagal memulihkan data pengukuran: $e",
+        backgroundColor: AppColors.error,
+        textColor: AppColors.white,
+      );
     }
   }
 
@@ -244,13 +250,23 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   bool _validateStepPengukuran() {
     if (volumePengirimController.text.trim().isEmpty) {
-      Get.snackbar("Data Kurang", "Volume Pengirim wajib diisi.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      CustomSnackbar.show(
+        title: "Data Kurang",
+        message: "Volume Pengirim wajib diisi.",
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: AppColors.white,
+      );
       return false;
     }
 
     double volDiterima = double.tryParse(volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
     if (volDiterima <= 0) {
-      Get.snackbar("Data Invalid", "Volume Solar Diterima masih 0 atau minus. Pastikan data pengukuran valid.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      CustomSnackbar.show(
+        title: "Data Invalid",
+        message: "Volume Solar Diterima masih 0 atau minus. Pastikan data pengukuran valid.",
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: AppColors.white,
+      );
       return false;
     }
     return true;
@@ -258,7 +274,12 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   bool _validateStepGudang() {
     if (signatureGudangController.isEmpty) {
-      Get.snackbar("Tanda Tangan Kosong", "Mohon lengkapi Tanda Tangan Bagian Gudang.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      CustomSnackbar.show(
+        title: "Tanda Tangan Kosong",
+        message: "Mohon lengkapi Tanda Tangan Bagian Gudang.",
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: AppColors.white,
+      );
       return false;
     }
     return true;
@@ -266,7 +287,12 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   bool _validateStepSupir() {
     if (signatureSupirController.isEmpty) {
-      Get.snackbar("Tanda Tangan Kosong", "Mohon lengkapi Tanda Tangan Supir / Pengirim.", backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      CustomSnackbar.show(
+        title: "Tanda Tangan Kosong",
+        message: "Mohon lengkapi Tanda Tangan Supir / Pengirim.",
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: AppColors.white,
+      );
       return false;
     }
     return true;

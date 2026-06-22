@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:e_fuel/datas/constant/url_api_static.dart';
 import 'package:e_fuel/datas/constant/value_key_static.dart';
 import 'package:e_fuel/modules/auth/services/login_user_service.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
@@ -96,6 +97,16 @@ class LoginService extends GetxService {
     final isLoggedIn = await _loginUserService.checkLoginStatus();
     if (isLoggedIn) {
       _updateBoxReferences();
+      try {
+        final auth = getCurrentAuth();
+        if (auth != null) {
+          final username = auth.user.username;
+          FirebaseCrashlytics.instance.setUserIdentifier(username);
+          FirebaseCrashlytics.instance.setCustomKey('username', username);
+        }
+      } catch (e) {
+        print("Gagal set user identifier di Crashlytics: $e");
+      }
     }
     return isLoggedIn;
   }
@@ -130,6 +141,14 @@ class LoginService extends GetxService {
     await _userAuthBox?.clear();
     await _userAuthBox?.put(ValueKeyStatic.AUTH_DATA_KEY, authResponse);
 
+    try {
+      final username = authResponse.user.username;
+      FirebaseCrashlytics.instance.setUserIdentifier(username);
+      FirebaseCrashlytics.instance.setCustomKey('username', username);
+    } catch (e) {
+      print("Gagal set user identifier di Crashlytics: $e");
+    }
+
     await _tokenBox!.clear();
     if (authResponse.access.isNotEmpty) {
       await _tokenBox!.put(ValueKeyStatic.TOKEN_ACCESS_KEY, authResponse.access);
@@ -149,6 +168,13 @@ class LoginService extends GetxService {
 
     _userAuthBox = null;
     _tokenBox = null;
+
+    try {
+      FirebaseCrashlytics.instance.setUserIdentifier("");
+      FirebaseCrashlytics.instance.setCustomKey('username', "");
+    } catch (e) {
+      print("Gagal clear user identifier di Crashlytics: $e");
+    }
   }
 
   void _updateBoxReferences() {

@@ -275,7 +275,7 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Obx(() {

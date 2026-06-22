@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 
 import '../../../configs/app_colors.dart';
@@ -126,7 +127,11 @@ class PenerimaanSetelahController extends GetxController {
         await refreshSensorData();
 
       } catch (e) {
-        Get.snackbar("Error", "Gagal memuat data transaksi: $e");
+        CustomSnackbar.show(
+          title: "Error",
+          message: "Gagal memuat data transaksi: $e",
+          backgroundColor: AppColors.error,
+        );
       }
     }
     isLoadingData.value = false;
@@ -414,11 +419,19 @@ class PenerimaanSetelahController extends GetxController {
       _updateTotalManual();
 
       if (anyDataFound) {
-        Get.snackbar("Koneksi Sukses", "Data volume diambil otomatis dari sensor IoT terbaru.",
-            backgroundColor: Colors.green, colorText: Colors.white, snackPosition: SnackPosition.TOP);
+        CustomSnackbar.show(
+          title: "Koneksi Sukses",
+          message: "Data volume diambil otomatis dari sensor IoT terbaru.",
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+        );
       } else {
-        Get.snackbar("Koneksi Sensor", "Gagal mendapat respon API. Mode input manual diaktifkan.",
-            backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.TOP);
+        CustomSnackbar.show(
+          title: "Koneksi Sensor",
+          message: "Gagal mendapat respon API. Mode input manual diaktifkan.",
+          backgroundColor: Colors.orange,
+          textColor: Colors.white,
+        );
       }
 
       _setInitialSyncTime();
@@ -426,8 +439,12 @@ class PenerimaanSetelahController extends GetxController {
       _isInjectingApiData = false;
       isSensorApiActive.value = false;
       print("Error refresh: $e");
-      Get.snackbar("Koneksi Sensor", "Gagal mendapat respon API. Mode input manual diaktifkan.",
-          backgroundColor: Colors.orange, colorText: Colors.white, snackPosition: SnackPosition.TOP);
+      CustomSnackbar.show(
+        title: "Koneksi Sensor",
+        message: "Gagal mendapat respon API. Mode input manual diaktifkan.",
+        backgroundColor: Colors.orange,
+        textColor: Colors.white,
+      );
     } finally {
       isRefreshing.value = false;
     }
@@ -522,13 +539,11 @@ class PenerimaanSetelahController extends GetxController {
     }
 
     if (!isValid) {
-      Get.snackbar(
-        "Validasi Gagal",
-        errorMessage,
+      CustomSnackbar.show(
+        title: "Validasi Gagal",
+        message: errorMessage,
         backgroundColor: AppColors.alertSoftRed,
-        colorText: AppColors.white,
-        snackPosition: SnackPosition.TOP,
-        margin: const EdgeInsets.all(16),
+        textColor: AppColors.white,
       );
       return;
     }
@@ -567,8 +582,12 @@ class PenerimaanSetelahController extends GetxController {
   // --- HELPERS ---
   void _handleErrorData(String message) {
     isLoadingData.value = false;
-    Get.snackbar("Error Data", message,
-        backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white);
+    CustomSnackbar.show(
+      title: "Error Data",
+      message: message,
+      backgroundColor: AppColors.alertSoftRed,
+      textColor: AppColors.white,
+    );
   }
 
   void _setInitialSyncTime() {

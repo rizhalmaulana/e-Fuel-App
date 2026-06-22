@@ -4,7 +4,7 @@ class AppConfig {
   static const bool isDevMode = true;
   static const String appName = 'E-Fuel Mobile';
 
-  static String _version = '1.0.0'; // Default fallback
+  static String _version = '1.0.7+4'; // Default fallback
 
   static Future<void> initVersion() async {
     try {

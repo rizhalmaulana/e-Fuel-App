@@ -9,6 +9,7 @@ import 'package:e_fuel/modules/master_flow_process/services/flow_process_service
 import 'package:e_fuel/modules/penerimaan/repositories/penerimaan_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 
 import '../../../configs/app_fonts.dart';
@@ -492,9 +493,12 @@ class PenerimaanController extends GetxController {
     if (selectedStorage.value.isEmpty ||
         selectedStorage.value == 'Pilih Storage' ||
         selectedStorage.value == 'Pilih Lokasi Storage') {
-      Get.snackbar("Terjadi kesalahan", "Silahkan pilih Storage Tank dahulu.",
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white,
-          snackPosition: SnackPosition.TOP, margin: const EdgeInsets.all(16));
+      CustomSnackbar.show(
+        title: "Terjadi kesalahan",
+        message: "Silahkan pilih Storage Tank dahulu.",
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: Colors.white,
+      );
       return false;
     }
 
@@ -506,9 +510,12 @@ class PenerimaanController extends GetxController {
       if (ctrls == null) continue;
       final String h = ctrls['height']!.text;
       if (h.isEmpty || h == '0') {
-        Get.snackbar("Data Belum Lengkap", "Tinggi tangki $code wajib diisi.",
-            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white,
-            snackPosition: SnackPosition.TOP, margin: const EdgeInsets.all(16));
+        CustomSnackbar.show(
+          title: "Data Belum Lengkap",
+          message: "Tinggi tangki $code wajib diisi.",
+          backgroundColor: AppColors.alertSoftRed,
+          textColor: Colors.white,
+        );
         return false;
       }
     }
@@ -718,10 +725,12 @@ class PenerimaanController extends GetxController {
     if (msg.contains("Timeout") || msg.contains("time out")) msg = "RTO: Server tidak merespon.";
     else if (msg.contains("SocketException")) msg = "Koneksi internet bermasalah.";
     else if (msg.length > 100) msg = "${msg.substring(0, 100)}...";
-    Get.snackbar("Gagal Submit", msg,
-        backgroundColor: AppColors.alertSoftRed, colorText: Colors.white,
-        snackPosition: SnackPosition.TOP, margin: const EdgeInsets.all(16),
-        icon: const Icon(Icons.error_outline, color: Colors.white));
+    CustomSnackbar.show(
+      title: "Gagal Submit",
+      message: msg,
+      backgroundColor: AppColors.alertSoftRed,
+      textColor: Colors.white,
+    );
   }
 
   String _getStorageCode(String full) {

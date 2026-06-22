@@ -32,6 +32,7 @@ abstract class Routes {
 
   static const REPORT_PENGELUARAN = _Paths.REPORT_PENGELUARAN;
   static const REPORT_DETAIL_PENGELUARAN = _Paths.REPORT_DETAIL_PENGELUARAN;
+  static const SPLASH = _Paths.SPLASH;
 }
 
 abstract class _Paths {
@@ -60,4 +61,5 @@ abstract class _Paths {
 
   static const REPORT_PENGELUARAN = '/report-pengeluaran';
   static const REPORT_DETAIL_PENGELUARAN = '/report-detail-pengeluaran';
+  static const SPLASH = '/splash';
 }

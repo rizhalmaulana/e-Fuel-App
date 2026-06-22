@@ -189,7 +189,7 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary, size: 20),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Column(

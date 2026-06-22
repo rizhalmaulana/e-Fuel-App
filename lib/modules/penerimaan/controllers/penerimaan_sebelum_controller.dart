@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart' hide MultipartFile, FormData;
+import '../../../widgets/component/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 
@@ -406,13 +407,11 @@ class PenerimaanSebelumController extends GetxController {
     }
 
     if (errorMessage.isNotEmpty) {
-      Get.snackbar(
-        "Data Belum Lengkap",
-        errorMessage,
+      CustomSnackbar.show(
+        title: "Data Belum Lengkap",
+        message: errorMessage,
         backgroundColor: AppColors.alertSoftRed,
-        colorText: AppColors.white,
-        snackPosition: SnackPosition.TOP,
-        margin: const EdgeInsets.all(16),
+        textColor: AppColors.white,
       );
       return false;
     }
@@ -451,7 +450,12 @@ class PenerimaanSebelumController extends GetxController {
       );
     } catch (e) {
       if (kDebugMode) print('Error saat takePhoto: $e');
-      Get.snackbar("Gagal Mengambil Foto", "Terjadi error: $e");
+      CustomSnackbar.show(
+        title: "Gagal Mengambil Foto",
+        message: "Terjadi error: $e",
+        backgroundColor: AppColors.error,
+        textColor: AppColors.white,
+      );
     } finally {
       isTakingPhoto.value = false;
     }
@@ -490,7 +494,12 @@ class PenerimaanSebelumController extends GetxController {
     debugPrint("Storage Choose: $currentStorage");
 
     if (currentStorage == 'Pilih Lokasi Storage' || currentStorage.isEmpty) {
-      Get.snackbar('Mohon Maaf', 'Silahkan pilih lokasi storage yang valid di halaman Home terlebih dahulu.', backgroundColor: AppColors.alertSoftRed, colorText: AppColors.white, snackPosition: SnackPosition.TOP);
+      CustomSnackbar.show(
+        title: 'Mohon Maaf',
+        message: 'Silahkan pilih lokasi storage yang valid di halaman Home terlebih dahulu.',
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: AppColors.white,
+      );
       return;
     }
 
