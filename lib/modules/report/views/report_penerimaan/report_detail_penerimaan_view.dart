@@ -25,7 +25,8 @@ class ReportDetailPenerimaanView extends GetView<ReportDetailPenerimaanControlle
     double? parsed = double.tryParse(value.toString());
     if (parsed == null) return "-";
     if (parsed > 2.0) parsed = parsed / 10000.0;
-    return parsed.toStringAsFixed(4);
+    final str = parsed.toStringAsFixed(4);
+    return str.contains('.') ? str.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : str;
   }
 
   String _formatTemperature(dynamic value, [String suffix = ""]) {

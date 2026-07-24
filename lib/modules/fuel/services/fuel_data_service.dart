@@ -82,7 +82,7 @@ class FuelDataService {
   // REGION 3: USER DRAFT INPUT (Persisted User Input)
   // ===========================================================================
 
-  Future<void> saveManualTankInput({
+  Future<void> saveManualTankInputService({
     required String tankCode,
     required double volume,
     required double height,

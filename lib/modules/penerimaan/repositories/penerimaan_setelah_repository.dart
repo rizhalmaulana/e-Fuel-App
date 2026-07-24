@@ -26,11 +26,11 @@ class PenerimaanSetelahRepository {
 
   // --- TRANSACTION OPERATIONS ---
   Future<TransactionModel?> getTransaction(String noBast) async {
-    return await _outstandingService.getTransactionByNoBast(noBast);
+    return await _outstandingService.getTransactionByNoBastService(noBast);
   }
 
   Future<void> updateTransactionStatus(String noBast, String status) async {
-    await _outstandingService.updateStatus(noBast, status);
+    await _outstandingService.updateStatusService(noBast, status);
   }
 
   // --- SENSOR & MASTER DATA ---
@@ -65,7 +65,7 @@ class PenerimaanSetelahRepository {
   }
 
   Future<double?> getLiterFromCalibration(int capacity, double heightMm) async {
-    return await _masterDataService.getLiterFromCalibration(
+    return await _masterDataService.getLiterFromCalibrationService(
         kapasitas: capacity,
         tinggiMm: heightMm
     );
@@ -77,7 +77,7 @@ class PenerimaanSetelahRepository {
   }
 
   Future<Map<dynamic, dynamic>?> getDraft(String noBast) async {
-    return await _draftService.getDraftSesudah(noBast);
+    return await _draftService.getDraftSesudahService(noBast);
   }
 
   // --- HELPER PARSING ---

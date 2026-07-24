@@ -44,9 +44,9 @@ class PengisianSolarPenerimaanRepository {
 
   // --- TRANSACTION STATUS OPERATIONS ---
   Future<void> updateTransactionStatus(String noBast, String status) async {
-    await _outstandingService.updateStatus(noBast, status);
+    await _outstandingService.updateStatusService(noBast, status);
     
-    TransactionModel? transaction = await _outstandingService.getTransactionByNoBast(noBast);
+    TransactionModel? transaction = await _outstandingService.getTransactionByNoBastService(noBast);
     if (transaction != null) {
       transaction.status = status;
       await transaction.save();

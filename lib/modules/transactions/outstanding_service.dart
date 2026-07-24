@@ -67,7 +67,7 @@ class OutstandingService {
   // REGION: PENERIMAAN (EXISTING)
   // ===========================================================================
 
-  Future<TransactionModel?> getTransactionByNoBast(String noBast) async {
+  Future<TransactionModel?> getTransactionByNoBastService(String noBast) async {
     final box = await _getBoxPenerimaan();
     if (box.containsKey(noBast)) return box.get(noBast);
     try {
@@ -82,7 +82,7 @@ class OutstandingService {
     await box.put(data.noBast, data);
   }
 
-  Future<void> updateStatus(String noBast, String newStatus, {String? levelApproval, int? stepApproval}) async {
+  Future<void> updateStatusService(String noBast, String newStatus, {String? levelApproval, int? stepApproval}) async {
     final box = await _getBoxPenerimaan();
     var transaction = box.get(noBast);
 

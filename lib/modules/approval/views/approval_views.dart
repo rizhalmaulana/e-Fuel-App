@@ -20,7 +20,8 @@ class ApprovalView extends GetView<ApprovalController> {
       double? val = double.tryParse(v.toString());
       if (val == null) return "-";
       if (val > 2.0) val = val / 10000.0;
-      return val.toStringAsFixed(4);
+      final str = val.toStringAsFixed(4);
+      return str.contains('.') ? str.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : str;
     }
 
     String formatTemperature(dynamic v, [String suffix = ""]) {
@@ -72,7 +73,7 @@ class ApprovalView extends GetView<ApprovalController> {
                 _buildSummaryRow("Tinggi Terra Zounding (mm)", valNum(data['terra_check'])),
                 _buildSummaryRow("Selisih Tinggi Terra (mm)", valNum(data['terra_var'])),
                 _buildSummaryRow("Nilai Kepekaan (mm/Ltr)", data['tangki_peka'] ?? "-"),
-                _buildSummaryRow("Selisih Volume Terra (Ltr)", valNum(data['selisih_volume_terra'])),
+                _buildSummaryRow("Selisih Volume Terra (Ltr)", valNum(data['selisih_vol_tera'])),
                 _buildSummaryRow("Segel Tangki Atas", data['segel_tangki_atas'] ?? "-"),
                 _buildSummaryRow("Segel Tangki Bawah", data['segel_tangki_bawah'] ?? "-"),
                 _buildSummaryRow("Kondisi Segel", data['segel_kondisi'] ?? "-"),

@@ -31,7 +31,7 @@ class PenerimaanVerifikasiBastRepository {
   // --- CALIBRATION ---
 
   Future<double?> getLiterFromCalibration(int capacity, double heightMm) async {
-    return await _masterDataService.getLiterFromCalibration(
+    return await _masterDataService.getLiterFromCalibrationService(
         kapasitas: capacity,
         tinggiMm: heightMm
     );
@@ -40,22 +40,22 @@ class PenerimaanVerifikasiBastRepository {
   // --- TRANSACTION & DRAFT ---
 
   Future<TransactionModel?> getTransaction(String noBast) async {
-    return await _outstandingService.getTransactionByNoBast(noBast);
+    return await _outstandingService.getTransactionByNoBastService(noBast);
   }
 
   Future<Map<dynamic, dynamic>?> getDraftSesudah(String noBast) async {
-    return await _draftService.getDraftSesudah(noBast);
+    return await _draftService.getDraftSesudahService(noBast);
   }
 
   Future<void> updateLocalTransactionStatus(String noBast, String status, {String? levelApproval, int? stepApproval}) async {
-    await _outstandingService.updateStatus(
+    await _outstandingService.updateStatusService(
         noBast,
         status,
         levelApproval: levelApproval,
         stepApproval: stepApproval
     );
 
-    var transaction = await _outstandingService.getTransactionByNoBast(noBast);
+    var transaction = await _outstandingService.getTransactionByNoBastService(noBast);
     if (transaction != null) {
       transaction.status = status;
       await transaction.save();
@@ -63,7 +63,7 @@ class PenerimaanVerifikasiBastRepository {
   }
 
   Future<void> saveManualTankInput({required String tankCode, required double volume, required double height}) async {
-    await _fuelDataService.saveManualTankInput(
+    await _fuelDataService.saveManualTankInputService(
         tankCode: tankCode,
         volume: volume,
         height: height
@@ -77,7 +77,7 @@ class PenerimaanVerifikasiBastRepository {
     required String kodeUnit,
     required bool statusActive,
   }) async {
-    return await _apiService.getKonfigurasiApproval(
+    return await _apiService.getKonfigurasiApprovalService(
       transactionType: transactionType,
       kodeUnit: kodeUnit,
       statusActive: statusActive,
@@ -85,7 +85,7 @@ class PenerimaanVerifikasiBastRepository {
   }
 
   Future<void> createInboundTank(Map<String, dynamic> payload) async {
-    await _apiService.createInboundTank(payload);
+    await _apiService.createInboundTankService(payload);
   }
 
   Future<void> createTransactionApproval({
@@ -93,7 +93,7 @@ class PenerimaanVerifikasiBastRepository {
     required String kodeUnit,
     required String transactionType,
   }) async {
-    await _apiService.createTransactionApproval(
+    await _apiService.createTransactionApprovalService(
       noDoc: noDoc,
       kodeUnit: kodeUnit,
       transactionType: transactionType,
@@ -108,7 +108,7 @@ class PenerimaanVerifikasiBastRepository {
     required bool isSign,
     required bool isPartnerSign,
   }) async {
-    await _apiService.updateStatusTransactionApproval(
+    await _apiService.updateStatusTransactionApprovalService(
       noDoc: noDoc,
       levelApproval: levelApproval,
       statusApprove: statusApprove,
@@ -124,11 +124,23 @@ class PenerimaanVerifikasiBastRepository {
     required File imageSign1,
     required File imageSign2,
   }) async {
-    await _apiService.uploadSignatureTransactionApproval(
+    await _apiService.uploadSignatureTransactionApprovalService(
       noDoc: noDoc,
       levelApproval: levelApproval,
       imageSign1: imageSign1,
       imageSign2: imageSign2,
+    );
+  }
+
+  Future<void> uploadSignatureSecurity({
+    required String noDoc,
+    required File imageSign3,
+    required String securityName
+  }) async {
+    await _apiService.uploadSignatureSecurityService(
+      noDoc: noDoc,
+      imageSign3: imageSign3,
+      securityName: securityName
     );
   }
 

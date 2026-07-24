@@ -11,6 +11,7 @@ class UrlApiStatic {
   static String API_CREATE_TRANSACTION_APPROVAL = '/e_fuel/transaksi-approval/create';
   static String API_POST_FCM_TOKEN = '/absensi/user-devices';
   static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
+  static String API_POST_SIGNATURE_SECURITY = '/e_fuel/transaksi-approval/upload-signature-security/{no_doc}';
   static String API_POST_IMAGE_PENGELUARAN = '/e_fuel/inbound-open/upload-photos/{no_doc}';
   static String API_POST_ACTUAL_LITER_PENGELUARAN = '/e_fuel/inbound-open/update-aktual-liter/{no_doc}';
 

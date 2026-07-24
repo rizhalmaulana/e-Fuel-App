@@ -399,7 +399,8 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                 if (v == null) return "-";
                 double val = v;
                 if (val > 2.0) val = val / 10000.0;
-                return val.toStringAsFixed(4);
+                final str = val.toStringAsFixed(4);
+                return str.contains('.') ? str.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : str;
               }
 
               String formatTemperature(double? v, [String suffix = ""]) {
@@ -460,7 +461,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
-                    child: _buildSummaryRow("Varian (Sisa di Pengirim)", "${controller.varianController.text} Ltr"),
+                    child: _buildSummaryRow("Varian Solar", "${controller.varianController.text} Ltr"),
                   ),
                 ],
               );
@@ -538,7 +539,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
   }
 
   // --- STEP 4: SUPIR ---
-  Widget _buildStep4Supir(BuildContext context) {
+  Widget _buildStep4Partner(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
@@ -546,9 +547,17 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           _buildSignatureCard(
             title: "Supir / Partner",
             placeholder: "Tanda Tangan Pengirim disini",
-            signatureController: controller.signatureSupirController,
+            signatureController: controller.signaturePartnerController,
           ),
-          const SizedBox(height: 80),
+          const SizedBox(height: 20),
+          _buildSignatureCard(
+            title: "Security",
+            placeholder: "Tanda Tangan Security disini",
+            signatureController: controller.signatureSecurityController,
+            noteController: controller.securityNameController,
+            noteLabel: "Nama Security"
+          ),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -685,7 +694,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                 _buildStep1Pengecekan(context),
                 _buildStep2Pengukuran(context),
                 _buildStep3Gudang(context),
-                _buildStep4Supir(context),
+                _buildStep4Partner(context),
               ],
             ),
           ),

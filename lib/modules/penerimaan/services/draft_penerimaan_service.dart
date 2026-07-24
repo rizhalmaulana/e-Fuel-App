@@ -37,7 +37,7 @@ class DraftPenerimaanService {
     await box.put('form_data', formData);
   }
 
-  Future<Map<dynamic, dynamic>?> getDraftSesudah(String noBast) async {
+  Future<Map<dynamic, dynamic>?> getDraftSesudahService(String noBast) async {
     final box = await _openSesudahBox(noBast);
     return box.get('form_data');
   }

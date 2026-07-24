@@ -150,7 +150,7 @@ class PenerimaanRepository {
   }
 
   Future<double?> getLiterFromCalibration(int capacity, double heightMm) async {
-    return await _masterDataService.getLiterFromCalibration(
+    return await _masterDataService.getLiterFromCalibrationService(
         kapasitas: capacity,
         tinggiMm: heightMm
     );
@@ -175,7 +175,7 @@ class PenerimaanRepository {
   }
 
   Future<void> updateLocalTransactionDetails(String noBast, List<Map<String, dynamic>> manualData, List<Map<String, dynamic>> iotData) async {
-    var trx = await _outstandingService.getTransactionByNoBast(noBast);
+    var trx = await _outstandingService.getTransactionByNoBastService(noBast);
     if (trx != null && trx.dataSebelum != null) {
       trx.dataSebelum!.manualTankDetailsJson = jsonEncode(manualData);
       trx.dataSebelum!.iotTankDetailsJson = jsonEncode(iotData);

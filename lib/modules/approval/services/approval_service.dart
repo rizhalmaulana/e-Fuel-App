@@ -163,7 +163,7 @@ class ApprovalService {
     File? signature,
   }) async {
     try {
-      await _penerimaanApiService.updateStatusTransactionApproval(
+      await _penerimaanApiService.updateStatusTransactionApprovalService(
         noDoc: noDoc,
         levelApproval: levelApproval,
         statusApprove: status,
@@ -173,7 +173,7 @@ class ApprovalService {
       );
 
       if (status == 'APPROVED' && signature != null) {
-        await _penerimaanApiService.uploadSignatureTransactionApproval(
+        await _penerimaanApiService.uploadSignatureTransactionApprovalService(
             noDoc: noDoc,
             levelApproval: levelApproval,
             imageSign1: signature,

@@ -176,7 +176,7 @@ class MasterDataService {
   }
 
   // GET LITER FROM KALIBRASI
-  Future<double?> getLiterFromCalibration({
+  Future<double?> getLiterFromCalibrationService({
     required int kapasitas,
     required double tinggiMm,
   }) async {

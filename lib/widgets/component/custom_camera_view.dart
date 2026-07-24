@@ -125,7 +125,7 @@ class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBinding
       if (mounted) {
         setState(() {
           hasError = true;
-          errorMessage = "Gagal membuka kamera: $e";
+          errorMessage = "Gagal membuka kamera, karena kesalahan teknis kamera. Silahkan ketuk Coba Lagi!";
         });
       }
     }

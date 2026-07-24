@@ -49,7 +49,13 @@ class PenerimaanVerifikasiBastController extends GetxController {
   final signatureGudangController = SignatureController(
     penStrokeWidth: 3, penColor: AppColors.darkText, exportBackgroundColor: AppColors.white,
   );
-  final signatureSupirController = SignatureController(
+
+  final signaturePartnerController = SignatureController(
+    penStrokeWidth: 3, penColor: AppColors.darkText, exportBackgroundColor: AppColors.white,
+  );
+
+  final securityNameController = TextEditingController();
+  final signatureSecurityController = SignatureController(
     penStrokeWidth: 3, penColor: AppColors.darkText, exportBackgroundColor: AppColors.white,
   );
 
@@ -218,7 +224,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
     double kebun = double.tryParse(volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
 
     // Varian adalah sisa solar di Pengirim (Pengirim - Diterima Kebun)
-    double varian = pengirim - kebun;
+    double varian = kebun - pengirim;
     varianController.text = TextConvertHelper().formatNumber(varian);
   }
 
@@ -244,7 +250,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
   bool _validateCurrentPage() {
     if (currentPage.value == 1) return _validateStepPengukuran();
     if (currentPage.value == 2) return _validateStepGudang();
-    if (currentPage.value == 3) return _validateStepSupir();
+    if (currentPage.value == 3) return _validateStepPartner();
     return true;
   }
 
@@ -285,11 +291,21 @@ class PenerimaanVerifikasiBastController extends GetxController {
     return true;
   }
 
-  bool _validateStepSupir() {
-    if (signatureSupirController.isEmpty) {
+  bool _validateStepPartner() {
+    if (signaturePartnerController.isEmpty) {
       CustomSnackbar.show(
         title: "Tanda Tangan Kosong",
-        message: "Mohon lengkapi Tanda Tangan Supir / Pengirim.",
+        message: "Mohon lengkapi Tanda Tangan Supir / Partner Pengirim.",
+        backgroundColor: AppColors.alertSoftRed,
+        textColor: AppColors.white,
+      );
+      return false;
+    }
+
+    if (signatureSecurityController.isEmpty) {
+      CustomSnackbar.show(
+        title: "Tanda Tangan Kosong",
+        message: "Mohon lengkapi Tanda Tangan Security.",
         backgroundColor: AppColors.alertSoftRed,
         textColor: AppColors.white,
       );
@@ -348,9 +364,10 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
       // Save Signatures
       File? fileGudang = await _repository.saveSignatureToFile(signatureGudangController, "ttd_gudang_${activeNoBast.value}.png");
-      File? fileSupir = await _repository.saveSignatureToFile(signatureSupirController, "ttd_supir_${activeNoBast.value}.png");
+      File? filePartner = await _repository.saveSignatureToFile(signaturePartnerController, "ttd_partner_${activeNoBast.value}.png");
+      File? fileSecurity = await _repository.saveSignatureToFile(signatureSecurityController, "ttd_security_${activeNoBast.value}.png");
 
-      if (fileGudang == null || fileSupir == null) throw "Gagal menyimpan Tanda Tangan.";
+      if (fileGudang == null || filePartner == null || fileSecurity == null) throw "Gagal menyimpan Tanda Tangan.";
 
       String userLevel = auth.user.otorisasi.first;
       String kodeUnit = currentTransaction.value?.dataSebelum?.kodeUnit ?? "";
@@ -404,7 +421,14 @@ class PenerimaanVerifikasiBastController extends GetxController {
       await _repository.uploadSignatureTransactionApproval(
         noDoc: activeNoBast.value,
         levelApproval: myConfig.levelApproval ?? "1",
-        imageSign1: fileGudang, imageSign2: fileSupir,
+        imageSign1: fileGudang, imageSign2: fileSecurity,
+      );
+
+      // Post Data for Security, and signature
+      await _repository.uploadSignatureSecurity(
+        noDoc: activeNoBast.value,
+        imageSign3: fileSecurity,
+        securityName: securityNameController.text.isEmpty ? "Security" : securityNameController.text,
       );
 
       // Save Local & Update Status Local
@@ -461,9 +485,9 @@ class PenerimaanVerifikasiBastController extends GetxController {
   @override
   void onClose() {
     volumePengirimController.dispose(); volumeKebunController.dispose();
-    varianController.dispose(); catatanGudangController.dispose();
-    signatureGudangController.dispose(); signatureSupirController.dispose();
-    pageController.dispose();
+    varianController.dispose(); catatanGudangController.dispose(); securityNameController.dispose();
+    signatureGudangController.dispose(); signatureSecurityController.dispose();
+    signaturePartnerController.dispose();pageController.dispose();
     super.onClose();
   }
 }

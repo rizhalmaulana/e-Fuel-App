@@ -6,6 +6,7 @@ import 'package:e_fuel/configs/app_config.dart';
 import 'package:e_fuel/datas/constant/value_key_static.dart';
 import '../../../configs/app_colors.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../fuel/services/master_data_service.dart';
 
 class FuelSensorService extends GetxService {
@@ -77,13 +78,15 @@ class FuelSensorService extends GetxService {
   Future<void> _migrateFromV1ToV2() async {
     print("🔄 Migrasi sensor data dari v1 ke v2...");
 
-    Get.snackbar(
-      "Pembaruan Aplikasi",
-      "Data sensor akan dimuat ulang secara otomatis.",
-      backgroundColor: AppColors.primary,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 2),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CustomSnackbar.show(
+        title: "Pembaruan Aplikasi",
+        message: "Data sensor akan dimuat ulang secara otomatis.",
+        backgroundColor: AppColors.primary,
+        textColor: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    });
 
     print("✅ Migrasi selesai");
   }

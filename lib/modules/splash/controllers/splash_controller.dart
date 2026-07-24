@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:get/get.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -99,6 +100,10 @@ class SplashController extends GetxController {
   }
 
   void restartApp() {
-    SystemNavigator.pop(); // Menutup aplikasi secara aman di Android
+    if (Platform.isAndroid) {
+      exit(0); // Memaksa proses aplikasi berhenti sepenuhnya agar patch Shorebird diterapkan saat cold start berikutnya
+    } else {
+      SystemNavigator.pop(); // Menutup aplikasi secara aman di platform lain
+    }
   }
 }

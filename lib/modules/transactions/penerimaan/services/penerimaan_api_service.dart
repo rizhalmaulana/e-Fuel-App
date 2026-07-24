@@ -69,7 +69,7 @@ class PenerimaanApiService {
     }
   }
 
-  Future<List<KonfigurasiApprovalModel>> getKonfigurasiApproval({
+  Future<List<KonfigurasiApprovalModel>> getKonfigurasiApprovalService({
     required String transactionType,
     required String kodeUnit,
     required bool statusActive,
@@ -92,7 +92,7 @@ class PenerimaanApiService {
     }
   }
 
-  Future<bool> createInboundTank(Map<String, dynamic> payload) async {
+  Future<bool> createInboundTankService(Map<String, dynamic> payload) async {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_TANK;
 
@@ -112,7 +112,7 @@ class PenerimaanApiService {
     }
   }
 
-  Future<dynamic> createTransactionApproval({
+  Future<dynamic> createTransactionApprovalService({
     required String noDoc,
     required String kodeUnit,
     required String transactionType,
@@ -151,7 +151,7 @@ class PenerimaanApiService {
     }
   }
 
-  Future<dynamic> updateStatusTransactionApproval({
+  Future<dynamic> updateStatusTransactionApprovalService({
     required String noDoc,
     required String levelApproval,
     required String statusApprove,
@@ -205,18 +205,16 @@ class PenerimaanApiService {
     }
   }
 
-  Future<dynamic> uploadSignatureTransactionApproval({
+  Future<dynamic> uploadSignatureTransactionApprovalService({
     required String noDoc,
     required String levelApproval,
     required File imageSign1,
-    required File imageSign2,
+    required File imageSign2
   }) async {
     final loginService = Get.find<LoginService>();
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    // Pastikan Anda sudah punya konstanta ini di UrlApiStatic
-    // Contoh: static String API_POST_SIGNATURE_APPROVAL = '/e_fuel/transaksi-approval/upload-signature/{no_doc}';
     String endpoint = UrlApiStatic.API_POST_SIGNATURE_APPROVAL;
     String url;
 
@@ -226,7 +224,6 @@ class PenerimaanApiService {
       url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
     }
 
-    // Gunakan FormData untuk Upload File
     FormData formData = FormData.fromMap({
       'level_approval': levelApproval,
       'image_sign1': await MultipartFile.fromFile(
@@ -242,7 +239,54 @@ class PenerimaanApiService {
     print("🔵 [DEBUG] URL Step 5 (Upload Signature): $url");
 
     try {
-      // Biasanya Upload menggunakan POST, sesuaikan jika API Anda menggunakan PUT
+        var response = await _dio.post(
+        url,
+        data: formData,
+        options: Options(
+            headers: {
+              "Authorization": "Bearer $token",
+            }
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [UPLOAD ERROR] Status: ${e.response?.statusCode}");
+        print("❌ [UPLOAD ERROR] Data: ${e.response?.data}");
+      }
+      rethrow;
+    }
+  }
+
+  Future<dynamic> uploadSignatureSecurityService({
+    required String noDoc,
+    required File imageSign3,
+    required String securityName
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    String endpoint = UrlApiStatic.API_POST_SIGNATURE_SECURITY;
+    String url;
+
+    if (endpoint.contains('{no_doc}')) {
+      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
+    } else {
+      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
+    }
+
+    FormData formData = FormData.fromMap({
+      'image_sign3': await MultipartFile.fromFile(
+        imageSign3.path,
+        filename: imageSign3.path.split('/').last,
+      ),
+      'nama_sekuriti': securityName,
+    });
+
+    print("🔵 [DEBUG] URL Step 5 (Upload Signature): $url");
+
+    try {
       var response = await _dio.post(
         url,
         data: formData,
