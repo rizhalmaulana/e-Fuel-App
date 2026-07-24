@@ -89,6 +89,17 @@ class PengisianSolarPengeluaranController extends GetxController {
     super.onClose();
   }
 
+  /// Helper aman untuk menutup dialog/overlay GetX.
+  void _safeCloseDialog() {
+    try {
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+    } catch (e) {
+      print("Gagal menutup dialog (safe-guard): $e");
+    }
+  }
+
   void _loadArguments() {
     final Map<String, dynamic> args = Get.arguments ?? {};
     final Map<String, dynamic> payload = args['payload'] ?? {};
@@ -411,9 +422,7 @@ class PengisianSolarPengeluaranController extends GetxController {
 
       await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value!.path, fotoSupir.value!.path);
 
-      // Tutup loading dialog
-      Get.back();
-
+      _safeCloseDialog();
       Get.dialog(
         DialogFlexible(
           logo: LottiesHelper().getLottieSuccess(),
@@ -423,7 +432,6 @@ class PengisianSolarPengeluaranController extends GetxController {
           secondaryColor: AppColors.secondaryOrange,
           primaryButtonText: "Kembali ke Beranda",
           onPrimaryPressed: () {
-            Get.back();
             Get.offAllNamed(Routes.HOME);
           },
         ),
@@ -431,8 +439,7 @@ class PengisianSolarPengeluaranController extends GetxController {
       );
 
     } catch (e) {
-      // Tutup loading dialog
-      Get.back();
+      _safeCloseDialog();
       print("Error Submit: $e");
       Get.snackbar("Gagal", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
     }
