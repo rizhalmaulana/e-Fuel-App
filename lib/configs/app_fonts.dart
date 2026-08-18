@@ -28,6 +28,7 @@ class AppFonts {
   // Regular (w400)
   static TextStyle fUrbanistRegular10 = const TextStyle(fontFamily: _fontFamily, fontSize: 10, fontWeight: FontWeight.w400);
   static TextStyle fUrbanistRegular12 = const TextStyle(fontFamily: _fontFamily, fontSize: 12, fontWeight: FontWeight.w400);
+  static TextStyle fUrbanistRegular14 = const TextStyle(fontFamily: _fontFamily, fontSize: 14, fontWeight: FontWeight.w400);
   static TextStyle fUrbanistRegular16 = const TextStyle(fontFamily: _fontFamily, fontSize: 16, fontWeight: FontWeight.w400);
 
   // Medium (w500)

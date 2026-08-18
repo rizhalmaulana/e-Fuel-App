@@ -26,6 +26,15 @@ class UrlApiStatic {
   static String API_GET_TRANSACTION_DETAIL_EBPB = '/e_fuel/transaksi-ebpb/detail';
   static String API_EXPORT_EBPB_PDF_DOC = '/e_fuel/transaksi-ebpb/export-pdf/{no_doc}';
 
+  // TRANSFER SOLAR ALAT BERAT
+  static String API_GET_LIST_ALAT_BERAT = '/e_fuel/inbound-open/list-pengeluaran-alat-berat';
+  static String API_GET_DETAIL_ALAT_BERAT = '/e_fuel/inbound-open/detail-transfer-solar/{no_doc}';
+  static String API_CREATE_TRANSFER_SOLAR = '/e_fuel/inbound-open/create-transfer-solar';
+
+  // PENGEMBALIAN SOLAR
+  static String API_GET_LIST_PENGEMBALIAN_SOLAR = '/e_fuel/inbound-open/list-pengembalian-solar';
+  static String API_CREATE_PENGEMBALIAN_SOLAR = '/e_fuel/inbound-open/create-pengembalian-solar';
+
   // GET
   static String API_GET_UNIT = '/unit-list';
   static String API_GET_INBOUND_OPEN_LIST = '/e_fuel/inbound-open/list';
@@ -65,5 +74,4 @@ class UrlApiStatic {
   // PUT
   static String API_UPDATE_STATUS_DOC_INBOUND = '/e_fuel/inbound-open/update-status/{no_doc}';
   static String API_UPDATE_STATUS_TRANSACTION_APPROVAL = '/e_fuel/transaksi-approval/update-status/{no_doc}';
-
 }

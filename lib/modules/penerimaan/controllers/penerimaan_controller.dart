@@ -294,8 +294,7 @@ class PenerimaanController extends GetxController {
           (t) => t.masterSolarTank?.kodeTank ?? '',
     );
 
-    final List<Map<String, dynamic>> results =
-    List.filled(sorted.length, <String, dynamic>{});
+    final List<Map<String, dynamic>> results = List.filled(sorted.length, <String, dynamic>{});
 
     _isInjectingApiData = true;
 

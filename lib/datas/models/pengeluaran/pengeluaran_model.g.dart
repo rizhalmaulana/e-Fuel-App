@@ -44,13 +44,14 @@ class PengeluaranModelAdapter extends TypeAdapter<PengeluaranModel> {
       satuan: fields[24] as String?,
       kategoriKendaraan: fields[25] as String?,
       jenisPengeluaran: fields[26] as String?,
+      kodeUnit: fields[27] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PengeluaranModel obj) {
     writer
-      ..writeByte(27)
+      ..writeByte(28)
       ..writeByte(0)
       ..write(obj.noDoc)
       ..writeByte(1)
@@ -104,7 +105,9 @@ class PengeluaranModelAdapter extends TypeAdapter<PengeluaranModel> {
       ..writeByte(25)
       ..write(obj.kategoriKendaraan)
       ..writeByte(26)
-      ..write(obj.jenisPengeluaran);
+      ..write(obj.jenisPengeluaran)
+      ..writeByte(27)
+      ..write(obj.kodeUnit);
   }
 
   @override

@@ -62,6 +62,8 @@ class PengeluaranController extends GetxController {
   var filterTipeUnit = Rxn<String>();
   String _lastSearchKeyword = '';
 
+  var isLangsungPom = false.obs;
+
   var isLoadingUnitsPerArea = false.obs;
 
   var listTitleUnitPerArea = <String>[].obs;
@@ -814,6 +816,8 @@ class PengeluaranController extends GetxController {
     pengisianSolarC.clear();
     isLiterReadOnly.value = false;
 
+    isLangsungPom.value = false;
+
     // Reset Unit Pengganti state
     isUnitPengganti.value = false;
     selectedReplacedUnit.value = null;
@@ -1141,7 +1145,9 @@ class PengeluaranController extends GetxController {
         "jenis_pengeluaran": selectedJenisBon.value ?? "-",
         "satuan": satuanC.text,
         "kode_unit": userKodeUnit.value,
-        "kode_unit_original": selectedKodeUnitKebunPabrik.value ?? ""
+        "kode_unit_original": selectedKodeUnitKebunPabrik.value ?? "",
+        "has_tf": (tipeUnitC.text == "AB" && isLangsungPom.value) ? true : false,
+        "is_baby_tank": isLangsungPom.value,
       };
 
       List<File?> photos = [fotoOdometer.value, null, null];

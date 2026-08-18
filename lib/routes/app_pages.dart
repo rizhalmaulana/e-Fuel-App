@@ -37,8 +37,20 @@ import '../modules/report/views/report_penerimaan/report_detail_penerimaan_view.
 import '../modules/report/views/report_penerimaan/report_penerimaan_view.dart';
 import '../modules/report/views/report_pengeluaran/report_detail_pengeluaran_view.dart';
 import '../modules/report/views/report_pengeluaran/report_pengeluaran_view.dart';
+import '../modules/report/bindings/report_transfer_binding.dart';
+import '../modules/report/views/report_transfer/report_transfer_view.dart';
 import 'package:e_fuel/modules/splash/bindings/splash_binding.dart';
 import 'package:e_fuel/modules/splash/views/splash_view.dart';
+import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_binding.dart';
+import 'package:e_fuel/modules/pengembalian/views/pengembalian_view.dart';
+import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_proses_binding.dart';
+import 'package:e_fuel/modules/pengembalian/views/pengembalian_proses_view.dart';
+import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_loading_binding.dart';
+import 'package:e_fuel/modules/pengembalian/views/pengembalian_loading_view.dart';
+import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_aktual_binding.dart';
+import 'package:e_fuel/modules/pengembalian/views/pengembalian_aktual_view.dart';
+import 'package:e_fuel/modules/transfer/bindings/transfer_binding.dart';
+import 'package:e_fuel/modules/transfer/views/transfer_view.dart';
 
 part 'app_routes.dart';
 
@@ -58,14 +70,19 @@ class AppPages {
 
   static const PENGELUARAN_INPUT_BON_SEMENTARA = Routes.PENGELUARAN_INPUT_BON_SEMENTARA;
   static const PENGELUARAN = Routes.PENGELUARAN;
+  static const PENGEMBALIAN = Routes.PENGEMBALIAN;
+  static const PENGEMBALIAN_LOADING = Routes.PENGEMBALIAN_LOADING;
+  static const PENGEMBALIAN_AKTUAL = Routes.PENGEMBALIAN_AKTUAL;
   static const PENGISIAN_SOLAR_PENGELUARAN = Routes.PENGISIAN_SOLAR_PENGELUARAN;
   static const PENGELUARAN_VERIFIKASI_DOC = Routes.PENGELUARAN_VERIFIKASI_DOC;
   static const PENGELUARAN_TRACKING = Routes.PENGELUARAN_TRACKING;
+  static const TRANSFER = Routes.TRANSFER;
   static const APPROVAL = Routes.APPROVAL;
   static const APPROVAL_EBPB = Routes.APPROVAL_EBPB;
 
   static const REPORT_PENERIMAAN = Routes.REPORT_PENERIMAAN;
   static const REPORT_PENGELUARAN = Routes.REPORT_PENGELUARAN;
+  static const REPORT_TRANSFER = Routes.REPORT_TRANSFER;
 
   static final routes = [
     GetPage(
@@ -141,6 +158,34 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 500),
     ),
     GetPage(
+      name: Routes.PENGEMBALIAN,
+      page: () => const PengembalianView(),
+      binding: PengembalianBinding(),
+      transition: Transition.downToUp,
+      transitionDuration: const Duration(milliseconds: 400),
+    ),
+    GetPage(
+      name: Routes.PENGEMBALIAN_PROSES,
+      page: () => const PengembalianProsesView(),
+      binding: PengembalianProsesBinding(),
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.PENGEMBALIAN_LOADING,
+      page: () => const PengembalianLoadingView(),
+      binding: PengembalianLoadingBinding(),
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.PENGEMBALIAN_AKTUAL,
+      page: () => const PengembalianAktualView(),
+      binding: PengembalianAktualBinding(),
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
       name: Routes.PENGISIAN_SOLAR_PENGELUARAN,
       page: () => const PengisianSolarPengeluaranView(),
       binding: PengisianSolarBinding(),
@@ -165,6 +210,13 @@ class AppPages {
       name: Routes.PENGELUARAN_EBPB,
       page: () => const PengeluaranEBpbView(),
       binding: PengeluaranEBpbBinding(),
+      transition: Transition.downToUp,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.TRANSFER,
+      page: () => const TransferView(),
+      binding: TransferBinding(),
       transition: Transition.downToUp,
       transitionDuration: const Duration(milliseconds: 500),
     ),
@@ -207,6 +259,13 @@ class AppPages {
       name: Routes.REPORT_DETAIL_PENGELUARAN,
       page: () => const ReportDetailPengeluaranView(),
       binding: ReportDetailPengeluaranBinding(),
+      transition: Transition.downToUp,
+      transitionDuration: const Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.REPORT_TRANSFER,
+      page: () => const ReportTransferView(),
+      binding: ReportTransferBinding(),
       transition: Transition.downToUp,
       transitionDuration: const Duration(milliseconds: 500),
     ),

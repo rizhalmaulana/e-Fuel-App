@@ -400,12 +400,21 @@ class HomeView extends GetView<HomeController> {
       onTap: () => controller.changeMenuCategory(index),
       child: Obx(() {
         final isSelected = controller.selectedMenuCategory.value == index;
+        Color tabColor;
+        if (index == 0) {
+          tabColor = AppColors.primary;
+        } else if (index == 1) {
+          tabColor = AppColors.primaryOrange;
+        } else {
+          tabColor = AppColors.primary;
+        }
+
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.transparent,
+            color: isSelected ? tabColor : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isSelected ? AppColors.primary : AppColors.fieldBackground),
+            border: Border.all(color: isSelected ? tabColor : AppColors.fieldBackground),
           ),
           child: Text(
             label,

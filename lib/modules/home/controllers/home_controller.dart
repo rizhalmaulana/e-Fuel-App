@@ -279,11 +279,14 @@ class HomeController extends GetxController {
 
   List<Map<String, dynamic>> get filteredMenuList {
     if (selectedMenuCategory.value == 0) {
-      return menuList.where((menu) => menu['action'].toString().contains('input_penerimaan')).toList();
+      return menuList.where((menu) {
+        String action = menu['action'].toString();
+        return action.contains('input_penerimaan') || action.contains('input_pengembalian');
+      }).toList();
     } else if (selectedMenuCategory.value == 1) {
       return menuList.where((menu) {
         String action = menu['action'].toString();
-        return action.contains('input_pengeluaran') || action.contains('input_e_bpb');
+        return action.contains('input_pengeluaran') || action.contains('input_e_bpb') || action.contains('input_transfer');
       }).toList();
     } else {
       return menuList.where((menu) => menu['action'].toString().contains('riwayat')).toList();
@@ -659,20 +662,23 @@ class HomeController extends GetxController {
     menuList.clear();
 
     final menuInputPenerimaan = {'icon': AppIcons.icPenerimaan, 'label': 'Penerimaan', 'action': 'input_penerimaan', 'category': 0};
-    final menuInputPengeluaran = {'icon': AppIcons.icPengeluaran, 'label': 'Pengeluaran', 'action': 'input_pengeluaran', 'category': 1};
     final menuEBPB = {'icon': AppIcons.icBpbHarian, 'label': 'E-BPB', 'action': 'input_e_bpb', 'category': 1};
+    final menuInputPengeluaran = {'icon': AppIcons.icPengeluaran, 'label': 'Pengeluaran', 'action': 'input_pengeluaran', 'category': 1};
+    final menuTransfer = {'icon': AppIcons.icTransfer, 'label': 'Transfer', 'action': 'input_transfer', 'category': 1};
+    final menuPengembalianSolar = {'icon': AppIcons.icPengembalianSolar, 'label': 'Pengembalian', 'action': 'input_pengembalian', 'category': 0};
     final menuRiwayatPenerimaan = {'icon': AppIcons.icReportPenerimaan, 'label': 'Laporan Penerimaan', 'action': 'riwayat_penerimaan', 'category': 2};
     final menuRiwayatPengeluaran = {'icon': AppIcons.icReportPengeluaran, 'label': 'Laporan Pengeluaran', 'action': 'riwayat_pengeluaran', 'category': 2};
     final menuRiwayatEBPB = {'icon': AppIcons.icReportEBPB, 'label': 'Laporan E-BPB', 'action': 'riwayat_e_bpb', 'category': 2};
+    final menuRiwayatTransfer = {'icon': AppIcons.icReportTransfer, 'label': 'Laporan Transfer', 'action': 'riwayat_transfer', 'category': 2};
 
-    if (user.isKrani) {
+    if (user.isKepalaGudang) {
       menuList.addAll([
-        menuInputPenerimaan, menuInputPengeluaran, menuEBPB,
-        menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB,
+        menuInputPenerimaan, menuPengembalianSolar, menuInputPengeluaran, menuTransfer, menuEBPB,
+        menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB, menuRiwayatTransfer,
       ]);
     } else if (user.isApprover) {
       menuList.addAll([
-        menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB,
+        menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB, menuRiwayatTransfer,
       ]);
     }
 
@@ -695,7 +701,7 @@ class HomeController extends GetxController {
     debugPrint("Selected Storage: ${_getStorageCode(selectedStorage.value)}");
 
     // Cek Koneksi Internet (Khusus untuk menu input)
-    if (action == 'input_penerimaan' || action == 'input_pengeluaran' || action == 'input_e_bpb') {
+    if (action == 'input_penerimaan' || action == 'input_pengeluaran' || action == 'input_e_bpb' || action == 'input_pengembalian') {
       bool isOnline = await ConnectivityHelper.isConnected();
       if (!isOnline) {
         Get.snackbar(
@@ -713,9 +719,12 @@ class HomeController extends GetxController {
     switch (action) {
       case 'input_penerimaan': goToPenerimaan(); break;
       case 'input_pengeluaran': Get.toNamed(Routes.PENGELUARAN); break;
+      case 'input_pengembalian': Get.toNamed(Routes.PENGEMBALIAN); break;
+      case 'input_transfer': Get.toNamed(Routes.TRANSFER); break;
       case 'input_e_bpb': Get.toNamed(Routes.PENGELUARAN_EBPB); break;
       case 'riwayat_penerimaan': Get.toNamed(Routes.REPORT_PENERIMAAN); break;
       case 'riwayat_pengeluaran': Get.toNamed(Routes.REPORT_PENGELUARAN); break;
+      case 'riwayat_transfer': Get.toNamed(Routes.REPORT_TRANSFER); break;
       case 'riwayat_e_bpb': _showDevelopmentModal(context); break;
       default: _showDevelopmentModal(context);
     }
