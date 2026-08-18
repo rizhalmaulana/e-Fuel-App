@@ -62,6 +62,6 @@ class UserModel extends HiveObject {
   Map<String, dynamic> toJson() => _$UserModelToJson(this);
 
   // Helper
-  bool get isKrani => otorisasi.contains('fuel_level_1');
+  bool get isKepalaGudang => otorisasi.contains('fuel_level_1');
   bool get isApprover => otorisasi.contains('fuel_level_2') || otorisasi.contains('fuel_level_3');
 }

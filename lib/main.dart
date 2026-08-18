@@ -18,6 +18,7 @@ import 'package:e_fuel/datas/models/storage_to_tank/storage_to_tank_model.dart';
 import 'package:e_fuel/datas/models/storage_unit/storage_unit_model.dart';
 import 'package:e_fuel/datas/models/transactions/penerimaan/transaction_model.dart';
 import 'package:e_fuel/datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
+import 'package:e_fuel/datas/models/transfer/transfer_solar_model.dart';
 import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
 import 'package:e_fuel/datas/models/user/user_model.dart';
 import 'package:e_fuel/datas/models/volume_tangki/iot_tangki_model.dart';
@@ -34,6 +35,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -79,6 +81,7 @@ Future<void> initializeDependencies() async {
   Hive.registerAdapter(OtorisasiAreaModelAdapter());
   Hive.registerAdapter(OtorisasiUnitModelAdapter());
   Hive.registerAdapter(OtorisasiAfdelingModelAdapter());
+  Hive.registerAdapter(TransferSolarModelAdapter());
 
   Get.lazyPut(() => LoginUserService(), fenix: true);
   Get.lazyPut(() => LoginService(), fenix: true);
@@ -135,6 +138,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       getPages: AppPages.routes,
       defaultTransition: Transition.cupertino,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('id', 'ID'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('id', 'ID'),
       transitionDuration: const Duration(milliseconds: 600),
       theme: ThemeData(
         primaryColor: AppColors.primary,

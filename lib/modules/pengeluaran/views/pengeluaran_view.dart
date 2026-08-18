@@ -835,8 +835,40 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     ],
                   );
                 }),
-                const SizedBox(height: 12),
-
+                Obx(() {
+                  if (controller.tipeUnit.value?.toUpperCase() == 'AB') {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 10.0),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundGrey,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: CheckboxListTile(
+                          title: Text("Pakai Baby Tank?",
+                              style: AppFonts.fUrbanistSemiBold12
+                                  .copyWith(color: AppColors.primaryText)),
+                          subtitle: Text("Pilih ini jika pengeluaran solar Alat Berat menggunakan Baby Tank!",
+                              style: AppFonts.fUrbanistRegular10
+                                  .copyWith(color: AppColors.secondaryText)),
+                          value: controller.isLangsungPom.value,
+                          onChanged: (val) {
+                            if (val != null) {
+                              controller.isLangsungPom.value = val;
+                            }
+                          },
+                          activeColor: AppColors.primaryOrange,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                          dense: true,
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
+                const SizedBox(height: 10),
                 Obx(() => _buildLabel(
                     controller.isTamu ? "Cost Center" : "No. IO")),
                 Obx(() => _buildTextField(

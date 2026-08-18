@@ -117,7 +117,6 @@ class ApprovalController extends GetxController {
     if (success) {
       // PENGECEKAN FULL APPROVED
       if (status == 'APPROVED') {
-        // Hit API untuk mengecek seluruh list approval dokumen ini
         final approvalList = await _approvalService.getApprovalList(
           kodeUnit: kodeUnit,
           noBast: noBast,
@@ -129,7 +128,6 @@ class ApprovalController extends GetxController {
             approvalList.every((appv) => appv.statusApprove?.toUpperCase() == 'APPROVED');
 
         if (isFullApproved) {
-          // 🟢 Panggil API export PDF dan simpan path-nya
           String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
 
           Get.back(); // Tutup loading progress dialog
@@ -143,12 +141,10 @@ class ApprovalController extends GetxController {
               colorText: Colors.white,
             );
 
-            // 🟢 Buka file PDF secara otomatis!
-            await Future.delayed(const Duration(milliseconds: 500)); // Beri jeda sedikit agar transisi ke Home mulus
+            await Future.delayed(const Duration(milliseconds: 500));
             await OpenFilex.open(downloadedFilePath);
 
           } else {
-            // Jika gagal mendownload dari server
             Get.snackbar(
               "Full Approved!",
               "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
@@ -161,11 +157,11 @@ class ApprovalController extends GetxController {
       }
 
       // (Belum Full Approved atau REJECTED)
-      Get.back(); // Tutup loading progress dialog
+      Get.back();
       Get.offAllNamed(Routes.HOME);
       Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
     } else {
-      Get.back(); // Tutup loading progress dialog
+      Get.back();
       Get.snackbar("Gagal", "Terjadi kesalahan saat memproses data", backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
