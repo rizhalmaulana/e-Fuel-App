@@ -61,9 +61,7 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
     Color statusColorText = isOpen ? const Color(0xFFFF9800) : const Color(0xFF4CAF50);
 
     return InkWell(
-      onTap: isOpen
-          ? null
-          : () {
+      onTap: isOpen ? null : () {
         Get.toNamed('/report-detail-penerimaan', arguments: {'no_doc': item.noDoc});
       },
       borderRadius: BorderRadius.circular(12),
@@ -88,16 +86,35 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(item.noDoc ?? "-", style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColorBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    isOpen ? "Open" : "Approved",
-                    style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText),
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColorBg,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isOpen ? "Dalam Proses" : "Selesai",
+                        style: AppFonts.fUrbanistBold10.copyWith(color: statusColorText),
+                      ),
+                    ),
+                    if (!isOpen)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: GestureDetector(
+                          onTap: () => Get.toNamed('/report-detail-penerimaan', arguments: {'no_doc': item.noDoc}),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.fieldBackground,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -141,32 +158,49 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Vol. Vendor (SPB)", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
-                    const SizedBox(height: 2),
-                    Text(
-                      "${item.volumeVendor ?? 0} Ltr",
-                      style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
-                    ),
-                  ],
-                ),
-                if (!isOpen)
-                  SizedBox(
-                    height: 32,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Vol. Vendor", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${item.volumeVendor ?? 0} Ltr",
+                            style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        Get.toNamed('/report-detail-penerimaan', arguments: {'no_doc': item.noDoc});
-                      },
-                      child: Text("Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primary)),
-                    ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Aktual Liter", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${item.aktualLiter ?? 0} Ltr",
+                            style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Varian Liter", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${item.varianLiter ?? 0} Ltr",
+                            style: AppFonts.fUrbanistBold14.copyWith(
+                              color: (item.varianLiter ?? 0) < 0 ? Colors.red : AppColors.primary
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
+
               ],
             ),
           ],

@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:e_fuel/datas/models/approval/konfigurasi_approval_model.dart';
+import 'package:e_fuel/modules/home/controllers/home_controller.dart';
 
 import '../../../configs/app_fonts.dart';
 import '../../../datas/models/master_io/master_io_model.dart';
@@ -40,6 +42,10 @@ class PengeluaranController extends GetxController {
   final driverNameC = TextEditingController();
   final keteranganC = TextEditingController();
   final kodeUnitController = TextEditingController();
+  final aktualSolarC = TextEditingController();
+  final varianSolarC = TextEditingController();
+  final tanggalTransaksiC = TextEditingController();
+  String? _createdNoDoc;
 
   // --- Data Logic ---
   final List<String> jenisBonList = ['Bon Sementara', 'BPB'];
@@ -78,6 +84,8 @@ class PengeluaranController extends GetxController {
   var selectedKategoriKendaraan = Rxn<String>();
   var selectedStatusSupir = Rxn<String>();
   var fotoOdometer = Rxn<File>();
+  var fotoDispenser = Rxn<File>();
+  var fotoSupir = Rxn<File>();
 
   final tipeUnit = Rxn<String>();
   final satuan = Rxn<String>();
@@ -88,6 +96,7 @@ class PengeluaranController extends GetxController {
   final varian = Rxn<String>();
   final ratio = Rxn<String>();
   final literAuto = Rxn<String>();
+  final tanggalTransaksi = Rxn<String>();
 
   // State ReadOnly
   var isPlatReadOnly = true.obs;
@@ -102,6 +111,7 @@ class PengeluaranController extends GetxController {
   var isTakingPhoto = false.obs;
   var isSubmitting = false.obs;
   var isGSReadOnly = false.obs;
+  var isManualInput = false.obs;
 
   final tipeUnitC = TextEditingController();
   final satuanC = TextEditingController();
@@ -143,6 +153,10 @@ class PengeluaranController extends GetxController {
       }
     }
 
+    if (Get.arguments != null && Get.arguments['isManualInput'] != null) {
+      isManualInput.value = Get.arguments['isManualInput'];
+    }
+
     jenisKategoriList.assignAll([
       'INTERNAL $userInitialTitle',
       'INTERNAL NON $userInitialTitle',
@@ -168,6 +182,8 @@ class PengeluaranController extends GetxController {
     ratioInput.addListener(_calculateAutomatedValues);
     dateAwalC.addListener(_calculateAutomatedValues);
     dateAkhirC.addListener(_calculateAutomatedValues);
+    aktualSolarC.addListener(_calculateVarianSolar);
+    pengisianSolarC.addListener(_calculateVarianSolar);
   }
 
   @override
@@ -177,6 +193,8 @@ class PengeluaranController extends GetxController {
     ratioInput.removeListener(_calculateAutomatedValues);
     dateAwalC.removeListener(_calculateAutomatedValues);
     dateAkhirC.removeListener(_calculateAutomatedValues);
+    aktualSolarC.removeListener(_calculateVarianSolar);
+    pengisianSolarC.removeListener(_calculateVarianSolar);
 
     kmPengisianC.dispose();
     pengisianSolarC.dispose();
@@ -193,6 +211,9 @@ class PengeluaranController extends GetxController {
     varianC.dispose();
     ratioInput.dispose();
     kodeUnitController.dispose();
+    aktualSolarC.dispose();
+    varianSolarC.dispose();
+    tanggalTransaksiC.dispose();
     super.onClose();
   }
 
@@ -335,6 +356,49 @@ class PengeluaranController extends GetxController {
     }
   }
 
+  Future<void> pickTanggalTransaksi(BuildContext context) async {
+    DateTime now = DateTime.now();
+    DateTime maxDate = now;
+    DateTime minDate = DateTime(now.year, now.month - 2, now.day);
+    
+    DateTime initialDate = now;
+    try {
+      if (tanggalTransaksiC.text.isNotEmpty) {
+        initialDate = DateFormat('dd/MM/yyyy').parse(tanggalTransaksiC.text);
+      }
+    } catch (_) {}
+
+    if (initialDate.isAfter(maxDate)) {
+      initialDate = maxDate;
+    } else if (initialDate.isBefore(minDate)) {
+      initialDate = minDate;
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: minDate,
+      lastDate: maxDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryOrange,
+              onPrimary: Colors.white,
+              onSurface: AppColors.primaryText,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      tanggalTransaksiC.text = DateFormat('dd/MM/yyyy').format(picked);
+      tanggalTransaksi.value = DateFormat('yyyy-MM-dd').format(picked);
+    }
+  }
+
   void _calculateAutomatedValues() {
     if (isTamu) return;
 
@@ -375,6 +439,19 @@ class PengeluaranController extends GetxController {
         pengisianSolarC.text = newLiterStr;
       }
     }
+  }
+
+  void _calculateVarianSolar() {
+    double estimasi = double.tryParse(pengisianSolarC.text.replaceAll(',', '.')) ?? 0;
+    String cleanAktual = aktualSolarC.text.replaceAll(',', '.');
+    double aktual = double.tryParse(cleanAktual) ?? 0;
+    double result = aktual - estimasi;
+
+    String formatted = result % 1 == 0
+        ? result.toInt().toString()
+        : result.toStringAsFixed(2).replaceAll('.', ',');
+
+    varianSolarC.text = formatted;
   }
 
   DateTime? _parseFlexibleDate(String dateStr) {
@@ -616,6 +693,11 @@ class PengeluaranController extends GetxController {
       if (tipeUnit.value == null) {
         _determineTipeByNamaUnit(unit);
       }
+
+      if (tipeUnit.value == 'AB' || tipeUnit.value == 'GS') {
+        platController.text = unit.namaUnit ?? '';
+        isPlatReadOnly.value = false;
+      }
     }
     searchUnit('');
   }
@@ -632,6 +714,12 @@ class PengeluaranController extends GetxController {
     if (tipeUnit.value == null) {
       _determineTipeByNamaUnit(unit);
     }
+
+    if (tipeUnit.value == 'AB' || tipeUnit.value == 'GS') {
+      platController.text = selectedUnit.value?.namaUnit ?? '';
+      isPlatReadOnly.value = false;
+    }
+
     Get.back(); // tutup bottom sheet
   }
 
@@ -662,29 +750,43 @@ class PengeluaranController extends GetxController {
   }
 
   void _determineTipeByNamaUnit(MasterIoModel unit) {
-    String nama = (unit.namaUnit ?? "").toUpperCase();
-    String deskripsi = (unit.description ?? "").toUpperCase();
-    String gabungan = "$nama $deskripsi";
+    String tipeUnitIo = (unit.tipeUnitIo ?? "").toUpperCase();
 
     String hasilTipe = "KD";
     String hasilSatuan = "KM";
 
-    if (gabungan.contains("DT") ||
-        gabungan.contains("BUS") ||
-        gabungan.contains("LV")) {
+    if (tipeUnitIo.startsWith("KR")) {
       hasilTipe = "KD";
       hasilSatuan = "KM";
-    } else if (gabungan.contains("EXCA") ||
-        gabungan.contains("DOZER") ||
-        gabungan.contains("PC")) {
+    } else if (tipeUnitIo.startsWith("AB")) {
       hasilTipe = "AB";
       hasilSatuan = "HM";
-    } else if (gabungan.contains("GENSET") ||
-        gabungan.contains("GS") ||
-        gabungan.contains("WP") ||
-        gabungan.contains("GST")) {
+    } else if (tipeUnitIo.startsWith("MS")) {
       hasilTipe = "GS";
       hasilSatuan = "Hour";
+    } else {
+      // Fallback
+      String nama = (unit.namaUnit ?? "").toUpperCase();
+      String deskripsi = (unit.description ?? "").toUpperCase();
+      String gabungan = "$nama $deskripsi";
+
+      if (gabungan.contains("DT") ||
+          gabungan.contains("BUS") ||
+          gabungan.contains("LV")) {
+        hasilTipe = "KD";
+        hasilSatuan = "KM";
+      } else if (gabungan.contains("EXCA") ||
+          gabungan.contains("DOZER") ||
+          gabungan.contains("PC")) {
+        hasilTipe = "AB";
+        hasilSatuan = "HM";
+      } else if (gabungan.contains("GENSET") ||
+          gabungan.contains("GS") ||
+          gabungan.contains("WP") ||
+          gabungan.contains("GST")) {
+        hasilTipe = "GS";
+        hasilSatuan = "Hour";
+      }
     }
 
     tipeUnit.value = hasilTipe;
@@ -818,6 +920,12 @@ class PengeluaranController extends GetxController {
 
     isLangsungPom.value = false;
 
+    aktualSolarC.clear();
+    varianSolarC.clear();
+    _createdNoDoc = null;
+    fotoDispenser.value = null;
+    fotoSupir.value = null;
+
     // Reset Unit Pengganti state
     isUnitPengganti.value = false;
     selectedReplacedUnit.value = null;
@@ -906,12 +1014,52 @@ class PengeluaranController extends GetxController {
     fotoOdometer.value = null;
   }
 
+  Future<void> takePhotoTAMU(bool isSupir) async {
+    try {
+      isTakingPhoto.value = true;
+      String labelCamera = isSupir ? "Foto Supir" : "Foto Angka Meter Dispenser";
+
+      final String? resultPath = await Get.to(() => CustomCameraView(
+            label: labelCamera,
+          ));
+
+      if (resultPath == null) {
+        isTakingPhoto.value = false;
+        return;
+      }
+
+      File originalFile = File(resultPath);
+      File? compressedFile = await _compressImage(originalFile);
+
+      if (compressedFile != null) {
+        if (isSupir) {
+          fotoSupir.value = compressedFile;
+        } else {
+          fotoDispenser.value = compressedFile;
+        }
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+    } finally {
+      isTakingPhoto.value = false;
+    }
+  }
+
+  void hapusFotoTAMU(bool isSupir) {
+    if (isSupir) {
+      fotoSupir.value = null;
+    } else {
+      fotoDispenser.value = null;
+    }
+  }
+
   bool _validateForm() {
     if (selectedJenisBon.value == null ||
         selectedUnit.value == null ||
         selectedStatusSupir.value == null ||
         driverNameC.text.isEmpty ||
-        pengisianSolarC.text.isEmpty ||
+        (!isTamu && pengisianSolarC.text.isEmpty) ||
         platController.text.isEmpty) {
       Get.snackbar('Data Belum Lengkap', 'Harap lengkapi semua form inputan!',
           backgroundColor: AppColors.alertSoftRed,
@@ -920,12 +1068,36 @@ class PengeluaranController extends GetxController {
       return false;
     }
 
-    if (fotoOdometer.value == null) {
-      Get.snackbar('Data Belum Lengkap', 'Foto Odometer wajib dilampirkan!',
+    if (!isManualInput.value && fotoOdometer.value == null) {
+      String msg = isTipeGenset ? 'Foto Jerigen / Genset wajib dilampirkan!' : (tipeUnit.value?.toUpperCase() == 'AB' ? 'Foto Baby Tank wajib dilampirkan!' : 'Foto Odometer wajib dilampirkan!');
+      Get.snackbar('Data Belum Lengkap', msg,
           backgroundColor: AppColors.alertSoftRed,
           colorText: Colors.white,
           margin: const EdgeInsets.all(16));
       return false;
+    }
+
+    if (!isManualInput.value && isTamu && (fotoDispenser.value == null || fotoSupir.value == null)) {
+      Get.snackbar('Data Belum Lengkap', 'Foto Dispenser dan Foto Supir wajib dilampirkan untuk Kategori Tamu!',
+          backgroundColor: AppColors.alertSoftRed,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16));
+      return false;
+    }
+
+    if (isManualInput.value || isTamu) {
+      if (aktualSolarC.text.isEmpty || double.tryParse(aktualSolarC.text.replaceAll(',', '.')) == 0) {
+        Get.snackbar(
+          'Data Belum Lengkap', 'Harap isi Aktual Pengeluaran Solar.',
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, margin: const EdgeInsets.all(16));
+        return false;
+      }
+      if (tanggalTransaksi.value == null || tanggalTransaksiC.text.isEmpty) {
+        Get.snackbar(
+          'Data Belum Lengkap', 'Harap pilih Tanggal Transaksi.',
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, margin: const EdgeInsets.all(16));
+        return false;
+      }
     }
 
     if (selectedKategoriKendaraan.value == null) {
@@ -957,7 +1129,7 @@ class PengeluaranController extends GetxController {
     double inputSolar = double.tryParse(
             TextConvertHelper().cleanNumber(pengisianSolarC.text)) ??
         0;
-    if (inputSolar <= 0 && !isTamu) {
+    if (inputSolar <= 0 && !isTamu && !isTipeGenset) {
       Get.snackbar(
           'Validasi Solar', 'Jumlah pengisian solar harus lebih dari 0',
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
@@ -1093,7 +1265,7 @@ class PengeluaranController extends GetxController {
       String inputTypeStr = isOnline ? "A" : "M";
 
       String cleanKm = TextConvertHelper().cleanNumber(hmKmAkhirC.text);
-      String rawSolar = pengisianSolarC.text;
+      String rawSolar = isTamu ? aktualSolarC.text : pengisianSolarC.text;
       double solarDouble = TextConvertHelper().parseToDouble(rawSolar);
 
       String namaSupirFinal = driverNameC.text;
@@ -1148,27 +1320,161 @@ class PengeluaranController extends GetxController {
         "kode_unit_original": selectedKodeUnitKebunPabrik.value ?? "",
         "has_tf": (tipeUnitC.text == "AB" && isLangsungPom.value) ? true : false,
         "is_baby_tank": isLangsungPom.value,
+        "date_inbound": DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        "tanggal_transaksi": isManualInput.value && tanggalTransaksi.value != null 
+            ? tanggalTransaksi.value 
+            : DateFormat('yyyy-MM-dd').format(DateTime.now()),
       };
 
-      List<File?> photos = [fotoOdometer.value, null, null];
-      final response = await _apiService.createInboundFot(payloadMap: payloadRequestAPI, photos: photos);
-      String noDoc = response['no_doc'] ?? "-";
+      try {
+        String prettyPayload = const JsonEncoder.withIndent('  ').convert(payloadRequestAPI);
+        print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
+      } catch (e) {
+        print("Payload: $payloadRequestAPI");
+      }
+
+      List<File?> photos = [isManualInput.value ? null : fotoOdometer.value, null, null];
+      String noDoc = _createdNoDoc ?? "-";
+      
+      if (_createdNoDoc == null) {
+        final response = await _apiService.createInboundFot(payloadMap: payloadRequestAPI, photos: photos);
+        noDoc = response['no_doc'] ?? "-";
+        _createdNoDoc = noDoc;
+      }
+
+      // Khusus untuk Kategori TAMU yang berjalan di 1 page, foto dikirim via uploadImagePengeluaran (mirip flow manual/page2)
+      if (!isManualInput.value && isTamu) {
+        await _apiService.uploadImagePengeluaran(
+          noDoc: noDoc,
+          foto2: fotoDispenser.value!,
+          foto3: fotoSupir.value!,
+        );
+      }
 
       await _saveToOutstanding(noDoc, payloadRequestAPI, fotoOdometer.value);
       await _draftService.deleteDraft();
 
-      Get.back();
+      if (isManualInput.value || isTamu) {
+        // Lanjutkan API 2,3,4 langsung
+        final auth = _loginService.getCurrentAuth();
+        if (auth == null) throw "Data user tidak valid.";
 
-      Get.offNamed(
-        Routes.PENGISIAN_SOLAR_PENGELUARAN,
-        arguments: {
-          'noDoc': noDoc,
-          'unitIO': selectedUnit.value?.namaUnit,
-          'tanggal': DateFormat('dd/MM/yyyy').format(DateTime.now()),
-          'status': 'pengisian_solar_pengeluaran',
-          'payload': payloadRequestAPI,
-        },
-      );
+        String userLevel = auth.user.otorisasi.first;
+        String kodeUnit = auth.currentKodeUnit ?? "";
+
+        List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
+          transactionType: 'FOT',
+          kodeUnit: kodeUnit,
+          statusActive: true,
+        );
+
+        KonfigurasiApprovalModel myConfig = configList.firstWhere(
+          (config) => config.levelApproval == userLevel,
+          orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval untuk tipe FOT.",
+        );
+
+        double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+        double finalVarianLiter = double.tryParse(varianSolarC.text.replaceAll(',', '.')) ?? 0;
+        double finalKm = double.tryParse(cleanKm) ?? 0;
+
+        await _apiService.createTransactionApproval(
+            noDoc: noDoc,
+            kodeUnit: kodeUnit,
+            transactionType: 'FOT'
+        );
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        await _apiService.updateStatusTransactionApproval(
+          noDoc: noDoc,
+          levelApproval: myConfig.levelApproval ?? "1",
+          statusApprove: 'APPROVED',
+          catatan: "Verifikasi Langsung Tanpa TTD (FOT)",
+          isSign: false,
+          isPartnerSign: false,
+        );
+
+        await Future.delayed(const Duration(milliseconds: 200));
+
+        await _apiService.updateAktualLiterPengeluaran(
+            noDoc: noDoc,
+            aktual: finalSolar,
+            varianLiter: finalVarianLiter
+        );
+
+        if (selectedStatusSupir.value == 'Internal') {
+          final HomeController homeController = Get.find<HomeController>();
+          String currentUnit = homeController.selectedUnitCode.value;
+          String currentStorageName = homeController.selectedStorage.value;
+          String storageCode = currentStorageName.contains('-')
+              ? currentStorageName.split('-').last.trim()
+              : currentStorageName.trim();
+
+          await _homeService.updateUnitAfterTransaction(
+              ioController.text,
+              finalKm,
+              (dateAkhir.value == null || dateAkhir.value == "") ? "" : dateAkhir.value!,
+              finalSolar,
+              ratioC.text,
+              unitCodeOverride: currentUnit,
+              storageCodeOverride: storageCode
+          );
+        }
+        
+        final outstandingService = OutstandingService(auth.user.username);
+        final pengeluaranDetail = PengeluaranModel(
+          docType: 'FOT',
+          noDoc: noDoc,
+          noIo: ioController.text,
+          unitIO: selectedUnit.value?.namaUnit,
+          nopolCheck: platController.text.toUpperCase(),
+          statusSupir: selectedStatusSupir.value ?? "Internal",
+          supirCheck: namaSupirFinal.toUpperCase(),
+          kmPengisian: finalKm,
+          liter: solarDouble,
+          varian: finalVarianLiter,
+          jumlahPengisianSolar: finalSolar,
+          userName: auth.user.username,
+          dateOutbound: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        );
+        final trx = TransactionPengeluaranModel(
+          noBast: noDoc,
+          status: 'selesai',
+          dateCreated: DateTime.now().toIso8601String(),
+          dataPengeluaran: pengeluaranDetail,
+        );
+        await outstandingService.saveTransactionPengeluaran(trx);
+
+        isSubmitting.value = false;
+        Get.back();
+        Get.dialog(
+          DialogFlexible(
+            logo: LottiesHelper().getLottieSuccess(),
+            title: "Berhasil",
+            message: "Data pengeluaran berhasil disubmit!",
+            primaryColor: AppColors.primaryOrange,
+            secondaryColor: AppColors.secondaryOrange,
+            primaryButtonText: "Kembali ke Beranda",
+            onPrimaryPressed: () {
+              Get.offAllNamed(Routes.HOME);
+            },
+          ),
+          barrierDismissible: false,
+        );
+      } else {
+        Get.back();
+        Get.offNamed(
+          Routes.PENGISIAN_SOLAR_PENGELUARAN,
+          arguments: {
+            'noDoc': noDoc,
+            'unitIO': selectedUnit.value?.namaUnit,
+            'tanggal': DateFormat('dd/MM/yyyy').format(DateTime.now()),
+            'status': 'pengisian_solar_pengeluaran',
+            'payload': payloadRequestAPI,
+            'isManualInput': isManualInput.value,
+          },
+        );
+      }
     } on DioException catch (e) {
       isSubmitting.value = false;
       Get.back();

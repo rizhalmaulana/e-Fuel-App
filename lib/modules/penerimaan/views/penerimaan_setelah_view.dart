@@ -97,7 +97,7 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
                         children: [
                           Text("Sesudah Pengisian", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.primary)),
                           const SizedBox(width: 4),
-                          Icon(controller.isSensorApiActive.value ? Icons.wifi_tethering : Icons.edit_note, size: 12, color: AppColors.primary)
+                          const Icon(Icons.edit_note, size: 12, color: AppColors.primary)
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -145,7 +145,6 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
       if (ctrls == null) return const SizedBox.shrink();
 
       String displayCode = controller.iotSesudahMap[tankCode]?['display_code'] ?? tankCode;
-      bool isApiActive = controller.isSensorApiActive.value;
 
       double volSebelum = controller.getVolumeManualSebelum(tankCode);
       double heightSebelum = controller.getHeightManualSebelum(tankCode);
@@ -198,12 +197,6 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
                       Text(displayCode, style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primary)),
                     ],
                   ),
-                  if (isApiActive)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text("Sensor Aktif", style: AppFonts.fUrbanistBold10.copyWith(color: Colors.green)),
-                    )
                 ],
               ),
             ),
@@ -256,28 +249,7 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
                       const SizedBox(height: 12),
 
                       Row(
-                        children: isApiActive ? [
-                          // JIKA SENSOR AKTIF: VOLUME DI KIRI (BISA DIEDIT), TINGGI DI KANAN (AUTO)
-                          Expanded(
-                              child: _buildCustomTextField(
-                                label: "Volume (Ltr)",
-                                controller: ctrls['volume']!,
-                                hint: "0",
-                                isReadOnly: false,
-                                activeFillColor: AppColors.alertSoftPrimarySecond,
-                              )
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                              child: _buildCustomTextField(
-                                label: "Tinggi (mm)",
-                                controller: ctrls['height']!,
-                                hint: "Auto",
-                                isReadOnly: true,
-                              )
-                          ),
-                        ] : [
-                          // JIKA SENSOR MATI: TINGGI DI KIRI (BISA DIEDIT), VOLUME DI KANAN (AUTO)
+                        children: [
                           Expanded(
                               child: _buildCustomTextField(
                                 label: "Tinggi (mm)",
@@ -304,11 +276,7 @@ class PenerimaanSetelahView extends GetView<PenerimaanSetelahController> {
 
                   // BLOK VARIAN (Hitungan Live)
                   Row(
-                    children: isApiActive ? [
-                      Expanded(child: _buildVarianItem("Varian Volume", "$strVarianVol Ltr", volColor)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildVarianItem("Varian Tinggi", "$strVarianHeight mm", heightColor)),
-                    ] : [
+                    children: [
                       Expanded(child: _buildVarianItem("Varian Tinggi", "$strVarianHeight mm", heightColor)),
                       const SizedBox(width: 12),
                       Expanded(child: _buildVarianItem("Varian Volume", "$strVarianVol Ltr", volColor)),

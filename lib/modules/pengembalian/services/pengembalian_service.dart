@@ -51,8 +51,6 @@ class PengembalianService {
     required num varianLiterPengembalian, // Varian yang dikembalikan
     required String keterangan,
     String? foto1Path,
-    String? foto2Path,
-    String? foto3Path,
   }) async {
     try {
       final auth = _loginService.getCurrentAuth();
@@ -67,7 +65,7 @@ class PengembalianService {
         "input_type": "A",
         "varian_liter": varianLiterPengembalian,
         "no_doc_tf": data.noDoc,
-        "aktual_liter": data.aktualLiter,
+        "aktual_liter": data.aktualLiterTransfer,
         "kode_unit": kodeUnit,
       };
 
@@ -79,18 +77,6 @@ class PengembalianService {
         formData.files.add(MapEntry(
           "foto1",
           await MultipartFile.fromFile(foto1Path),
-        ));
-      }
-      if (foto2Path != null && foto2Path.isNotEmpty) {
-        formData.files.add(MapEntry(
-          "foto2",
-          await MultipartFile.fromFile(foto2Path),
-        ));
-      }
-      if (foto3Path != null && foto3Path.isNotEmpty) {
-        formData.files.add(MapEntry(
-          "foto3",
-          await MultipartFile.fromFile(foto3Path),
         ));
       }
 
@@ -115,11 +101,11 @@ class PengembalianService {
       String errMsg = 'Gagal mengupload data. Silakan coba lagi.';
       if (e.response != null) {
         switch (e.response!.statusCode) {
-          case 400: errMsg = 'Permintaan tidak valid, mohon periksa kembali input Anda.'; break;
+          case 400: errMsg = 'Permintaan tidak valid, bisa hubungi admin E-Fuel.'; break;
           case 401: errMsg = 'Sesi Anda telah habis, silakan login kembali.'; break;
           case 403: errMsg = 'Anda tidak memiliki akses untuk melakukan tindakan ini.'; break;
-          case 404: errMsg = 'Layanan tidak ditemukan (404).'; break;
-          case 422: errMsg = 'Data yang dikirimkan tidak lengkap atau tidak sesuai (422).'; break;
+          case 404: errMsg = 'Layanan tidak ditemukan.'; break;
+          case 422: errMsg = 'Data yang dikirimkan tidak lengkap atau tidak sesuai.'; break;
           case 500:
           case 502:
           case 503: errMsg = 'Terjadi kesalahan pada server, mohon coba beberapa saat lagi.'; break;

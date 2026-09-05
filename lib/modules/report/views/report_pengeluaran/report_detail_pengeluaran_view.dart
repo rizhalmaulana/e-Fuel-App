@@ -12,7 +12,6 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
     return "$value $suffix".trim();
   }
 
-  /// Format angka: jika bulat tampilkan tanpa desimal, jika tidak tampilkan 2 desimal
   String _formatLiter(dynamic value, [String suffix = "Ltr"]) {
     if (value == null || value.toString().isEmpty || value == "null") return "-";
     final parsed = double.tryParse(value.toString());
@@ -74,143 +73,6 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
     );
   }
 
-  Widget _buildLiterComparison({
-    required dynamic estimasi,
-    required dynamic aktual,
-  }) {
-    final estimasiVal = double.tryParse(estimasi?.toString() ?? '') ?? 0;
-    final aktualVal = double.tryParse(aktual?.toString() ?? '') ?? 0;
-    final selisih = aktualVal - estimasiVal;
-    final isOver = selisih > 0;
-    final selisihColor = isOver ? const Color(0xFFE53935) : const Color(0xFF4CAF50);
-    final selisihIcon = isOver ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
-    final selisihLabel = isOver ? "Lebih" : "Kurang";
-
-    String fmtLiter(double val) {
-      return val % 1 == 0
-          ? "${val.toInt()} Ltr"
-          : "${val.toStringAsFixed(2)} Ltr";
-    }
-
-    return Column(
-      children: [
-        // -- Estimasi & Aktual berdampingan --
-        Row(
-          children: [
-            // Estimasi
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.show_chart_rounded, size: 14, color: AppColors.secondaryText),
-                        const SizedBox(width: 4),
-                        Text("Estimasi",
-                            style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      fmtLiter(estimasiVal),
-                      style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Aktual
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryOrange.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primaryOrange.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.local_gas_station_outlined, size: 14, color: AppColors.primaryOrange),
-                        const SizedBox(width: 4),
-                        Text("Aktual",
-                            style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.primaryOrange)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      fmtLiter(aktualVal),
-                      style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryOrange),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // -- Selisih --
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: selisihColor.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: selisihColor.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2.0),
-                      child: Icon(Icons.compare_arrows_rounded, size: 16, color: AppColors.secondaryText),
-                    ),
-                    const SizedBox(width: 6),
-
-                    Expanded(
-                      child: Text(
-                        "Selisih (Aktual - Estimasi)",
-                        style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(selisihIcon, size: 14, color: selisihColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${fmtLiter(selisih.abs())} ($selisihLabel)",
-                    style: AppFonts.fUrbanistBold12.copyWith(color: selisihColor),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildApprovalTimeline(List approvals) {
     return Column(
       children: List.generate(approvals.length, (index) {
@@ -263,18 +125,129 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
     );
   }
 
+  Widget _buildPhotoList(Map<String, dynamic> data) {
+    List<Map<String, String>> images = [];
+    if (data['foto1_url'] != null && data['foto1_url'].toString().isNotEmpty) {
+      images.add({"url": data['foto1_url'], "label": "Foto Odometer (KM Kendaraan)"});
+    }
+    if (data['foto2_url'] != null && data['foto2_url'].toString().isNotEmpty) {
+      images.add({"url": data['foto2_url'], "label": "Foto Angka Meter Dispenser"});
+    }
+    if (data['foto3_url'] != null && data['foto3_url'].toString().isNotEmpty) {
+      images.add({"url": data['foto3_url'], "label": "Foto Supir/Operator"});
+    }
+
+    if (images.isEmpty) {
+      return Text("Tidak ada foto terlampir.", style: AppFonts.fUrbanistMedium12.copyWith(color: Colors.grey));
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: images.map((img) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Get.dialog(
+                      Dialog(
+                        backgroundColor: Colors.transparent,
+                        insetPadding: const EdgeInsets.all(16),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            InteractiveViewer(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  img["url"]!,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                onPressed: () => Get.back(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        img["url"]!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryOrange));
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    img["label"]!,
+                    textAlign: TextAlign.center,
+                    style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.darkText),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _formatDateTime(dynamic value) {
+    if (value == null || value.toString().isEmpty) return "-";
+    try {
+      final dt = DateTime.parse(value.toString());
+      return "${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return value.toString();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text("Detail Pengeluaran",
-            style: AppFonts.fUrbanistBold16.copyWith(color: Colors.black)),
+            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryOrange)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -291,7 +264,7 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // ── INFORMASI UMUM ───────────────────────────────────────
+              // INFORMASI UMUM
               _buildSection("Informasi Umum", [
                 _buildRow("No. Dokumen", _val(data['no_doc'])),
                 _buildRow("Tanggal", _val(data['date_inbound'])),
@@ -305,42 +278,56 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
                 _buildRow("Tipe Input", _val(data['input_type'])),
               ]),
 
-              // ── DATA UNIT / KENDARAAN ──
+              // DATA UNIT / KENDARAAN
               _buildSection("Data Unit Penerima", [
                 _buildRow("No. Unit/Polisi", _val(data['nopol_check'])),
                 _buildRow("Nama Operator", _val(data['supir_check'])),
-                _buildRow("Cost Center", _val(data['cost_center'])),
+                
+                if (_val(data['cost_center']) != '-' && _val(data['no_io']) != '-') ...[
+                  _buildRow("Cost Center", _val(data['cost_center'])),
+                  _buildRow("No. IO", _val(data['no_io'])),
+                ] else if (_val(data['cost_center']) != '-') ...[
+                  _buildRow("Cost Center", _val(data['cost_center'])),
+                ] else if (_val(data['no_io']) != '-') ...[
+                  _buildRow("No. IO", _val(data['no_io'])),
+                ] else ...[
+                  _buildRow("Cost Center", "-"),
+                ],
+
                 _buildRow("Keterangan", _val(data['keterangan'])),
               ]),
 
-              // ── DATA PENGISIAN ──
+              // DATA PENGISIAN
               _buildSection("Data Pengisian", [
-                _buildRow("HM/KM Awal", _val(data['hm_km_awal'])),
-                _buildRow("HM/KM Akhir", _val(data['hm_km_akhir'])),
+                _buildRow("Waktu Mulai", _formatDateTime(data['dtime_before'])),
+                _buildRow("Waktu Selesai", _formatDateTime(data['dtime_after'])),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Divider(height: 1),
+                ),
+                _buildRow("HM/KM Sebelumnya", _val(data['hm_km_awal'])),
+                _buildRow("HM/KM Saat Ini", _val(data['hm_km_akhir'])),
                 _buildRow("HM/KM Varian", _val(data['varian_hm_km_awal'])),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Divider(height: 1),
                 ),
                 _buildRow("Ratio Input", _val(data['ratio_input'])),
-                const SizedBox(height: 4),
-
-                // -- Estimasi vs Aktual (widget khusus) --
-                _buildLiterComparison(
-                  estimasi: data['estimasi_pengisian_solar'] ?? data['liter'],
-                  aktual: data['aktual_pengisian_solar'] ?? data['aktual_liter'],
-                ),
-
-                const SizedBox(height: 8),
-                _buildRow("Varian (Selisih)", _formatLiter(data['varian_liter'])),
+                _buildRow("Estimasi Liter", _formatLiter(data['estimasi_pengisian_solar'] ?? data['liter'])),
+                _buildRow("Aktual Liter", _formatLiter(data['aktual_pengisian_solar'] ?? data['aktual_liter']), isHighlight: true),
               ]),
 
-              // ── RIWAYAT APPROVAL ─────────────────────────────────────
+              // RIWAYAT APPROVAL
               if (data['approvals'] != null &&
                   (data['approvals'] as List).isNotEmpty)
                 _buildSection("Riwayat Persetujuan", [
                   _buildApprovalTimeline(data['approvals']),
                 ]),
+
+              // LAMPIRAN FOTO
+              _buildSection("Lampiran Foto", [
+                _buildPhotoList(data),
+              ]),
 
               const SizedBox(height: 20),
             ],

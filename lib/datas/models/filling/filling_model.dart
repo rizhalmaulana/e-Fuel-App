@@ -50,6 +50,9 @@ class FillingModel {
   @HiveField(15)
   final String timestamp;
 
+  @HiveField(16)
+  final String? inputType;
+
   FillingModel({
     required this.transactionId,
     required this.storageCode,
@@ -67,5 +70,6 @@ class FillingModel {
     this.volumeVariantIoT,
     this.heightVariantIoT,
     required this.timestamp,
+    this.inputType,
   });
 }

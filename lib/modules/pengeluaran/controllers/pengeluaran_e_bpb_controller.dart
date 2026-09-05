@@ -8,10 +8,14 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:signature/signature.dart';
 import '../../../configs/app_colors.dart';
+import '../../../configs/app_fonts.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
+import '../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
+import '../../../helpers/lotties_helper.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
+import '../../../datas/dummy/master_unit_dummy.dart';
 import '../../auth/services/login_service.dart';
 import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import '../services/bon_sementara_local_service.dart';
@@ -36,6 +40,7 @@ class PengeluaranEBpbController extends GetxController {
 
   var isLoading = false.obs;
   var selectedUnitCode = 'E000'.obs;
+  var selectedUnitTitle = 'Unknown'.obs;
   var selectedDate = "Pilih Tanggal".obs;
   var totalVolume = 0.0.obs;
   var totalQty = 0.obs;
@@ -84,7 +89,22 @@ class PengeluaranEBpbController extends GetxController {
   void _loadUserInfo() {
     final authData = _loginService.getCurrentAuth();
     if (authData != null) {
-      selectedUnitCode.value = authData.currentKodeUnit ?? 'Unknown';
+      String unitCode = authData.currentKodeUnit ?? 'Unknown';
+      selectedUnitCode.value = unitCode;
+
+      final matched = mappingMasterUnit.firstWhere(
+        (unit) => unit['kode_unit'] == unitCode,
+        orElse: () => {},
+      );
+      if (matched.isNotEmpty && matched['title_unit'] != null) {
+        String namaUnit = matched['nama_unit'] ?? '';
+        selectedUnitTitle.value = namaUnit.isNotEmpty 
+            ? "${matched['title_unit']} - $namaUnit" 
+            : "${matched['title_unit']}";
+      } else {
+        selectedUnitTitle.value = unitCode;
+      }
+
       userName.value = "${authData.user.firstName} ${authData.user.lastName}";
       userJabatan.value = authData.user.jabatan?.namaJabatan ?? "Asst. Traksi";
       userLevelApproval.value = authData.user.otorisasi.first;
@@ -132,23 +152,91 @@ class PengeluaranEBpbController extends GetxController {
   }
 
   Future<void> pickDate(BuildContext context) async {
-    DateTime initialDate = DateTime.now();
+    Get.dialog(
+        const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryOrange)),
+        barrierDismissible: false);
+
     try {
-      if (selectedDateApi.value.isNotEmpty)
-        initialDate = DateFormat('yyyy-MM-dd').parse(selectedDateApi.value);
-    } catch (e) {}
+      List<PengeluaranOutstandingModel> outstandingList =
+          await _apiService.getOutstandingTransactions();
+      
+      Get.back(); // close loading
 
-    DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2030),
-    );
+      if (outstandingList.isEmpty) {
+        Get.snackbar("Informasi", "Tidak ada transaksi outstanding",
+            backgroundColor: AppColors.primaryOrange, colorText: Colors.white);
+        return;
+      }
 
-    if (picked != null) {
-      selectedDateDisplay.value = DateFormat('dd/MM/yyyy').format(picked);
-      selectedDateApi.value = DateFormat('yyyy-MM-dd').format(picked);
-      fetchDailyTransactions();
+      Get.bottomSheet(
+        Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom: BorderSide(
+                          color: AppColors.secondaryText.withOpacity(0.2))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Transaksi Belum Selesai",
+                        style: AppFonts.fUrbanistBold16
+                            .copyWith(color: AppColors.primaryOrange)),
+                    GestureDetector(
+                      onTap: () => Get.back(),
+                      child: const Icon(Icons.close, color: AppColors.secondaryText),
+                    )
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: outstandingList.length,
+                  itemBuilder: (context, index) {
+                    var item = outstandingList[index];
+                    String rawDate = item.tanggalTransaksi ?? "";
+                    String displayDate = "";
+                    try {
+                      DateTime date = DateFormat('yyyy-MM-dd').parse(rawDate);
+                      displayDate = DateFormat('dd/MM/yyyy').format(date);
+                    } catch (e) {
+                      displayDate = rawDate;
+                    }
+
+                    return ListTile(
+                      title: Text(displayDate, style: AppFonts.fUrbanistBold14),
+                      subtitle: Text("Total Transaksi: ${item.totalTransaksi ?? 0}",
+                          style: AppFonts.fUrbanistMedium12
+                              .copyWith(color: AppColors.secondaryText)),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        Get.back();
+                        selectedDateDisplay.value = displayDate;
+                        selectedDateApi.value = rawDate;
+                        fetchDailyTransactions();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        isScrollControlled: true,
+      );
+    } catch (e) {
+      Get.back(); // close loading
+      Get.snackbar("Gagal", "Terjadi kesalahan saat memuat data",
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
     }
   }
 

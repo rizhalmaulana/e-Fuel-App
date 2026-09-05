@@ -17,7 +17,8 @@ class PenerimaanView extends GetView<PenerimaanController> {
       {required String label,
       required TextEditingController controller,
       required String hint,
-      required bool isReadOnly}) {
+      required bool isReadOnly,
+      Color? activeFillColor}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -38,7 +39,9 @@ class PenerimaanView extends GetView<PenerimaanController> {
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: const Color(0xFFF2F6FF),
+            fillColor: !isReadOnly
+                ? (activeFillColor ?? const Color(0xFFF2F6FF))
+                : const Color(0xFFF2F6FF),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -73,42 +76,46 @@ class PenerimaanView extends GetView<PenerimaanController> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Obx(() => Text(
-                controller.isSensorApiActive.value ? "Total Volume" : "Total Volume (Manual)",
-                style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
-              )),
+              Text(
+                "Total Volume",
+                style: AppFonts.fUrbanistMedium12
+                    .copyWith(color: AppColors.secondaryText),
+              ),
               Obx(() => InkWell(
-                onTap: controller.refreshData,
-                child: controller.isRefreshing.value
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.refresh, color: AppColors.primary, size: 18),
-              )),
+                    onTap: controller.refreshData,
+                    child: controller.isRefreshing.value
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.refresh,
+                            color: AppColors.primary, size: 18),
+                  )),
             ],
           ),
-
           const SizedBox(height: 4),
-
           Obx(() {
-            double totalVol = controller.isSensorApiActive.value
-                ? controller.totalVolumeIoT.value
-                : controller.manualTotalVolume.value;
+            double totalVol = controller.manualTotalVolume.value;
             return Text(
               "${TextConvertHelper().formatNumber(totalVol)} L",
-              style: AppFonts.fUrbanistBold24.copyWith(color: AppColors.primary),
+              style:
+                  AppFonts.fUrbanistBold24.copyWith(color: AppColors.primary),
             );
           }),
           const SizedBox(height: 12),
           Container(height: 1, color: AppColors.fieldBackground),
           const SizedBox(height: 12),
-
           Obx(() {
-            final List<Map<String, dynamic>> tanks = controller.isSensorApiActive.value
-                ? controller.tankListIoT.toList() // Tambahkan .toList() di sini
-                : controller.tankListManualSnapshot.map((tank) {
+            final List<Map<String, dynamic>> tanks =
+                controller.tankListManualSnapshot.map((tank) {
               final String code = tank['code'] ?? '';
-              final String volStr = controller.manualInputControllers[code]?['volume']?.text ?? '0';
+              final String volStr =
+                  controller.manualInputControllers[code]?['volume']?.text ??
+                      '0';
               // Bersihkan format ribuan agar bisa di-parse
-              final double vol = double.tryParse(volStr.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+              final double vol = double.tryParse(
+                      volStr.replaceAll('.', '').replaceAll(',', '.')) ??
+                  0;
               return {'code': code, 'volume': vol};
             }).toList();
 
@@ -141,12 +148,14 @@ class PenerimaanView extends GetView<PenerimaanController> {
         children: [
           Flexible(
             child: Text(tankData['code'] ?? '-',
-                style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText),
+                style: AppFonts.fUrbanistMedium10
+                    .copyWith(color: AppColors.secondaryText),
                 overflow: TextOverflow.ellipsis),
           ),
           Text(
             "${TextConvertHelper().formatNumber((tankData['volume'] as num).toDouble())} L",
-            style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText),
+            style:
+                AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText),
           ),
         ],
       ),
@@ -158,31 +167,24 @@ class PenerimaanView extends GetView<PenerimaanController> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Judul berubah sesuai mode
-        Obx(() => Text(
-              controller.isSensorApiActive.value
-                  ? "Data Volume Sensor (Auto)"
-                  : "Input Manual Tangki",
-              style: AppFonts.fUrbanistBold16.copyWith(
-                color: controller.isSensorApiActive.value
-                    ? AppColors.primary
-                    : AppColors.darkText,
-              ),
-            )),
+        Text(
+          "Data Tangki Stok Solar",
+          style: AppFonts.fUrbanistBold16.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
         const SizedBox(height: 4),
-        Obx(() => Text(
-              controller.isSensorApiActive.value
-                  ? "Data berhasil ditarik dari sensor stok terbaru."
-                  : "Silahkan masukkan hasil sounding manual.",
-              style: AppFonts.fUrbanistRegular12
-                  .copyWith(color: AppColors.secondaryText),
-            )),
+        Text(
+          "Silahkan sesuaikan input untuk setiap tangki.",
+          style: AppFonts.fUrbanistRegular12
+              .copyWith(color: AppColors.secondaryText),
+        ),
         const SizedBox(height: 16),
 
         Obx(() {
-          // Tentukan list tangki mana yang akan ditampilkan
-          final List<Map<String, dynamic>> displayTanks = controller.isSensorApiActive.value
-              ? controller.tankListIoT.toList()
-              : controller.tankListManualSnapshot.toList();
+          // Tampilkan semua tangki yang ada di tankListManualSnapshot
+          final List<Map<String, dynamic>> displayTanks =
+              controller.tankListManualSnapshot.toList();
 
           if (displayTanks.isEmpty) {
             return const Center(child: Text("Tidak ada tangki terdeteksi"));
@@ -195,44 +197,66 @@ class PenerimaanView extends GetView<PenerimaanController> {
 
               if (controllers == null) return const SizedBox.shrink();
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.propane_tank_outlined,
-                            size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(code,
-                            style: AppFonts.fUrbanistSemiBold14
-                                .copyWith(color: AppColors.primary)),
-                      ],
+              return Container(
+                margin: const EdgeInsets.only(bottom: 24.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border:
+                      Border.all(color: AppColors.fieldBackground, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildCustomTextField(
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.propane_tank_outlined,
+                                  size: 18, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(code,
+                                  style: AppFonts.fUrbanistSemiBold14
+                                      .copyWith(color: AppColors.primary)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildCustomTextField(
                             label: "Tinggi (mm)",
                             controller: controllers['height']!,
                             hint: "0",
-                            isReadOnly: controller.isSensorApiActive.value,
-                          )
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildCustomTextField(
-                            label: "Volume (Ltr)",
-                            controller: controllers['volume']!,
-                            hint: "Auto",
-                            isReadOnly: true, // Volume selalu readonly
+                            isReadOnly: false,
+                            activeFillColor: AppColors.alertSoftPrimarySecond,
+                          )),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildCustomTextField(
+                              label: "Volume (Ltr)",
+                              controller: controllers['volume']!,
+                              hint: "Auto",
+                              isReadOnly:
+                                  true, // Volume selalu readonly di Sounding
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
@@ -313,7 +337,6 @@ class PenerimaanView extends GetView<PenerimaanController> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 10),
-
                   Center(
                     child: Obx(() => Text(
                           controller.selectedStorage.value,
@@ -322,35 +345,10 @@ class PenerimaanView extends GetView<PenerimaanController> {
                           textAlign: TextAlign.center,
                         )),
                   ),
-
                   const SizedBox(height: 16),
-
                   _buildTotalVolumeCardSection(),
-
                   const SizedBox(height: 24),
-
-                  // FLOW CONTROL
-                  Obx(() => controller.isSensorApiActive.value
-                      ? Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.sensors, color: Colors.green, size: 18),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: Text("Mode Sensor Aktif: Data diisi otomatis dan dikunci.",
-                                style: AppFonts.fUrbanistMedium12.copyWith(color: Colors.green[800])))
-                      ],
-                    ),
-                  )
-                      : const SizedBox.shrink()),
-
                   _buildManualInputSection(),
-
                   const SizedBox(height: 20),
                 ],
               ),

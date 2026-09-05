@@ -33,13 +33,14 @@ class FillingModelAdapter extends TypeAdapter<FillingModel> {
       volumeVariantIoT: fields[13] as double?,
       heightVariantIoT: fields[14] as double?,
       timestamp: fields[15] as String,
+      inputType: fields[16] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, FillingModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.transactionId)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class FillingModelAdapter extends TypeAdapter<FillingModel> {
       ..writeByte(14)
       ..write(obj.heightVariantIoT)
       ..writeByte(15)
-      ..write(obj.timestamp);
+      ..write(obj.timestamp)
+      ..writeByte(16)
+      ..write(obj.inputType);
   }
 
   @override

@@ -1,6 +1,6 @@
 import 'package:e_fuel/modules/approval/bindings/approval_bindings.dart';
 import 'package:e_fuel/modules/approval/bindings/approval_ebpb_binding.dart';
-import 'package:e_fuel/modules/approval/views/approval_views.dart';
+import 'package:e_fuel/modules/approval/views/approval_view.dart';
 import 'package:e_fuel/modules/approval/views/approval_ebpb_view.dart';
 import 'package:e_fuel/modules/home/views/home_view.dart';
 import 'package:e_fuel/modules/penerimaan/bindings/penerimaan_binding.dart';
@@ -45,10 +45,6 @@ import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_binding.dart';
 import 'package:e_fuel/modules/pengembalian/views/pengembalian_view.dart';
 import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_proses_binding.dart';
 import 'package:e_fuel/modules/pengembalian/views/pengembalian_proses_view.dart';
-import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_loading_binding.dart';
-import 'package:e_fuel/modules/pengembalian/views/pengembalian_loading_view.dart';
-import 'package:e_fuel/modules/pengembalian/bindings/pengembalian_aktual_binding.dart';
-import 'package:e_fuel/modules/pengembalian/views/pengembalian_aktual_view.dart';
 import 'package:e_fuel/modules/transfer/bindings/transfer_binding.dart';
 import 'package:e_fuel/modules/transfer/views/transfer_view.dart';
 
@@ -71,8 +67,6 @@ class AppPages {
   static const PENGELUARAN_INPUT_BON_SEMENTARA = Routes.PENGELUARAN_INPUT_BON_SEMENTARA;
   static const PENGELUARAN = Routes.PENGELUARAN;
   static const PENGEMBALIAN = Routes.PENGEMBALIAN;
-  static const PENGEMBALIAN_LOADING = Routes.PENGEMBALIAN_LOADING;
-  static const PENGEMBALIAN_AKTUAL = Routes.PENGEMBALIAN_AKTUAL;
   static const PENGISIAN_SOLAR_PENGELUARAN = Routes.PENGISIAN_SOLAR_PENGELUARAN;
   static const PENGELUARAN_VERIFIKASI_DOC = Routes.PENGELUARAN_VERIFIKASI_DOC;
   static const PENGELUARAN_TRACKING = Routes.PENGELUARAN_TRACKING;
@@ -168,20 +162,6 @@ class AppPages {
       name: Routes.PENGEMBALIAN_PROSES,
       page: () => const PengembalianProsesView(),
       binding: PengembalianProsesBinding(),
-      transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 500),
-    ),
-    GetPage(
-      name: Routes.PENGEMBALIAN_LOADING,
-      page: () => const PengembalianLoadingView(),
-      binding: PengembalianLoadingBinding(),
-      transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 500),
-    ),
-    GetPage(
-      name: Routes.PENGEMBALIAN_AKTUAL,
-      page: () => const PengembalianAktualView(),
-      binding: PengembalianAktualBinding(),
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 500),
     ),

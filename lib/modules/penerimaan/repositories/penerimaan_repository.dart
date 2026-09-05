@@ -31,17 +31,22 @@ class PenerimaanRepository {
 
   // --- SENSOR & MASTER DATA OPERATIONS ---
   List<VolumeTankDetailModel> getLocalSensorData(String storageCode) {
-    return _sensorService.iotData.where((tank) => tank.masterStorage?.kodeStorage == storageCode).toList();
+    return _sensorService.iotData
+        .where((tank) => tank.masterStorage?.kodeStorage == storageCode)
+        .toList();
   }
 
   Future<List<VolumeTankDetailModel>> syncSensorStockWithLocal({
     required String unitId,
     required String storageCode,
   }) async {
-    List<VolumeTankDetailModel> masterTanks = await fetchMasterTankDetail(unitId, storageCode);
+    List<VolumeTankDetailModel> masterTanks =
+        await fetchMasterTankDetail(unitId, storageCode);
     if (masterTanks.isEmpty) {
-      masterTanks = _fuelDataService.getApiManualTanks()
-          .where((t) => t.masterStorage?.kodeStorage == storageCode).toList();
+      masterTanks = _fuelDataService
+          .getApiManualTanks()
+          .where((t) => t.masterStorage?.kodeStorage == storageCode)
+          .toList();
     }
 
     if (masterTanks.isEmpty) return [];
@@ -60,7 +65,9 @@ class PenerimaanRepository {
       if (stockData != null) {
         isApiSuccess = true;
         double vol = (stockData['stock_volume'] as num?)?.toDouble() ?? 0.0;
-        double h = (stockData['tinggi'] ?? stockData['height'] as num?)?.toDouble() ?? 0.0;
+        double h =
+            (stockData['tinggi'] ?? stockData['height'] as num?)?.toDouble() ??
+                0.0;
 
         syncedList.add(VolumeTankDetailModel(
           id: tank.id,
@@ -110,29 +117,38 @@ class PenerimaanRepository {
     debugPrint("DEBUG RESPONSE API: $response");
 
     if (response != null && response is List && response.isNotEmpty) {
-      return response.first;
+      return response.reduce((curr, next) {
+        return ((curr['id'] as num?) ?? 0) > ((next['id'] as num?) ?? 0)
+            ? curr
+            : next;
+      });
     }
     return null;
   }
 
-  Future<List<dynamic>> getTankDetails(String unitId, String tankCode, String date) async {
-    return await _apiService.getTankStockList(unitId: unitId, tankCode: tankCode, dateLog: date);
+  Future<List<dynamic>> getTankDetails(
+      String unitId, String tankCode, String date) async {
+    return await _apiService.getTankStockList(
+        unitId: unitId, tankCode: tankCode, dateLog: date);
   }
 
-  Future<List<dynamic>> getLiveFlowIn(String unitId, String tankCode, String date) async {
-    return await _apiService.getFlowInTraffic(unitId: unitId, tankCode: tankCode, dateLog: date);
+  Future<List<dynamic>> getLiveFlowIn(
+      String unitId, String tankCode, String date) async {
+    return await _apiService.getFlowInTraffic(
+        unitId: unitId, tankCode: tankCode, dateLog: date);
   }
 
-  Future<List<VolumeTankDetailModel>> fetchMasterTankDetail(String unitId, String storageCode) async {
+  Future<List<VolumeTankDetailModel>> fetchMasterTankDetail(
+      String unitId, String storageCode) async {
     final result = await _masterDataService.getTankDetailFromStorage(
-        unitId: unitId,
-        storageId: storageCode
-    );
+        unitId: unitId, storageId: storageCode);
     return result.map((e) => e).toList();
   }
 
-  void updateLocalSensorData(List<VolumeTankDetailModel> newTanks, String storageCode) {
-    _sensorService.iotData.removeWhere((t) => t.masterStorage?.kodeStorage == storageCode);
+  void updateLocalSensorData(
+      List<VolumeTankDetailModel> newTanks, String storageCode) {
+    _sensorService.iotData
+        .removeWhere((t) => t.masterStorage?.kodeStorage == storageCode);
     _sensorService.iotData.addAll(newTanks);
   }
 
@@ -151,9 +167,7 @@ class PenerimaanRepository {
 
   Future<double?> getLiterFromCalibration(int capacity, double heightMm) async {
     return await _masterDataService.getLiterFromCalibrationService(
-        kapasitas: capacity,
-        tinggiMm: heightMm
-    );
+        kapasitas: capacity, tinggiMm: heightMm);
   }
 
   // --- DRAFT OPERATIONS ---
@@ -166,15 +180,24 @@ class PenerimaanRepository {
   }
 
   // --- TRANSACTION OPERATIONS ---
-  Future<Map<String, dynamic>> submitTransaction(Map<String, dynamic> formMap, List<File?> photos) async {
-    return await _apiService.submitInboundOpen(formMap: formMap, photos: photos);
+  Future<Map<String, dynamic>> submitTransaction(
+      Map<String, dynamic> formMap, List<File?> photos) async {
+    return await _apiService.submitInboundOpen(
+        formMap: formMap, photos: photos);
+  }
+
+  Future<void> createInboundTank(Map<String, dynamic> payload) async {
+    await _apiService.createInboundTankService(payload);
   }
 
   Future<void> saveLocalTransaction(TransactionModel transaction) async {
     await _outstandingService.saveTransaction(transaction);
   }
 
-  Future<void> updateLocalTransactionDetails(String noBast, List<Map<String, dynamic>> manualData, List<Map<String, dynamic>> iotData) async {
+  Future<void> updateLocalTransactionDetails(
+      String noBast,
+      List<Map<String, dynamic>> manualData,
+      List<Map<String, dynamic>> iotData) async {
     var trx = await _outstandingService.getTransactionByNoBastService(noBast);
     if (trx != null && trx.dataSebelum != null) {
       trx.dataSebelum!.manualTankDetailsJson = jsonEncode(manualData);

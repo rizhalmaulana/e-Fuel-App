@@ -58,6 +58,38 @@ class ApprovalEbpbController extends GetxController {
     if (noDoc.isNotEmpty) {
       final data = await _approvalService.getEbpbDetail(noDoc);
       if (data != null) {
+        if (data['approvals'] != null && data['approvals'] is List) {
+          final approvals = data['approvals'] as List;
+          
+          approvals.forEach((app) {
+            String title = (app['title']?.toString() ?? '').toUpperCase();
+            if (title.contains('KERANI') || title.contains('KEPALA GUDANG')) {
+              app['title'] = 'Asst. Traksi';
+            }
+          });
+          
+          final order = ['ASST. TRAKSI', 'KASIE', 'MANAGER'];
+          
+          approvals.sort((a, b) {
+            String titleA = (a['title']?.toString() ?? '').toUpperCase();
+            String titleB = (b['title']?.toString() ?? '').toUpperCase();
+            
+            int indexA = order.indexWhere((t) => titleA.contains(t));
+            int indexB = order.indexWhere((t) => titleB.contains(t));
+            
+            if (indexA == -1) indexA = 99;
+            if (indexB == -1) indexB = 99;
+            
+            if (indexA != indexB) {
+              return indexA.compareTo(indexB);
+            }
+            
+            int levelA = int.tryParse(a['level_approve']?.toString() ?? '99') ?? 99;
+            int levelB = int.tryParse(b['level_approve']?.toString() ?? '99') ?? 99;
+            return levelA.compareTo(levelB);
+          });
+          data['approvals'] = approvals;
+        }
         detailData.assignAll(data);
       } else {
         Get.snackbar("Terjadi Kesalahan", "Gagal memuat detail data transaksi E-BPB");
@@ -143,7 +175,7 @@ class ApprovalEbpbController extends GetxController {
         }
 
         if (isFullApproved) {
-          downloadedFilePath = await _approvalService.downloadPdfDocument(noDoc);
+          downloadedFilePath = await _approvalService.downloadPdfDocument(noDoc, isEbpb: true);
         }
       }
 

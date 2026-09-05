@@ -246,19 +246,65 @@ class TransferView extends GetView<TransferController> {
         );
       }
 
-      return ListView.separated(
-        padding: const EdgeInsets.all(12),
-        itemCount: controller.filteredSavedList.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final item = controller.filteredSavedList[index];
-          return _buildCard(
-            item: item,
-            actionLabel: 'Upload ke Server',
-            onAction: () => controller.uploadData(item),
-            isUpload: true,
-          );
-        },
+      return Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: controller.filteredSavedList.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = controller.filteredSavedList[index];
+                return _buildCard(
+                  item: item,
+                  actionLabel: '',
+                  onAction: () {},
+                  isUpload: true,
+                  hideAction: true,
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + MediaQuery.of(Get.context!).padding.bottom),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.15),
+                  offset: const Offset(0, -4),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                )
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: controller.uploadAllData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.cloud_upload_outlined, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Upload Semua',
+                      style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     });
   }
@@ -268,6 +314,7 @@ class TransferView extends GetView<TransferController> {
     required String actionLabel,
     required VoidCallback onAction,
     bool isUpload = false,
+    bool hideAction = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -288,24 +335,50 @@ class TransferView extends GetView<TransferController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.local_gas_station_rounded,
-                color: AppColors.primaryOrange,
-                size: 24,
+              Container(
+                margin: const EdgeInsets.only(top: 5),
+                child: const Icon(
+                  Icons.local_gas_station_rounded,
+                  color: AppColors.primaryOrange,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  item.namaUnit,
-                  style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.confirmation_num_outlined, size: 12, color: AppColors.secondaryText),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            item.noDoc,
+                            style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.namaUnit,
+                      style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 item.dateInbound,
-                style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
+                style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText),
               ),
             ],
           ),
@@ -317,15 +390,15 @@ class TransferView extends GetView<TransferController> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.confirmation_num_outlined, size: 14, color: AppColors.secondaryText),
-                  const SizedBox(width: 6),
-                  Text(item.noDoc, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
+                  Icon(Icons.ad_units_outlined, size: 12, color: AppColors.secondaryText),
+                  const SizedBox(width: 3),
+                  Text(item.titleUnit ?? item.kodeUnit, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
                 ],
               ),
               Row(
                 children: [
-                  Icon(Icons.person_outline, size: 14, color: AppColors.secondaryText),
-                  const SizedBox(width: 6),
+                  Icon(Icons.person_2_outlined, size: 12, color: AppColors.secondaryText),
+                  const SizedBox(width: 3),
                   Text(item.supirCheck, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
                 ],
               ),
@@ -340,50 +413,80 @@ class TransferView extends GetView<TransferController> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.show_chart, size: 16, color: AppColors.secondaryText),
-                    const SizedBox(width: 6),
-                    Text(isUpload ? 'Aktual Pengisian' : 'Total Pengambilan', style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.show_chart, size: 16, color: AppColors.secondaryText),
+                          const SizedBox(width: 6),
+                          Text(isUpload ? 'Aktual Pengisian' : 'Total Pengambilan', style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${isUpload ? item.inputAktualLiter : item.aktualLiter} Ltr',
+                        style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${isUpload ? item.inputAktualLiter : item.aktualLiter} Ltr',
-                  style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText),
-                ),
+                if (isUpload) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.water_drop_outlined, size: 16, color: AppColors.secondaryText),
+                            const SizedBox(width: 6),
+                            Text('Sisa Solar', style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${item.inputVarianLiter ?? 0} Ltr',
+                          style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 38,
-            child: ElevatedButton(
-              onPressed: onAction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isUpload ? Colors.green : AppColors.primaryOrange,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(isUpload ? Icons.cloud_upload_outlined : Icons.arrow_forward_rounded, color: Colors.white, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    actionLabel,
-                    style: AppFonts.fUrbanistBold14.copyWith(fontSize: 13, color: AppColors.white),
+          if (!hideAction) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: ElevatedButton(
+                onPressed: onAction,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isUpload ? Colors.green : AppColors.primaryOrange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
+                  elevation: 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(isUpload ? Icons.cloud_upload_outlined : Icons.arrow_forward_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      actionLabel,
+                      style: AppFonts.fUrbanistBold14.copyWith(fontSize: 13, color: AppColors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -53,7 +53,9 @@ class PenerimaanSetelahRepository {
       dateLog: dateLog,
     );
     if (response != null && response is List && response.isNotEmpty) {
-      return response.first;
+      return response.reduce((curr, next) {
+        return ((curr['id'] as num?) ?? 0) > ((next['id'] as num?) ?? 0) ? curr : next;
+      });
     }
     return null;
   }

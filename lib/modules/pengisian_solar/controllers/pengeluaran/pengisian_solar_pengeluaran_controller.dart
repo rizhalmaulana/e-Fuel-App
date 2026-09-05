@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -43,6 +44,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   final statusSupir = 'Internal'.obs;
   final messageResponse = ''.obs;
   final dateLogResponse = ''.obs;
+  final isManualInput = false.obs;
 
   final List<String> jenisPengeluaranOptions = ['Bon Sementara', 'BPB'];
   final selectedJenisPengeluaran = 'Bon Sementara'.obs;
@@ -126,6 +128,8 @@ class PengisianSolarPengeluaranController extends GetxController {
 
     String initialDocType = payload['doc_type'] ?? 'FOT';
     selectedJenisPengeluaran.value = (initialDocType == 'BPB') ? 'BPB' : 'Bon Sementara';
+    
+    isManualInput.value = args['isManualInput'] ?? false;
 
     // Ambil storage code aktif dari Home Controller
     String rawStorage = _homeController.selectedStorage.value;
@@ -134,7 +138,9 @@ class PengisianSolarPengeluaranController extends GetxController {
     estimasiSolarC.text = jumlahSolarArg.value;
     aktualSolarC.text = "";
 
-    refreshSensorMonitoring();
+    if (!isManualInput.value) {
+      refreshSensorMonitoring();
+    }
   }
 
   Future<void> refreshSensorMonitoring() async {
@@ -212,14 +218,16 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   // --- SUBMIT LOGIC ---
   void showSubmitConfirmation() {
-    if (fotoDispenser.value == null || fotoSupir.value == null) {
-      Get.snackbar(
-        "Foto Belum Lengkap",
-        "Harap ambil Foto Dispenser dan Foto Supir terlebih dahulu.",
-        backgroundColor: AppColors.alertSoftRed,
-        colorText: AppColors.white,
-      );
-      return;
+    if (!isManualInput.value) {
+      if (fotoDispenser.value == null || fotoSupir.value == null) {
+        Get.snackbar(
+          "Foto Belum Lengkap",
+          "Harap ambil Foto Dispenser dan Foto Supir terlebih dahulu.",
+          backgroundColor: AppColors.alertSoftRed,
+          colorText: AppColors.white,
+        );
+        return;
+      }
     }
 
     if (aktualSolarC.text.isEmpty || double.tryParse(aktualSolarC.text.replaceAll(',', '.')) == 0) {
@@ -334,12 +342,14 @@ class PengisianSolarPengeluaranController extends GetxController {
     );
 
     try {
+      print("=== MULAI SUBMIT PENGELUARAN ===");
       final auth = _loginService.getCurrentAuth();
       if (auth == null) throw "Data user tidak valid.";
 
       String userLevel = auth.user.otorisasi.first;
       String kodeUnit = auth.currentKodeUnit ?? "";
 
+      print("-> Step 1: getKonfigurasiApproval (transactionType: $currentDocType, kodeUnit: $kodeUnit)");
       List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
         transactionType: currentDocType,
         kodeUnit: kodeUnit,
@@ -350,6 +360,7 @@ class PengisianSolarPengeluaranController extends GetxController {
             (config) => config.levelApproval == userLevel,
         orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval untuk tipe $currentDocType.",
       );
+      print("-> Step 1 Selesai. Config ditemukan: level ${myConfig.levelApproval}");
 
       String finalNoDoc = noDoc.value;
       double estimasiSolar = double.tryParse(estimasiSolarC.text.replaceAll(',', '.')) ?? 0;
@@ -357,14 +368,17 @@ class PengisianSolarPengeluaranController extends GetxController {
       double finalVarianLiter = double.tryParse(varianSolarC.text.replaceAll(',', '.')) ?? 0;
       double finalKm = double.tryParse(KmPengisian.value.replaceAll(',', '.')) ?? 0;
 
+      print("-> Step 2: createTransactionApproval (noDoc: $finalNoDoc)");
       await _apiService.createTransactionApproval(
           noDoc: finalNoDoc,
           kodeUnit: _currentUserUnitCode,
           transactionType: currentDocType // FOT or BPB
       );
+      print("-> Step 2 Selesai");
 
       await Future.delayed(const Duration(milliseconds: 500));
 
+      print("-> Step 3: updateStatusTransactionApproval");
       await _apiService.updateStatusTransactionApproval(
         noDoc: finalNoDoc,
         levelApproval: myConfig.levelApproval ?? "1",
@@ -373,23 +387,31 @@ class PengisianSolarPengeluaranController extends GetxController {
         isSign: false,
         isPartnerSign: false,
       );
+      print("-> Step 3 Selesai");
 
       await Future.delayed(const Duration(milliseconds: 200));
 
       // 4. Upload Images
-      await _apiService.uploadImagePengeluaran(
-        noDoc: finalNoDoc,
-        foto2: fotoDispenser.value!,  // foto dispenser/angka meter
-        foto3: fotoSupir.value!,      // foto supir
-      );
+      print("-> Step 4: uploadImagePengeluaran (isManualInput: ${isManualInput.value})");
+      if (!isManualInput.value) {
+        await _apiService.uploadImagePengeluaran(
+          noDoc: finalNoDoc,
+          foto2: fotoDispenser.value!,  // foto dispenser/angka meter
+          foto3: fotoSupir.value!,      // foto supir
+        );
+      }
+      print("-> Step 4 Selesai");
 
       // 5. Update Aktual Liter
+      print("-> Step 5: updateAktualLiterPengeluaran");
       await _apiService.updateAktualLiterPengeluaran(
           noDoc: finalNoDoc,
           aktual: finalSolar,
           varianLiter: finalVarianLiter
       );
+      print("-> Step 5 Selesai");
 
+      print("-> Step 6: updateUnitAfterTransaction (statusSupir: ${statusSupir.value})");
       if (statusSupir.value == 'Internal') {
         String currentUnit = _homeController.selectedUnitCode.value;
         String currentStorageName = _homeController.selectedStorage.value;
@@ -407,6 +429,7 @@ class PengisianSolarPengeluaranController extends GetxController {
             storageCodeOverride: storageCode
         );
       }
+      print("-> Step 6 Selesai");
 
       Map<String, dynamic> payload = {
         "no_io": noIO.value,
@@ -420,8 +443,18 @@ class PengisianSolarPengeluaranController extends GetxController {
         "varian_liter": finalVarianLiter
       };
 
-      await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value!.path, fotoSupir.value!.path);
+      try {
+        String prettyPayload = const JsonEncoder.withIndent('  ').convert(payload);
+        print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
+      } catch (e) {
+        print("Payload: $payload");
+      }
 
+      print("-> Step 7: _updateLocalStatus");
+      await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value?.path ?? '', fotoSupir.value?.path ?? '');
+      print("-> Step 7 Selesai");
+
+      print("=== SUBMIT PENGELUARAN BERHASIL ===");
       _safeCloseDialog();
       Get.dialog(
         DialogFlexible(
@@ -438,9 +471,10 @@ class PengisianSolarPengeluaranController extends GetxController {
         barrierDismissible: false,
       );
 
-    } catch (e) {
+    } catch (e, stackTrace) {
       _safeCloseDialog();
-      print("Error Submit: $e");
+      print("Error Submit Pengeluaran: $e");
+      print("Stack Trace: $stackTrace");
       Get.snackbar("Gagal", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
     }
   }

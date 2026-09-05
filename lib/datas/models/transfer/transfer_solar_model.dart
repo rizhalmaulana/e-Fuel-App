@@ -18,6 +18,9 @@ class TransferSolarModel extends HiveObject {
   @HiveField(3)
   final String namaUnit;
 
+  @HiveField(23)
+  final String? titleUnit;
+
   @HiveField(4)
   final String noIo;
 
@@ -37,7 +40,7 @@ class TransferSolarModel extends HiveObject {
   final String nopolCheck;
 
   @HiveField(10)
-  final String supirCheck;
+  String supirCheck;
 
   @HiveField(11)
   final num? varian; // This maps to 'varian' in payload
@@ -65,6 +68,18 @@ class TransferSolarModel extends HiveObject {
   @HiveField(18)
   final String? satuan;
 
+  @HiveField(19)
+  num? hmKmAwal;
+
+  @HiveField(20)
+  num? hmKmAkhir;
+
+  @HiveField(21)
+  num? ratio;
+
+  @HiveField(22)
+  num? jumlahPengisianSolar;
+
   TransferSolarModel({
     required this.id,
     required this.noDoc,
@@ -77,6 +92,7 @@ class TransferSolarModel extends HiveObject {
     required this.tipeUnitIo,
     required this.nopolCheck,
     required this.supirCheck,
+    this.titleUnit,
     this.varian,
     this.inputAktualLiter,
     this.inputVarianLiter,
@@ -85,6 +101,10 @@ class TransferSolarModel extends HiveObject {
     this.foto3Path,
     this.isOfflineSubmitted = false,
     this.satuan,
+    this.hmKmAwal,
+    this.hmKmAkhir,
+    this.ratio,
+    this.jumlahPengisianSolar,
   });
 
   factory TransferSolarModel.fromJson(Map<String, dynamic> json) {
@@ -93,6 +113,7 @@ class TransferSolarModel extends HiveObject {
       noDoc: json['no_doc'] as String? ?? '-',
       kodeUnit: json['kode_unit'] as String? ?? '-',
       namaUnit: json['nama_unit'] as String? ?? '-',
+      titleUnit: json['title_unit'] as String?,
       noIo: json['no_io'] as String? ?? '-',
       aktualLiter: json['aktual_liter'] as num? ?? json['liter'] as num? ?? 0,
       dateInbound: json['date_inbound'] as String? ?? '-',
@@ -100,7 +121,7 @@ class TransferSolarModel extends HiveObject {
       tipeUnitIo: json['tipe_unit_io'] as String? ?? '-',
       nopolCheck: json['nopol_check'] as String? ?? '-',
       supirCheck: json['supir_check'] as String? ?? '-',
-      varian: json['varian'] as num?,
+      varian: json['varian_liter'] as num? ?? json['varian'] as num?,
       inputAktualLiter: json['input_aktual_liter'] as num?,
       inputVarianLiter: json['input_varian_liter'] as num?,
       foto1Path: json['foto1_path'] as String?,
@@ -108,6 +129,10 @@ class TransferSolarModel extends HiveObject {
       foto3Path: json['foto3_path'] as String?,
       isOfflineSubmitted: json['is_offline_submitted'] as bool? ?? false,
       satuan: json['satuan'] as String?,
+      hmKmAwal: json['hm_km_awal'] as num?,
+      hmKmAkhir: json['hm_km_akhir'] as num?,
+      ratio: json['ratio_input'] as num? ?? json['ratio'] as num?,
+      jumlahPengisianSolar: json['liter'] as num? ?? json['jumlah_pengisian_solar'] as num?,
     );
   }
 

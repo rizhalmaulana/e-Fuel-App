@@ -61,7 +61,7 @@ class PengeluaranTrackingView extends GetView<PengeluaranTrackingController> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // --- CARD DATA UTAMA (SESUAI REQUEST) ---
+                        // --- CARD DATA UTAMA ---
                         Container(
                           margin: const EdgeInsets.all(16),
                           padding: const EdgeInsets.all(16),

@@ -461,7 +461,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
-                    child: _buildSummaryRow("Varian Solar", "${controller.varianController.text} Ltr"),
+                    child: _buildSummaryRow("Sisa Solar", "${controller.varianController.text} Ltr"),
                   ),
                 ],
               );

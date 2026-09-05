@@ -328,7 +328,9 @@ class PenerimaanVerifikasiBastController extends GetxController {
         primaryButtonText: "Ya, Submit",
         onPrimaryPressed: () {
           Get.back();
-          _processSubmit();
+          Future.delayed(const Duration(milliseconds: 300), () {
+            _processSubmit();
+          });
         },
       ),
       barrierDismissible: false,
@@ -360,9 +362,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
       final currentTx = currentTransaction.value;
       if (auth == null || currentTx == null) throw "Data tidak valid.";
 
-      isSensorApiActive.value = false; // Pasang Function untuk Check API Nanti
-
-      // Save Signatures
+      // Validate Approval Config
       File? fileGudang = await _repository.saveSignatureToFile(signatureGudangController, "ttd_gudang_${activeNoBast.value}.png");
       File? filePartner = await _repository.saveSignatureToFile(signaturePartnerController, "ttd_partner_${activeNoBast.value}.png");
       File? fileSecurity = await _repository.saveSignatureToFile(signatureSecurityController, "ttd_security_${activeNoBast.value}.png");
@@ -384,15 +384,21 @@ class PenerimaanVerifikasiBastController extends GetxController {
       );
 
       // Prepare Payload
-      List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) => {
-        "kode_tank": item.tankCode,
-        "volume_terkini_liter": (isSensorApiActive.value) ? item.volumeBeforeIoT : item.volumeBefore,
-        "tinggi_terkini_cm": (isSensorApiActive.value) ? item.heightBeforeIoT : item.heightBefore,
-        "volume_akhir_liter": (isSensorApiActive.value) ? item.volumeAfterIoT : item.volumeAfter,
-        "tinggi_akhir_cm": (isSensorApiActive.value) ? item.heightAfterIoT : item.heightAfter,
-        "tinggi_var_cm": (isSensorApiActive.value) ? item.heightVariantIoT : item.heightVariant,
-        "volume_var_liter": item.volumeVariant,
-        "input_type": (isSensorApiActive.value) ? "A" : "M", // A (Auto), M (Manual)
+      List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) {
+        return {
+          "kode_tank": item.tankCode,
+          "volume_terkini_liter": item.volumeBeforeIoT ?? 0.0,
+          "tinggi_terkini_cm": item.heightBeforeIoT ?? 0.0,
+          "volume_akhir_liter": item.volumeAfterIoT ?? 0.0,
+          "tinggi_akhir_cm": item.heightAfterIoT ?? 0.0,
+          "tinggi_var_cm": item.heightVariantIoT ?? 0.0,
+          "volume_var_liter": item.volumeVariantIoT ?? 0.0,
+          "volume_manual_liter": item.volumeAfter,
+          "tinggi_manual_cm": item.heightAfter,
+          "volume_manual_var": item.volumeVariant,
+          "tinggi_manual_var": item.heightVariant,
+          "input_type": "M",
+        };
       }).toList();
 
       // Submit Inbound Tank
@@ -447,7 +453,9 @@ class PenerimaanVerifikasiBastController extends GetxController {
       _showResultDialog(isSuccess: true, message: "Dokumen berhasil disetujui dan diteruskan.");
 
     } catch (e) {
-      Get.back();
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
 
       String errorMessage = (e is String) ? e : TextConvertHelper().handleApiError(e);
       print("ERROR SUBMIT BAST: $e");

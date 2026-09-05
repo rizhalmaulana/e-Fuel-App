@@ -61,9 +61,11 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
     final isOver = selisih > 0;
 
     return InkWell(
-      onTap: () {
-        Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
-      },
+      onTap: isCompleted
+          ? () {
+              Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
+            }
+          : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -147,22 +149,24 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
               ],
             ),
 
-            // -- Tombol Lihat Detail (Sekarang selalu muncul agar user bisa cek berkas proses/selesai) --
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 36,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.primaryOrange),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            // -- Tombol Lihat Detail --
+            if (isCompleted) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 36,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.primaryOrange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
+                  },
+                  child: Text("Lihat Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryOrange)),
                 ),
-                onPressed: () {
-                  Get.toNamed('/report-detail-pengeluaran', arguments: {'no_doc': item.noDoc});
-                },
-                child: Text("Lihat Detail", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryOrange)),
               ),
-            ),
+            ],
           ],
         ),
       ),

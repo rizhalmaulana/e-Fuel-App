@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../../configs/app_colors.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
-import '../services/pengembalian_service.dart';
-import '../../../../widgets/dialog/dialog_flexible.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
+import '../../../../widgets/dialog/dialog_flexible.dart';
+import '../../../helpers/lotties_helper.dart';
+import '../services/pengembalian_service.dart';
 import 'pengembalian_controller.dart';
 
 class PengembalianProsesController extends GetxController {
@@ -29,7 +29,7 @@ class PengembalianProsesController extends GetxController {
     super.onInit();
     if (Get.arguments != null && Get.arguments is PengembalianSolarModel) {
       data = Get.arguments as PengembalianSolarModel;
-      varianLiterController.text = data.varianLiter.toString();
+      varianLiterController.text = data.varianLiterTransfer.toString();
     } else {
       Get.back();
       Get.snackbar('Error', 'Data transaksi tidak ditemukan');
@@ -94,46 +94,70 @@ class PengembalianProsesController extends GetxController {
 
   void submit() {
     // Validate inputs
-    int varianInput = int.tryParse(varianLiterController.text) ?? 0;
-    
-    if (varianInput <= 0) {
-      _showError('Varian Liter harus lebih dari 0.');
+    int varianInput = int.tryParse(varianLiterController.text.toString()) ?? 0;
+
+    // if (varianInput <= 0) {
+    //   _showError('Varian Liter harus lebih dari 0.');
+    //   return;
+    // }
+
+    // if (varianInput > data.varianLiter) {
+    //   _showError('Varian Liter tidak boleh melebihi sisa liter (${data.varianLiter}).');
+    //   return;
+    // }
+
+    if (foto1Path.value == null) {
+      _showError('Wajib melampirkan Foto Pengambilan Solar.');
       return;
     }
 
-    if (varianInput > data.varianLiter) {
-      _showError('Varian Liter tidak boleh melebihi sisa liter (${data.varianLiter}).');
-      return;
-    }
-
-    if (foto1Path.value == null || foto2Path.value == null || foto3Path.value == null) {
-      _showError('Wajib melampirkan ke-3 foto.');
-      return;
-    }
-
-    if (keteranganController.text.isEmpty) {
-      _showError('Keterangan wajib diisi.');
-      return;
-    }
+    // if (keteranganController.text.isEmpty) {
+    //   _showError('Keterangan wajib diisi.');
+    //   return;
+    // }
 
     Get.dialog(
       DialogFlexible(
         title: 'Konfirmasi Submit',
-        message: 'Apakah Anda yakin ingin memproses Pengembalian Solar ini ke server?',
+        message: 'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
         primaryButtonText: 'Ya, Submit',
         onPrimaryPressed: () {
-          Get.back(); // close dialog
-          _processSubmit(varianInput);
+          Get.back();
+          _doSubmit(varianInput);
         },
         secondaryButtonText: 'Batal',
         onSecondaryPressed: () => Get.back(),
+        logo: LottiesHelper().getLottieConfirmation(),
       ),
+      barrierDismissible: false,
     );
   }
 
-  Future<void> _processSubmit(int varianInput) async {
+  Future<void> _doSubmit(int varianInput) async {
     Get.dialog(
-      const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange)),
+      Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              CircularProgressIndicator(color: Color(0xFF003366)),
+              SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  "Memproses pengembalian...",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       barrierDismissible: false,
     );
 
@@ -141,21 +165,20 @@ class PengembalianProsesController extends GetxController {
       bool success = await _service.submitPengembalian(
         data: data,
         varianLiterPengembalian: varianInput,
-        keterangan: keteranganController.text,
+        keterangan: keteranganController.text.isEmpty ? "-" : keteranganController.text,
         foto1Path: foto1Path.value,
-        foto2Path: foto2Path.value,
-        foto3Path: foto3Path.value,
       );
 
       Get.back(); // close loading dialog
 
       if (success) {
         Get.snackbar(
-          'Sukses', 
-          'Pengembalian Solar berhasil disubmit',
-          backgroundColor: Colors.green, 
+          'Berhasil',
+          'Pengembalian Solar Selesai',
+          backgroundColor: Colors.green,
           colorText: Colors.white,
         );
+
         Get.until((route) => Get.currentRoute == '/pengembalian');
         
         // Refresh list
@@ -163,18 +186,12 @@ class PengembalianProsesController extends GetxController {
            final listController = Get.find<PengembalianController>();
            listController.fetchData();
         } catch(e) {}
-
+      } else {
+        Get.snackbar('Gagal', 'Gagal submit pengembalian.', backgroundColor: Colors.red, colorText: Colors.white);
       }
     } catch (e) {
-      Get.back(); // close loading
-      String displayError = e.toString().replaceAll('Exception: ', '');
-      Get.snackbar(
-        'Gagal', 
-        displayError,
-        backgroundColor: AppColors.alertSoftRed, 
-        colorText: Colors.white, 
-        duration: const Duration(seconds: 5),
-      );
+      Get.back(); // close dialog
+      Get.snackbar('Gagal', 'Terjadi kesalahan: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
