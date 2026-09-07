@@ -28,6 +28,7 @@ class TransferSolarModelAdapter extends TypeAdapter<TransferSolarModel> {
       tipeUnitIo: fields[8] as String,
       nopolCheck: fields[9] as String,
       supirCheck: fields[10] as String,
+      titleUnit: fields[23] as String?,
       varian: fields[11] as num?,
       inputAktualLiter: fields[12] as num?,
       inputVarianLiter: fields[13] as num?,
@@ -36,13 +37,17 @@ class TransferSolarModelAdapter extends TypeAdapter<TransferSolarModel> {
       foto3Path: fields[16] as String?,
       isOfflineSubmitted: fields[17] as bool,
       satuan: fields[18] as String?,
+      hmKmAwal: fields[19] as num?,
+      hmKmAkhir: fields[20] as num?,
+      ratio: fields[21] as num?,
+      jumlahPengisianSolar: fields[22] as num?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TransferSolarModel obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(24)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -51,6 +56,8 @@ class TransferSolarModelAdapter extends TypeAdapter<TransferSolarModel> {
       ..write(obj.kodeUnit)
       ..writeByte(3)
       ..write(obj.namaUnit)
+      ..writeByte(23)
+      ..write(obj.titleUnit)
       ..writeByte(4)
       ..write(obj.noIo)
       ..writeByte(5)
@@ -80,7 +87,15 @@ class TransferSolarModelAdapter extends TypeAdapter<TransferSolarModel> {
       ..writeByte(17)
       ..write(obj.isOfflineSubmitted)
       ..writeByte(18)
-      ..write(obj.satuan);
+      ..write(obj.satuan)
+      ..writeByte(19)
+      ..write(obj.hmKmAwal)
+      ..writeByte(20)
+      ..write(obj.hmKmAkhir)
+      ..writeByte(21)
+      ..write(obj.ratio)
+      ..writeByte(22)
+      ..write(obj.jumlahPengisianSolar);
   }
 
   @override
@@ -111,6 +126,7 @@ TransferSolarModel _$TransferSolarModelFromJson(Map<String, dynamic> json) =>
       tipeUnitIo: json['tipe_unit_io'] as String,
       nopolCheck: json['nopol_check'] as String,
       supirCheck: json['supir_check'] as String,
+      titleUnit: json['title_unit'] as String?,
       varian: json['varian'] as num?,
       inputAktualLiter: json['input_aktual_liter'] as num?,
       inputVarianLiter: json['input_varian_liter'] as num?,
@@ -119,6 +135,10 @@ TransferSolarModel _$TransferSolarModelFromJson(Map<String, dynamic> json) =>
       foto3Path: json['foto3_path'] as String?,
       isOfflineSubmitted: json['is_offline_submitted'] as bool? ?? false,
       satuan: json['satuan'] as String?,
+      hmKmAwal: json['hm_km_awal'] as num?,
+      hmKmAkhir: json['hm_km_akhir'] as num?,
+      ratio: json['ratio'] as num?,
+      jumlahPengisianSolar: json['jumlah_pengisian_solar'] as num?,
     );
 
 Map<String, dynamic> _$TransferSolarModelToJson(TransferSolarModel instance) =>
@@ -127,6 +147,7 @@ Map<String, dynamic> _$TransferSolarModelToJson(TransferSolarModel instance) =>
       'no_doc': instance.noDoc,
       'kode_unit': instance.kodeUnit,
       'nama_unit': instance.namaUnit,
+      'title_unit': instance.titleUnit,
       'no_io': instance.noIo,
       'aktual_liter': instance.aktualLiter,
       'date_inbound': instance.dateInbound,
@@ -142,4 +163,8 @@ Map<String, dynamic> _$TransferSolarModelToJson(TransferSolarModel instance) =>
       'foto3_path': instance.foto3Path,
       'is_offline_submitted': instance.isOfflineSubmitted,
       'satuan': instance.satuan,
+      'hm_km_awal': instance.hmKmAwal,
+      'hm_km_akhir': instance.hmKmAkhir,
+      'ratio': instance.ratio,
+      'jumlah_pengisian_solar': instance.jumlahPengisianSolar,
     };

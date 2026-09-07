@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:e_fuel/helpers/lotties_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -115,12 +116,20 @@ class HomeController extends GetxController {
     isLoading.value = true;
 
     _loadDataForActiveUser().then((success) async {
-      if (success) {
-        await _initialDataSync();
+      try {
+        if (success) {
+          await _initialDataSync();
+        } else {
+          Get.offAllNamed(Routes.LOGIN);
+        }
+      } catch (e) {
+        print("Error in initial load: $e");
+      } finally {
         isLoading.value = false;
-      } else {
-        Get.offAllNamed(Routes.LOGIN);
       }
+    }).catchError((e) {
+      print("Error loading active user: $e");
+      isLoading.value = false;
     });
 
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
@@ -420,24 +429,50 @@ class HomeController extends GetxController {
       try {
         final ebpbResult = await _approvalService.getApprovalListEbpb(
           kodeUnit: kodeUnit,
-          levelApproval: userLevel,
+          levelApproval: "", // Kosongkan agar dapat semua level yang pending
           statusApprove: "PENDING",
         );
 
+        Map<String, List<dynamic>> groupedEbpb = {};
         for (var item in ebpbResult) {
-          String dateRaw = item['created_at'] ?? item['tgl_approve'] ?? DateTime.now().toString();
-          tempApproval.add({
-            'noBast': item['no_doc'] ?? '-',
-            'title': 'Approval E-BPB',
-            'type': 'EBPB',
-            'date': TextConvertHelper().formatDate(dateRaw),
-            'rawDate': DateTime.tryParse(dateRaw) ?? DateTime.now(),
-            'status': item['status_approve'] ?? 'PENDING',
-            'unit': kodeUnit,
-            'id': item['id'],
-            'source': 'api_ebpb',
-          });
+          String noDoc = item['no_doc'] ?? '-';
+          if (!groupedEbpb.containsKey(noDoc)) {
+            groupedEbpb[noDoc] = [];
+          }
+          groupedEbpb[noDoc]!.add(item);
         }
+
+        groupedEbpb.forEach((noDoc, ebpbList) {
+          int getLevelNum(String levelStr) {
+            final match = RegExp(r'\d+').firstMatch(levelStr);
+            return match != null ? int.parse(match.group(0)!) : 99;
+          }
+
+          ebpbList.sort((a, b) {
+            int levelA = getLevelNum(a['level_approve']?.toString() ?? '');
+            int levelB = getLevelNum(b['level_approve']?.toString() ?? '');
+            return levelA.compareTo(levelB);
+          });
+
+          final activePendingNode = ebpbList.first;
+          final activeLevelNum = getLevelNum(activePendingNode['level_approve']?.toString() ?? '');
+          final userLevelNum = getLevelNum(userLevel);
+
+          if (activeLevelNum == userLevelNum) {
+            String dateRaw = activePendingNode['created_at'] ?? activePendingNode['tgl_approve'] ?? DateTime.now().toString();
+            tempApproval.add({
+              'noBast': noDoc,
+              'title': 'Approval E-BPB',
+              'type': 'EBPB',
+              'date': TextConvertHelper().formatDate(dateRaw),
+              'rawDate': DateTime.tryParse(dateRaw) ?? DateTime.now(),
+              'status': activePendingNode['status_approve'] ?? 'PENDING',
+              'unit': kodeUnit,
+              'id': activePendingNode['id'],
+              'source': 'api_ebpb',
+            });
+          }
+        });
       } catch (e) {
         print("⚠️ Gagal memuat Approval E-BPB: $e");
       }
@@ -664,6 +699,7 @@ class HomeController extends GetxController {
     final menuInputPenerimaan = {'icon': AppIcons.icPenerimaan, 'label': 'Penerimaan', 'action': 'input_penerimaan', 'category': 0};
     final menuEBPB = {'icon': AppIcons.icBpbHarian, 'label': 'E-BPB', 'action': 'input_e_bpb', 'category': 1};
     final menuInputPengeluaran = {'icon': AppIcons.icPengeluaran, 'label': 'Pengeluaran', 'action': 'input_pengeluaran', 'category': 1};
+    final menuInputPengeluaranManual = {'icon': AppIcons.icPengeluaranManual, 'label': 'Input Manual', 'action': 'input_pengeluaran_manual', 'category': 1};
     final menuTransfer = {'icon': AppIcons.icTransfer, 'label': 'Transfer', 'action': 'input_transfer', 'category': 1};
     final menuPengembalianSolar = {'icon': AppIcons.icPengembalianSolar, 'label': 'Pengembalian', 'action': 'input_pengembalian', 'category': 0};
     final menuRiwayatPenerimaan = {'icon': AppIcons.icReportPenerimaan, 'label': 'Laporan Penerimaan', 'action': 'riwayat_penerimaan', 'category': 2};
@@ -673,7 +709,7 @@ class HomeController extends GetxController {
 
     if (user.isKepalaGudang) {
       menuList.addAll([
-        menuInputPenerimaan, menuPengembalianSolar, menuInputPengeluaran, menuTransfer, menuEBPB,
+        menuInputPenerimaan, menuPengembalianSolar, menuInputPengeluaran, menuTransfer, menuInputPengeluaranManual, menuEBPB,
         menuRiwayatPenerimaan, menuRiwayatPengeluaran, menuRiwayatEBPB, menuRiwayatTransfer,
       ]);
     } else if (user.isApprover) {
@@ -701,7 +737,7 @@ class HomeController extends GetxController {
     debugPrint("Selected Storage: ${_getStorageCode(selectedStorage.value)}");
 
     // Cek Koneksi Internet (Khusus untuk menu input)
-    if (action == 'input_penerimaan' || action == 'input_pengeluaran' || action == 'input_e_bpb' || action == 'input_pengembalian') {
+    if (action == 'input_penerimaan' || action == 'input_pengeluaran' || action == 'input_pengeluaran_manual' || action == 'input_e_bpb' || action == 'input_pengembalian') {
       bool isOnline = await ConnectivityHelper.isConnected();
       if (!isOnline) {
         Get.snackbar(
@@ -718,13 +754,15 @@ class HomeController extends GetxController {
 
     switch (action) {
       case 'input_penerimaan': goToPenerimaan(); break;
-      case 'input_pengeluaran': Get.toNamed(Routes.PENGELUARAN); break;
+      case 'input_pengeluaran': Get.toNamed(Routes.PENGELUARAN, arguments: {'isManualInput': false}); break;
+      case 'input_pengeluaran_manual': Get.toNamed(Routes.PENGELUARAN, arguments: {'isManualInput': true}); break;
       case 'input_pengembalian': Get.toNamed(Routes.PENGEMBALIAN); break;
       case 'input_transfer': Get.toNamed(Routes.TRANSFER); break;
       case 'input_e_bpb': Get.toNamed(Routes.PENGELUARAN_EBPB); break;
       case 'riwayat_penerimaan': Get.toNamed(Routes.REPORT_PENERIMAAN); break;
       case 'riwayat_pengeluaran': Get.toNamed(Routes.REPORT_PENGELUARAN); break;
-      case 'riwayat_transfer': Get.toNamed(Routes.REPORT_TRANSFER); break;
+      // case 'riwayat_transfer': Get.toNamed(Routes.REPORT_TRANSFER); break;
+      case 'riwayat_transfer': _showDevelopmentModal(context); break;
       case 'riwayat_e_bpb': _showDevelopmentModal(context); break;
       default: _showDevelopmentModal(context);
     }
@@ -777,12 +815,7 @@ class HomeController extends GetxController {
   void logout() {
     Get.dialog(
       DialogFlexible(
-        logo: Lottie.asset(
-          AppLotties.question,
-          width: (Get.width * 0.25).clamp(80.0, 120.0),
-          height: (Get.width * 0.25).clamp(80.0, 120.0),
-          repeat: true,
-        ),
+        logo: LottiesHelper().getLottieOnDevelopment(),
         title: "Konfirmasi Keluar",
         message: "Apakah Anda yakin ingin keluar dari aplikasi? Sesi Anda akan diakhiri.",
         secondaryButtonText: "Batal",

@@ -169,7 +169,9 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                         fillColor: AppColors.alertSoftOrangeSecond,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE3E8F0))),
-                        suffixIcon: Obx(() => IconButton(
+                        suffixIcon: Obx(() => controller.isManualInput.value 
+                            ? const SizedBox.shrink() 
+                            : IconButton(
                           icon: controller.isRefreshingSensor.value
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                               : Icon(Icons.sync, color: controller.isSensorApiActive.value ? Colors.green : AppColors.primary),
@@ -181,36 +183,45 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    // KIRI: ESTIMASI
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                Obx(() {
+                  if (controller.tipeUnit.value.toUpperCase() == 'GS') {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      Row(
                         children: [
-                          Text("Estimasi (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
-                          const SizedBox(height: 8),
-                          _buildReadOnlyField(controller.estimasiSolarC),
+                          // KIRI: ESTIMASI
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Estimasi (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                                const SizedBox(height: 8),
+                                _buildReadOnlyField(controller.estimasiSolarC),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // KANAN: VARIAN
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Sisa Solar (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                                const SizedBox(height: 8),
+                                _buildReadOnlyField(controller.varianSolarC),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // KANAN: VARIAN
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Varian (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
-                          const SizedBox(height: 8),
-                          _buildReadOnlyField(controller.varianSolarC),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                }),
               ],
             ),
           ),
@@ -256,37 +267,41 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
   }
 
   Widget _buildPhotoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Wajib Foto",
-          style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-        ),
-        const SizedBox(height: 12),
-        Obx(() => Row(
-          children: [
-            // FOTO DISPENSER
-            _buildPhotoItem(
-              label: "Angka Meter Dispenser",
-              icon: Icons.gas_meter_sharp,
-              imageFile: controller.fotoDispenser.value,
-              onTap: () => controller.takePhoto(false), // False = Dispenser
-              onRemove: () => controller.removePhoto(false),
-            ),
-            const SizedBox(width: 16),
-            // FOTO SUPIR
-            _buildPhotoItem(
-              label: controller.namaSupir.value,
-              icon: Icons.person_4_rounded,
-              imageFile: controller.fotoSupir.value,
-              onTap: () => controller.takePhoto(true), // True = Supir
-              onRemove: () => controller.removePhoto(true),
-            ),
-          ],
-        )),
-      ],
-    );
+    return Obx(() {
+      if (controller.isManualInput.value) return const SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Wajib Foto",
+            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // FOTO DISPENSER
+              _buildPhotoItem(
+                label: "Angka Meter Dispenser",
+                icon: Icons.gas_meter_sharp,
+                imageFile: controller.fotoDispenser.value,
+                onTap: () => controller.takePhoto(false), // False = Dispenser
+                onRemove: () => controller.removePhoto(false),
+              ),
+              const SizedBox(width: 16),
+              // FOTO SUPIR
+              _buildPhotoItem(
+                label: controller.namaSupir.value,
+                icon: Icons.person_4_rounded,
+                imageFile: controller.fotoSupir.value,
+                onTap: () => controller.takePhoto(true), // True = Supir
+                onRemove: () => controller.removePhoto(true),
+              ),
+            ],
+          ),
+        ],
+      );
+    });
   }
 
   Widget _buildPhotoItem({

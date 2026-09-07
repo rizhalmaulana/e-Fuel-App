@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:e_fuel/helpers/text_convert_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,6 +63,91 @@ class PengeluaranView extends GetView<PengeluaranController> {
     );
   }
 
+  Widget _buildPhotoUploader({
+    required File? file,
+    required VoidCallback onTap,
+    required VoidCallback onRemove,
+    required String hint,
+  }) {
+    if (file != null) {
+      return Stack(
+        children: [
+          Container(
+            height: 180,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+              image: DecorationImage(
+                image: FileImage(file),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: AppColors.alertSoftRed,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
+            ),
+          )
+        ],
+      );
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundGrey,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300, width: 1.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primaryOrange.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.camera_alt, color: AppColors.primaryOrange, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                "Ketuk di sini untuk mengambil foto",
+                style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryText),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                hint,
+                style: AppFonts.fUrbanistRegular10.copyWith(color: AppColors.secondaryText),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0, top: 4.0),
@@ -80,6 +167,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
     List<TextInputFormatter>? customFormatters,
     int maxLines = 1,
     VoidCallback? onTap,
+    Widget? suffixIcon,
   }) {
     final Color backgroundColor =
         (readOnly && !forceEditableColor) ? _colorReadOnly : _colorEditable;
@@ -115,6 +203,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppColors.primaryOrange)),
+        suffixIcon: suffixIcon,
       ),
       inputFormatters: formatters,
     );
@@ -160,7 +249,6 @@ class PengeluaranView extends GetView<PengeluaranController> {
           );
         }).toList();
       },
-
       items: items.map((String val) {
         return DropdownMenuItem<String>(
           value: val,
@@ -667,6 +755,29 @@ class PengeluaranView extends GetView<PengeluaranController> {
               icon: Icons.directions_car_filled_rounded,
               children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Obx(() {
+                    if (controller.isManualInput.value) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel("Tanggal Transaksi"),
+                          _buildTextField(
+                            controller: controller.tanggalTransaksiC,
+                            readOnly: true,
+                            forceEditableColor: true,
+                            hint: "Pilih Tanggal Transaksi",
+                            suffixIcon: const Icon(Icons.calendar_month_rounded,
+                                color: AppColors.primaryOrange, size: 20),
+                            onTap: () =>
+                                controller.pickTanggalTransaksi(context),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      );
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  }),
                   _buildLabel("Jenis Pengeluaran"),
                   Obx(() => _buildStandardDropdown(
                         items: controller.jenisBonList,
@@ -724,7 +835,9 @@ class PengeluaranView extends GetView<PengeluaranController> {
                                 hint: "Pilih Kode",
                               );
                             } else {
-                              String val = controller.selectedKodeKebunPabrik.value ?? "-";
+                              String val =
+                                  controller.selectedKodeKebunPabrik.value ??
+                                      "-";
                               return Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
@@ -836,7 +949,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                   );
                 }),
                 Obx(() {
-                  if (controller.tipeUnit.value?.toUpperCase() == 'AB') {
+                  if (controller.tipeUnit.value?.toUpperCase() == 'AB' &&
+                      !controller.isManualInput.value) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 12.0),
                       child: Container(
@@ -849,7 +963,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                           title: Text("Pakai Baby Tank?",
                               style: AppFonts.fUrbanistSemiBold12
                                   .copyWith(color: AppColors.primaryText)),
-                          subtitle: Text("Pilih ini jika pengeluaran solar Alat Berat menggunakan Baby Tank!",
+                          subtitle: Text(
+                              "Pilih ini jika pengeluaran solar Alat Berat menggunakan Baby Tank!",
                               style: AppFonts.fUrbanistRegular10
                                   .copyWith(color: AppColors.secondaryText)),
                           value: controller.isLangsungPom.value,
@@ -860,7 +975,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                           },
                           activeColor: AppColors.primaryOrange,
                           controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 0),
                           dense: true,
                         ),
                       ),
@@ -869,8 +985,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                   return const SizedBox.shrink();
                 }),
                 const SizedBox(height: 10),
-                Obx(() => _buildLabel(
-                    controller.isTamu ? "Cost Center" : "No. IO")),
+                Obx(() =>
+                    _buildLabel(controller.isTamu ? "Cost Center" : "No. IO")),
                 Obx(() => _buildTextField(
                     controller: controller.ioController,
                     readOnly: controller.isIoReadOnly.value,
@@ -879,19 +995,28 @@ class PengeluaranView extends GetView<PengeluaranController> {
             ),
 
             Obx(() {
-              if (controller.isTamu) return const SizedBox.shrink();
-
+              if (!controller.isManualInput.value && controller.isTipeGenset) {
+                return const SizedBox.shrink();
+              }
               return _buildSectionCard(
-                title: "Data HM/KM",
-                icon: Icons.speed_rounded,
+                title: (controller.isTamu || controller.isTipeGenset) ? "Data Pengisian Solar" : "Data HM/KM",
+                icon: (controller.isTamu || controller.isTipeGenset) ? Icons.local_gas_station_rounded : Icons.speed_rounded,
                 children: [
                   Obx(() {
-                    if (controller.tipeUnit.value == null) return const SizedBox.shrink();
-                    String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
+                    if (controller.isTamu || controller.isTipeGenset) {
+                      return const SizedBox.shrink();
+                    }
+
+                    if (controller.tipeUnit.value == null) {
+                      return const SizedBox.shrink();
+                    }
+                    String tipe =
+                        controller.tipeUnit.value?.toUpperCase() ?? "";
                     String labelPrefix = (tipe == "AB") ? "HM" : "KM";
 
+                    Widget firstRow = const SizedBox.shrink();
                     if (controller.isTipeKendaraan) {
-                      return Row(children: [
+                      firstRow = Row(children: [
                         Expanded(
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -901,7 +1026,9 @@ class PengeluaranView extends GetView<PengeluaranController> {
                                   controller: controller.hmKmAwalC,
                                   readOnly: controller.isHmKmAwalReadOnly.value,
                                   hint: "0",
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true)),
                             ])),
                         const SizedBox(width: 12),
                         Expanded(
@@ -911,13 +1038,16 @@ class PengeluaranView extends GetView<PengeluaranController> {
                               _buildLabel("$labelPrefix Saat ini"),
                               _buildTextField(
                                   controller: controller.hmKmAkhirC,
-                                  readOnly: controller.isHmKmAkhirReadOnly.value,
+                                  readOnly:
+                                      controller.isHmKmAkhirReadOnly.value,
                                   hint: "0",
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true)),
                             ])),
                       ]);
                     } else {
-                      return Row(children: [
+                      firstRow = Row(children: [
                         Expanded(
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -928,7 +1058,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                                   readOnly: true,
                                   forceEditableColor: true,
                                   hint: "dd/MM/yyyy",
-                                  onTap: () => controller.pickDate(context, true)),
+                                  onTap: () =>
+                                      controller.pickDate(context, true)),
                             ])),
                         const SizedBox(width: 12),
                         Expanded(
@@ -941,83 +1072,180 @@ class PengeluaranView extends GetView<PengeluaranController> {
                                   readOnly: true,
                                   forceEditableColor: true,
                                   hint: "dd/MM/yyyy",
-                                  onTap: () => controller.pickDate(context, false)),
+                                  onTap: () =>
+                                      controller.pickDate(context, false)),
                             ])),
                       ]);
                     }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        firstRow,
+                      ],
+                    );
                   }),
-
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Obx(() {
+                    if (controller.isTamu || controller.isTipeGenset) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        Row(
                           children: [
-                            Obx(() {
-                              String tipe = controller.tipeUnit.value?.toUpperCase() ?? "";
-                              String prefix = (tipe == "AB") ? "HM" : "KM";
-                              return _buildLabel("Varian $prefix");
-                            }),
-                            _buildTextField(
-                                controller: controller.varianC,
-                                readOnly: true,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                hint: "0"),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel("Rasio"),
-                            _buildTextField(
-                              controller: controller.ratioInput,
-                              readOnly: controller.isRatioReadOnly.value,
-                              hint: "0",
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              customFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                                DecimalInputFormatter(),
-                              ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Obx(() {
+                                    String tipe =
+                                        controller.tipeUnit.value?.toUpperCase() ??
+                                            "";
+                                    String prefix = (tipe == "AB") ? "HM" : "KM";
+                                    return _buildLabel("Varian $prefix");
+                                  }),
+                                  _buildTextField(
+                                      controller: controller.varianC,
+                                      readOnly: true,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                              decimal: true),
+                                      hint: "0"),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildLabel("Rasio"),
+                                  _buildTextField(
+                                    controller: controller.ratioInput,
+                                    readOnly: controller.isRatioReadOnly.value,
+                                    hint: "0",
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    customFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9.,]')),
+                                      DecimalInputFormatter(),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
+                        _buildDivider(),
+                      ],
+                    );
+                  }),
+                  Obx(() {
+                    if (controller.isTamu || (controller.isTipeGenset && controller.isManualInput.value)) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel("Aktual Pengeluaran Solar (Liter)"),
+                          _buildTextField(
+                            controller: controller.aktualSolarC,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            hint: "0",
+                            customFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.,]')),
+                              DecimalInputFormatter(),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
 
-                  _buildDivider(),
-
-                  Row(
-                    children: [
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            _buildLabel("Estimasi Liter"),
-                            _buildTextField(
-                              controller: controller.pengisianSolarC,
-                              readOnly: !controller.isTipeGenset,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              hint: "Input Liter",
-                              customFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                                DecimalInputFormatter(),
-                              ],
-                            ),
-                          ])),
-                    ],
-                  ),
+                    if (controller.isManualInput.value) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel("Estimasi (Liter)"),
+                                    _buildTextField(
+                                      controller: controller.pengisianSolarC,
+                                      readOnly: true,
+                                      hint: "0",
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel("Sisa Solar (Liter)"),
+                                    _buildTextField(
+                                      controller: controller.varianSolarC,
+                                      readOnly: true,
+                                      hint: "0",
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel("Aktual Pengeluaran Solar (Liter)"),
+                          _buildTextField(
+                            controller: controller.aktualSolarC,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            hint: "0",
+                            customFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.,]')),
+                              DecimalInputFormatter(),
+                            ],
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Row(
+                        children: [
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                _buildLabel("Estimasi Liter"),
+                                _buildTextField(
+                                  controller: controller.pengisianSolarC,
+                                  readOnly: !controller.isTipeGenset && !controller.isTamu,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  hint: "Input Liter",
+                                  customFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[0-9.,]')),
+                                    DecimalInputFormatter(),
+                                  ],
+                                ),
+                              ])),
+                        ],
+                      );
+                    }
+                  }),
                 ],
               );
             }),
 
             _buildSectionCard(
-              title: "Identitas Supir",
+              title: "Data Identitas",
               icon: Icons.person_pin_circle_rounded,
               children: [
                 Obx(() {
@@ -1038,106 +1266,63 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     maxLines: 1),
                 const SizedBox(height: 12),
                 Obx(() {
+                  if (controller.isManualInput.value)
+                    return const SizedBox.shrink();
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),
-                      _buildLabel("Foto Odometer (KM Kendaraan)"),
+                      _buildLabel(controller.isTipeGenset ? "Foto Jerigen / Genset" : (controller.tipeUnit.value?.toUpperCase() == 'AB' ? "Foto Baby Tank" : "Foto Odometer (KM Kendaraan)")),
 
                       // Cek apakah foto sudah diambil
                       if (controller.fotoOdometer.value != null)
-                        Stack(
-                          children: [
-                            Container(
-                              height: 180,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey.shade300),
-                                image: DecorationImage(
-                                  image:
-                                      FileImage(controller.fotoOdometer.value!),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: controller.hapusFotoOdometer,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.alertSoftRed,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.close,
-                                      color: Colors.white, size: 18),
-                                ),
-                              ),
-                            )
-                          ],
+                        _buildPhotoUploader(
+                          file: controller.fotoOdometer.value,
+                          onTap: controller.takeOdometerPhoto,
+                          onRemove: controller.hapusFotoOdometer,
+                          hint: controller.isTipeGenset ? "Wajib melampirkan foto Jerigen / Genset" : (controller.tipeUnit.value?.toUpperCase() == 'AB' ? "Wajib melampirkan foto Baby Tank" : "Wajib melampirkan foto KM/HM kendaraan"),
                         )
                       else
-                        InkWell(
+                        _buildPhotoUploader(
+                          file: null,
                           onTap: controller.takeOdometerPhoto,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundGrey,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: Colors.grey.shade300, width: 1.5),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryOrange
-                                        .withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.camera_alt,
-                                      color: AppColors.primaryOrange, size: 28),
-                                ),
-                                const SizedBox(height: 12),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0),
-                                  child: Text(
-                                    "Ketuk di sini untuk mengambil foto",
-                                    style: AppFonts.fUrbanistSemiBold12
-                                        .copyWith(color: AppColors.primaryText),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0),
-                                  child: Text(
-                                    "Wajib melampirkan foto KM/HM kendaraan",
-                                    style: AppFonts.fUrbanistRegular10.copyWith(
-                                        color: AppColors.secondaryText),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          onRemove: controller.hapusFotoOdometer,
+                          hint: controller.isTipeGenset ? "Wajib melampirkan foto Jerigen / Genset" : (controller.tipeUnit.value?.toUpperCase() == 'AB' ? "Wajib melampirkan foto Baby Tank" : "Wajib melampirkan foto KM/HM kendaraan"),
                         ),
                     ],
                   );
                 }),
               ],
             ),
+
+            Obx(() {
+              if (controller.isManualInput.value || !controller.isTamu) return const SizedBox.shrink();
+
+              return _buildSectionCard(
+                title: "Dokumentasi Pengeluaran",
+                icon: Icons.camera_alt_rounded,
+                children: [
+                  _buildLabel("Foto Angka Meter Dispenser"),
+                  _buildPhotoUploader(
+                    file: controller.fotoDispenser.value,
+                    onTap: () => controller.takePhotoTAMU(false),
+                    onRemove: () => controller.hapusFotoTAMU(false),
+                    hint: "Wajib melampirkan foto meteran dispenser",
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel("Foto Supir"),
+                  _buildPhotoUploader(
+                    file: controller.fotoSupir.value,
+                    onTap: () => controller.takePhotoTAMU(true),
+                    onRemove: () => controller.hapusFotoTAMU(true),
+                    hint: "Wajib melampirkan foto supir saat pengisian",
+                  ),
+                ],
+              );
+            }),
 
             const SizedBox(height: 20),
 
@@ -1152,9 +1337,12 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     elevation: 2,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))),
-                child: Text("Proses Pengisian",
+                child: Obx(() => Text(
+                    (controller.isManualInput.value || controller.isTamu)
+                        ? "Submit Data"
+                        : "Proses Pengisian",
                     style: AppFonts.fUrbanistBold16
-                        .copyWith(color: AppColors.white)),
+                        .copyWith(color: AppColors.white))),
               ),
             ),
           ],

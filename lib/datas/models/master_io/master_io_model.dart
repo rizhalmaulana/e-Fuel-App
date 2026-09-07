@@ -7,6 +7,7 @@ class MasterIoModel {
   String? idCard;
   String? rfId;
   String? statusUnit;
+  String? tipeUnitIo;
   bool isActive;
 
   MasterIoModel({
@@ -18,6 +19,7 @@ class MasterIoModel {
     this.idCard,
     this.rfId,
     this.statusUnit,
+    this.tipeUnitIo,
     required this.isActive
   });
 
@@ -31,6 +33,7 @@ class MasterIoModel {
       idCard: json['id_card'],
       rfId: json['rfid'],
       statusUnit: json['status_unit'],
+      tipeUnitIo: json['tipe_unit_io'],
       isActive: json['is_active']
     );
   }

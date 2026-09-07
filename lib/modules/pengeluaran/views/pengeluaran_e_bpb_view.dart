@@ -52,10 +52,10 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text("Kode Unit",
+                          Text("Nama Unit",
                               style: AppFonts.fUrbanistMedium12
                                   .copyWith(color: AppColors.primaryOrange)),
-                          Text(controller.selectedUnitCode.value,
+                          Text(controller.selectedUnitTitle.value,
                               style: AppFonts.fUrbanistBold14
                                   .copyWith(color: AppColors.secondaryText),
                               maxLines: 1,
@@ -214,6 +214,14 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                 dataRowHeight: 60,
                 columns: [
                   DataColumn(
+                      label: Text("No.",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                  DataColumn(
+                      label: Text("No. Doc & IO/CC",
+                          style: AppFonts.fUrbanistBold12
+                              .copyWith(color: AppColors.primaryOrange))),
+                  DataColumn(
                       label: Text("Nama Unit",
                           style: AppFonts.fUrbanistBold12
                               .copyWith(color: AppColors.primaryOrange))),
@@ -222,49 +230,57 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                           style: AppFonts.fUrbanistBold12
                               .copyWith(color: AppColors.primaryOrange))),
                   DataColumn(
-                      label: Text("No. IO",
-                          style: AppFonts.fUrbanistBold12
-                              .copyWith(color: AppColors.primaryOrange))),
-                  DataColumn(
-                      label: Text("Cost Center",
-                          style: AppFonts.fUrbanistBold12
-                              .copyWith(color: AppColors.primaryOrange))),
-                  DataColumn(
                       label: Text("Keterangan",
                           style: AppFonts.fUrbanistBold12
                               .copyWith(color: AppColors.primaryOrange))),
                 ],
-                rows: controller.dailyTransactionList.map((item) {
+                rows: controller.dailyTransactionList
+                    .asMap()
+                    .entries
+                    .map((entry) {
+                  int index = entry.key;
+                  var item = entry.value;
                   String uniqueKey = item.id.toString();
+
+                  String noIoVal = item.noIo ?? "";
+                  String ioOrCc = (noIoVal.trim().isEmpty || noIoVal == "-")
+                      ? (item.costCenter ?? "-")
+                      : noIoVal;
+
                   return DataRow(
                     cells: [
                       DataCell(
-                        item.kategoriKendaraan == "TMU"
+                        Center(
+                          child: Text("${index + 1}",
+                              style: AppFonts.fUrbanistMedium12),
+                        ),
+                      ),
+                      DataCell(Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(item.noDoc ?? "-",
+                              style: AppFonts.fUrbanistBold12.copyWith(
+                                  color: (item.hasBackdate ?? false)
+                                      ? AppColors.primaryOrange
+                                      : AppColors.primary)),
+                          Text(ioOrCc,
+                              style: AppFonts.fUrbanistMedium12
+                                  .copyWith(color: AppColors.secondaryText)),
+                        ],
+                      )),
+                      DataCell(
+                        item.kategoriKendaraan == "TMU" ||
+                                item.kategoriKendaraan == "TAMU"
                             ? Center(
                                 child: Text("${item.kategoriKendaraan}",
-                                    style: AppFonts
-                                        .fUrbanistMedium12),
-                              )
-                            : Center(
-                                child: Text(item.namaUnit ?? "-",
                                     style: AppFonts.fUrbanistMedium12),
-                              ),
+                              )
+                            : Text(item.namaUnit ?? "-",
+                                style: AppFonts.fUrbanistMedium12),
                       ),
                       DataCell(Text("${item.aktualLiter?.toStringAsFixed(0)}",
                           style: AppFonts.fUrbanistMedium12)),
-                      DataCell(Text(item.noIo ?? "-",
-                          style: AppFonts.fUrbanistMedium12)),
-                      DataCell(
-                        item.kategoriKendaraan == "TMU"
-                            ? Center(
-                                child: Text(item.costCenter ?? "-",
-                                    style: AppFonts.fUrbanistMedium12),
-                              )
-                            : Center(
-                                child: Text("-",
-                                    style: AppFonts.fUrbanistMedium12),
-                              ),
-                      ),
                       DataCell(
                         Container(
                           width: 160,

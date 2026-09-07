@@ -13,7 +13,7 @@ class PengeluaranDailyModel {
   String? costCenter;
   double? aktualLiter;
   double? varianLiter;
-
+  bool? hasBackdate;
 
   PengeluaranDailyModel({
     this.id,
@@ -30,6 +30,7 @@ class PengeluaranDailyModel {
     this.costCenter,
     this.aktualLiter,
     this.varianLiter,
+    this.hasBackdate,
   });
 
   factory PengeluaranDailyModel.fromJson(Map<String, dynamic> json) {
@@ -39,15 +40,24 @@ class PengeluaranDailyModel {
       tipeTransaksi: json['tipe_transaksi'],
       namaUnit: json['nama_unit'],
       noIo: json['no_io'],
-      liter: (json['liter'] is int) ? (json['liter'] as int).toDouble() : json['liter'],
-      ratio: (json['ratio'] is int) ? (json['ratio'] as int).toDouble() : json['ratio'],
-      varian: (json['varian'] is int) ? (json['varian'] as int).toDouble() : json['varian'],
-      dateInbound: json['date_inbound'],
+      liter: _parseDouble(json['estimasi_liter'] ?? json['liter']),
+      ratio: _parseDouble(json['ratio']),
+      varian: _parseDouble(json['varian']),
+      dateInbound: json['tanggal_transaksi'] ?? json['date_inbound'],
       namaSupir: json['nama_supir'],
       kategoriKendaraan: json['kategori_kendaraan'],
       costCenter: json['cost_center'],
-      aktualLiter: (json['aktual_liter'] is int) ? (json['aktual_liter'] as int).toDouble() : json['aktual_liter'],
-      varianLiter: (json['varian_liter'] is int) ? (json['varian_liter'] as int).toDouble() : json['varian_liter'],
+      aktualLiter: _parseDouble(json['aktual_liter']),
+      varianLiter: _parseDouble(json['varian_liter']),
+      hasBackdate: json['has_backdate'] as bool?,
     );
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }

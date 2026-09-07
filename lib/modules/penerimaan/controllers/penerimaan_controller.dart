@@ -49,15 +49,14 @@ class PenerimaanController extends GetxController {
   final storageLocations = <String>[].obs;
   final isSubmitting = false.obs;
 
-  final isSensorApiActive = false.obs;
-
   final totalVolumeIoT = 0.0.obs;
   final tankListIoT = <Map<String, dynamic>>[].obs;
 
   final totalVolumeManualSnapshot = 0.0.obs;
   final tankListManualSnapshot = <Map<String, dynamic>>[].obs;
 
-  final manualInputControllers = <String, Map<String, TextEditingController>>{}.obs;
+  final manualInputControllers =
+      <String, Map<String, TextEditingController>>{}.obs;
   final manualTotalVolume = 0.0.obs;
   final headerPageIndex = 0.obs;
 
@@ -94,8 +93,7 @@ class PenerimaanController extends GetxController {
 
   void updateLastSyncTime() {
     final now = DateTime.now();
-    lastSyncTime.value =
-    "${TextConvertHelper().getDayName(now.weekday)}, "
+    lastSyncTime.value = "${TextConvertHelper().getDayName(now.weekday)}, "
         "${DateFormat('dd MMM yyyy').format(now)} "
         "pukul ${DateFormat('HH:mm:ss').format(now)}";
   }
@@ -108,7 +106,8 @@ class PenerimaanController extends GetxController {
       final args = Get.arguments as Map;
 
       if (args.containsKey('administrative_data')) {
-        administrativeData = Map<String, dynamic>.from(args['administrative_data']);
+        administrativeData =
+            Map<String, dynamic>.from(args['administrative_data']);
         _currentStorageCode = administrativeData['storage_code'] ?? '';
       }
 
@@ -117,18 +116,22 @@ class PenerimaanController extends GetxController {
       }
     }
 
-    if (_currentStorageCode == 'Pilih Lokasi Storage' || _currentStorageCode.isEmpty) {
-      debugPrint("⚠️ Storage Code Invalid. Mencoba ambil dari Local Service...");
+    if (_currentStorageCode == 'Pilih Lokasi Storage' ||
+        _currentStorageCode.isEmpty) {
+      debugPrint(
+          "⚠️ Storage Code Invalid. Mencoba ambil dari Local Service...");
       _currentStorageCode = _fuelDataService.getLastSelectedStorageCode();
     }
 
-    debugPrint("✅ _loadInitialContext → unit='$selectedUnitCode' storage='$_currentStorageCode'");
+    debugPrint(
+        "✅ _loadInitialContext → unit='$selectedUnitCode' storage='$_currentStorageCode'");
   }
 
   void _initializeData() {
     if (_currentStorageCode.isEmpty) return;
 
-    final cached = _fuelDataService.getApiManualTanks()
+    final cached = _fuelDataService
+        .getApiManualTanks()
         .where((t) => t.masterStorage?.kodeStorage == _currentStorageCode)
         .toList();
 
@@ -136,7 +139,8 @@ class PenerimaanController extends GetxController {
       activeTanks.assignAll(cached);
       _initializeInputForms(cached);
       _buildSnapshotFromTanks(cached);
-      debugPrint("📦 Cache: ${cached.length} tangki dari '$_currentStorageCode'");
+      debugPrint(
+          "📦 Cache: ${cached.length} tangki dari '$_currentStorageCode'");
     }
   }
 
@@ -150,7 +154,8 @@ class PenerimaanController extends GetxController {
       if (lastStorage.isNotEmpty) {
         _currentStorageCode = _getStorageCode(lastStorage);
         selectedStorage.value = lastStorage;
-        debugPrint("📀 Fallback ke last selected storage: $_currentStorageCode");
+        debugPrint(
+            "📀 Fallback ke last selected storage: $_currentStorageCode");
       }
     }
 
@@ -165,13 +170,14 @@ class PenerimaanController extends GetxController {
       final args = Get.arguments as Map;
       if (args['is_new_transaction'] == true) {
         if (args.containsKey('administrative_data')) {
-          administrativeData = Map<String, dynamic>.from(args['administrative_data']);
+          administrativeData =
+              Map<String, dynamic>.from(args['administrative_data']);
         }
         final argStorage = administrativeData['storage_code'] as String? ?? '';
         if (argStorage.isNotEmpty) {
           _currentStorageCode = argStorage;
           selectedStorage.value = storageLocations.firstWhere(
-                (s) => s.contains(argStorage),
+            (s) => s.contains(argStorage),
             orElse: () => argStorage,
           );
         }
@@ -186,7 +192,8 @@ class PenerimaanController extends GetxController {
       _currentStorageCode = _getStorageCode(selectedStorage.value);
     }
 
-    debugPrint("🏭 _loadInitialData → storage='$_currentStorageCode' unit='$selectedUnitCode'");
+    debugPrint(
+        "🏭 _loadInitialData → storage='$_currentStorageCode' unit='$selectedUnitCode'");
 
     await _checkAndRestoreDraft();
     await refreshData();
@@ -203,8 +210,10 @@ class PenerimaanController extends GetxController {
       for (final item in list) {
         final String code = (item['tank_code'] as String).replaceAll('_', ' ');
         if (manualInputControllers.containsKey(code)) {
-          manualInputControllers[code]?['volume']?.text = item['volume_manual'].toString();
-          manualInputControllers[code]?['height']?.text = item['height_manual'].toString();
+          manualInputControllers[code]?['volume']?.text =
+              item['volume_manual'].toString();
+          manualInputControllers[code]?['height']?.text =
+              item['height_manual'].toString();
         }
       }
       _updateManualTotalVolume();
@@ -214,7 +223,8 @@ class PenerimaanController extends GetxController {
   }
 
   Future<void> refreshData() async {
-    debugPrint("🔄 refreshData() unit='$selectedUnitCode' storage='$_currentStorageCode'");
+    debugPrint(
+        "🔄 refreshData() unit='$selectedUnitCode' storage='$_currentStorageCode'");
 
     if (selectedUnitCode.isEmpty) {
       final auth = _loginService.getCurrentAuth();
@@ -249,8 +259,8 @@ class PenerimaanController extends GetxController {
         debugPrint("📡 Master tanks diterima: ${masterTanks.length}");
 
         if (masterTanks.isEmpty) {
-          debugPrint("⚠️ Tidak ada master tank untuk storage '$_currentStorageCode'");
-          isSensorApiActive.value = false;
+          debugPrint(
+              "⚠️ Tidak ada master tank untuk storage '$_currentStorageCode'");
           return;
         }
 
@@ -261,8 +271,9 @@ class PenerimaanController extends GetxController {
       }
 
       // Step 2: Ambil stok terbaru per tangki
-      final bool success = await _fetchAndFillLatestStock(selectedUnitCode, activeTanks);
-      isSensorApiActive.value = success;
+      bool success =
+          await _fetchAndFillLatestStock(selectedUnitCode, activeTanks);
+      _isInjectingApiData = false;
 
       if (!success) {
         // Sensor mati: tampilkan data dari master sebagai snapshot awal
@@ -273,16 +284,16 @@ class PenerimaanController extends GetxController {
       updateLastSyncTime();
     } catch (e) {
       debugPrint("❌ refreshData error: $e");
-      isSensorApiActive.value = false;
+      _isInjectingApiData = false;
     } finally {
       isRefreshing.value = false;
     }
   }
 
   Future<bool> _fetchAndFillLatestStock(
-      String unitId,
-      List<VolumeTankDetailModel> tanks,
-      ) async {
+    String unitId,
+    List<VolumeTankDetailModel> tanks,
+  ) async {
     if (tanks.isEmpty) return false;
 
     final String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -291,10 +302,11 @@ class PenerimaanController extends GetxController {
 
     final sorted = _sortTanksByCode(
       List<VolumeTankDetailModel>.from(tanks),
-          (t) => t.masterSolarTank?.kodeTank ?? '',
+      (t) => t.masterSolarTank?.kodeTank ?? '',
     );
 
-    final List<Map<String, dynamic>> results = List.filled(sorted.length, <String, dynamic>{});
+    final List<Map<String, dynamic>> results =
+        List.filled(sorted.length, <String, dynamic>{});
 
     _isInjectingApiData = true;
 
@@ -306,32 +318,16 @@ class PenerimaanController extends GetxController {
       final String formattedKey = tankCode.replaceAll('_', ' ');
       final int capacity = tank.capacity;
 
-      double vol = 0.0;
-      double height = 0.0;
+      double vol = tank.volume;
+      double height = tank.height;
 
-      final stockData = await _repository.fetchLatestTankStock(
-        unitId: unitId,
-        tankCode: tankCode,
-        dateLog: today,
-      );
-
-      debugPrint("📊 Stock[$tankCode]: $stockData");
-
-      if (stockData != null) {
+      if (vol > 0 || height > 0) {
         anyDataFound = true;
+      }
 
-        vol = _toDouble(stockData['stock_volume']) ??
-            _toDouble(stockData['volume']) ??
-            0.0;
-
-        height = _toDouble(stockData['tinggi']) ??
-            _toDouble(stockData['height']) ??
-            0.0;
-
-        if (height == 0 && vol > 0) {
-          height = CalibrationHelper.getHeightByVolume(capacity, vol).toDouble();
-          debugPrint("🔄 Reverse height $tankCode: ${height.toInt()} mm");
-        }
+      if (height == 0 && vol > 0) {
+        height = CalibrationHelper.getHeightByVolume(capacity, vol).toDouble();
+        debugPrint("🔄 Reverse height $tankCode: ${height.toInt()} mm");
       }
 
       results[idx] = {
@@ -345,7 +341,8 @@ class PenerimaanController extends GetxController {
       if (manualInputControllers.containsKey(formattedKey)) {
         final ctrls = manualInputControllers[formattedKey]!;
         _silentSetText(ctrls['volume']!, TextConvertHelper().formatNumber(vol));
-        _silentSetText(ctrls['height']!, height > 0 ? height.toInt().toString() : '');
+        _silentSetText(
+            ctrls['height']!, height > 0 ? height.toInt().toString() : '');
       }
     }));
 
@@ -361,66 +358,33 @@ class PenerimaanController extends GetxController {
     tankListManualSnapshot.assignAll(validResults);
     _updateManualTotalVolume();
 
-    debugPrint("✅ Fetch selesai: found=$anyDataFound total=$totalVolume tank=${validResults.length}");
+    debugPrint(
+        "✅ Fetch selesai: found=$anyDataFound total=$totalVolume tank=${validResults.length}");
     return anyDataFound;
   }
 
   void _buildSnapshotFromTanks(List<VolumeTankDetailModel> tanks) {
     final sorted = _sortTanksByCode(
       List<VolumeTankDetailModel>.from(tanks),
-          (t) => t.masterSolarTank?.kodeTank ?? '',
+      (t) => t.masterSolarTank?.kodeTank ?? '',
     );
 
-    tankListManualSnapshot.assignAll(sorted.map((t) => {
-      'code': (t.masterSolarTank?.kodeTank ?? '').replaceAll('_', ' '),
-      'volume': t.volume,
-      'height': t.height,
-      'capacity': t.capacity,
-    }).toList());
+    tankListManualSnapshot.assignAll(sorted
+        .map((t) => {
+              'code': (t.masterSolarTank?.kodeTank ?? '').replaceAll('_', ' '),
+              'volume': t.volume,
+              'height': t.height,
+              'capacity': t.capacity,
+            })
+        .toList());
 
     _updateManualTotalVolume();
   }
 
-  // void _calculateIoTData(List<VolumeTankDetailModel> tanks) {
-  //   final sortedTanks = _sortTanksByCode(tanks, (t) => t.masterSolarTank?.kodeTank ?? '');
-  //   double tempTotal = 0.0;
-  //   List<Map<String, dynamic>> tempList = [];
-  //   for (var tank in sortedTanks) {
-  //     double vol = tank.volume ?? 0.0;
-  //     double h = tank.height ?? 0.0;
-  //     tempTotal += vol;
-  //     tempList.add({
-  //       'code': (tank.masterSolarTank?.kodeTank ?? '').replaceAll('_', ' '),
-  //       'volume': vol,
-  //       'height': h,
-  //       'last_update': 'Live'
-  //     });
-  //   }
-  //   totalVolumeIoT.value = tempTotal;
-  //   tankListIoT.assignAll(tempList);
-  // }
-
-  // void _calculateManualSnapshotData(List<VolumeTankDetailModel> tanks) {
-  //   tanks.sort((a, b) => (a.masterSolarTank?.kodeTank ?? '').compareTo(b.masterSolarTank?.kodeTank ?? ''));
-  //   List<Map<String, dynamic>> tempList = [];
-  //   for (var tank in tanks) {
-  //     String tankCode = tank.masterSolarTank?.kodeTank ?? '';
-  //     final manualState = _repository.getManualTankInput(tankCode);
-  //     double vol = manualState['volume']!;
-  //     double h = manualState['height']!;
-  //     tempList.add({
-  //       'code': tankCode.replaceAll('_', ' '),
-  //       'volume': vol,
-  //       'height': h,
-  //     });
-  //   }
-  //   tankListManualSnapshot.assignAll(tempList);
-  // }
-
   void _initializeInputForms(List<VolumeTankDetailModel> tanks) {
     final sorted = _sortTanksByCode(
       List<VolumeTankDetailModel>.from(tanks),
-          (t) => t.masterSolarTank?.kodeTank ?? '',
+      (t) => t.masterSolarTank?.kodeTank ?? '',
     );
 
     for (final tank in sorted) {
@@ -432,9 +396,12 @@ class PenerimaanController extends GetxController {
         final volCtrl = TextEditingController();
         final heightCtrl = TextEditingController();
 
-        volCtrl.addListener(_updateManualTotalVolume);
+        volCtrl.addListener(() {
+          _updateManualTotalVolume();
+        });
+
         heightCtrl.addListener(() {
-          if (!isSensorApiActive.value && !_isInjectingApiData) {
+          if (!_isInjectingApiData) {
             _onHeightInputChanged(key, heightCtrl.text, volCtrl, cap);
           }
         });
@@ -446,15 +413,13 @@ class PenerimaanController extends GetxController {
   }
 
   void _onHeightInputChanged(
-      String key,
-      String heightText,
-      TextEditingController volCtrl,
-      int capacity,
-      ) {
+    String key,
+    String heightText,
+    TextEditingController volCtrl,
+    int capacity,
+  ) {
     _debounceTimers[key]?.cancel();
     _debounceTimers[key] = Timer(const Duration(milliseconds: 800), () async {
-      if (isSensorApiActive.value) return;
-
       final String clean = heightText.replaceAll('.', '').replaceAll(',', '.');
       if (clean.isEmpty) {
         _silentSetText(volCtrl, '');
@@ -463,19 +428,29 @@ class PenerimaanController extends GetxController {
       }
 
       final double? mm = double.tryParse(clean);
-      if (mm == null || mm <= 0) return;
+      if (mm == null || mm < 0) return;
 
       try {
-        double? liter = await _repository.getLiterFromCalibration(capacity, mm);
-        liter ??= CalibrationHelper.getVolumeByHeight(capacity, mm.toInt());
+        double liter = 0.0;
 
-        if (liter > 0) {
+        if (mm > 0) {
+          double? calculatedLiter =
+              await _repository.getLiterFromCalibration(capacity, mm);
+          calculatedLiter ??=
+              CalibrationHelper.getVolumeByHeight(capacity, mm.toInt());
+          liter = calculatedLiter;
+        }
+
+        if (liter >= 0) {
           _silentSetText(volCtrl, TextConvertHelper().formatNumber(liter));
-          debugPrint("📐 Kalibrasi '$key': ${mm.toInt()} mm → ${liter.toStringAsFixed(1)} L");
+          debugPrint(
+              "📐 Kalibrasi '$key': ${mm.toInt()} mm → ${liter.toStringAsFixed(1)} L");
 
-          final int idx = tankListManualSnapshot.indexWhere((t) => t['code'] == key);
+          final int idx =
+              tankListManualSnapshot.indexWhere((t) => t['code'] == key);
           if (idx != -1) {
-            final updated = Map<String, dynamic>.from(tankListManualSnapshot[idx]);
+            final updated =
+                Map<String, dynamic>.from(tankListManualSnapshot[idx]);
             updated['volume'] = liter;
             updated['height'] = mm;
             tankListManualSnapshot[idx] = updated;
@@ -501,17 +476,17 @@ class PenerimaanController extends GetxController {
       return false;
     }
 
-    if (isSensorApiActive.value) return true;
-
     for (final tank in tankListManualSnapshot) {
-      final String code = tank['code']!;
-      final ctrls = manualInputControllers[code];
+      final String tankCode = tank['code']!;
+
+      final ctrls = manualInputControllers[tankCode];
       if (ctrls == null) continue;
+
       final String h = ctrls['height']!.text;
-      if (h.isEmpty || h == '0') {
+      if (h.isEmpty) {
         CustomSnackbar.show(
           title: "Data Belum Lengkap",
-          message: "Tinggi tangki $code wajib diisi.",
+          message: "Tinggi tangki $tankCode wajib diisi.",
           backgroundColor: AppColors.alertSoftRed,
           textColor: Colors.white,
         );
@@ -527,14 +502,17 @@ class PenerimaanController extends GetxController {
     Get.dialog(
       DialogFlexible(
         logo: LottiesHelper().getLottieConfirmation(),
-        title: "Konfirmasi Submit",
-        message: isSensorApiActive.value
-            ? "Apakah Sounding Stok Solar (Sensor) sudah sesuai?"
-            : "Apakah Sounding Stok Solar (Manual) sudah sesuai?",
+        title: "Konfirmasi Sounding Stok",
+        message: "Apakah Sounding Stok Solar (Manual) sudah sesuai?",
         secondaryButtonText: "Batal",
         onSecondaryPressed: () => Get.back(),
         primaryButtonText: "Submit",
-        onPrimaryPressed: () { Get.back(); submitFinalTransaction(); },
+        onPrimaryPressed: () {
+          Get.back();
+          Future.delayed(const Duration(milliseconds: 300), () {
+            submitFinalTransaction();
+          });
+        },
       ),
       barrierDismissible: false,
     );
@@ -543,7 +521,8 @@ class PenerimaanController extends GetxController {
   void _updateManualTotalVolume() {
     double total = 0;
     manualInputControllers.forEach((_, ctrls) {
-      final String v = ctrls['volume']!.text.replaceAll('.', '').replaceAll(',', '.');
+      final String v =
+          ctrls['volume']!.text.replaceAll('.', '').replaceAll(',', '.');
       total += double.tryParse(v) ?? 0;
     });
     manualTotalVolume.value = total;
@@ -583,37 +562,39 @@ class PenerimaanController extends GetxController {
 
       final localTanks = _repository.getLocalSensorData(_currentStorageCode);
 
-      if (isSensorApiActive.value) {
-        iotData = tankListIoT.map((t) => {
-          'tank_code': (t['code'] as String).replaceAll(' ', '_'),
-          'volume_iot': t['volume'],
-          'height_iot': t['height'],
-        }).toList();
+      for (final tank in tankListManualSnapshot) {
+        final String code = tank['code']!;
+        final ctrls = manualInputControllers[code];
 
-        manualData = iotData.map((t) => {
-          'tank_code': t['tank_code'],
-          'volume_manual': t['volume_iot'],
-          'height_manual': t['height_iot'],
-        }).toList();
-      } else {
-        for (final tank in tankListManualSnapshot) {
-          final String code = tank['code']!;
-          final ctrls = manualInputControllers[code];
-          if (ctrls == null) continue;
-          final double vol = double.tryParse(ctrls['volume']!.text.replaceAll('.', '')) ?? 0;
-          final double h = double.tryParse(ctrls['height']!.text.replaceAll(',', '.')) ?? 0;
+        double volIot = 0.0;
+        double hIot = 0.0;
+        try {
+          final String underscoredCode = code.replaceAll(' ', '_');
+          final e = localTanks.firstWhere(
+              (x) => x.masterSolarTank?.kodeTank == underscoredCode);
+          volIot = e.volume ?? 0.0;
+          hIot = e.height ?? 0.0;
+        } catch (_) {}
+
+        if (ctrls != null) {
+          final double volManual =
+              double.tryParse(ctrls['volume']!.text.replaceAll('.', '')) ?? 0;
+          final double hManual =
+              double.tryParse(ctrls['height']!.text.replaceAll(',', '.')) ?? 0;
           manualData.add({
             'tank_code': code.replaceAll(' ', '_'),
-            'volume_manual': vol,
-            'height_manual': h,
+            'volume_manual': volManual,
+            'height_manual': hManual,
           });
         }
 
-        iotData = localTanks.map((e) => {
-          'tank_code': e.masterSolarTank?.kodeTank ?? '',
-          'volume_iot': e.volume,
-          'height_iot': e.height,
-        }).toList();
+        if (volIot > 0 || hIot > 0) {
+          iotData.add({
+            'tank_code': code.replaceAll(' ', '_'),
+            'volume_iot': volIot,
+            'height_iot': hIot,
+          });
+        }
       }
 
       final String rawStorage = selectedStorage.value;
@@ -626,7 +607,7 @@ class PenerimaanController extends GetxController {
         'storage_code': finalStorageCode,
         'purch_no': adminData['purch_no'],
         'vendor_spb': adminData['vendor_spb'],
-        'input_type': isSensorApiActive.value ? "A" : "M",
+        'input_type': "M",
         'volume_vendor': adminData['volume_vendor'] ?? 0,
         'density_vendor': adminData['density_vendor'],
         'temp_vendor': adminData['temp_vendor'],
@@ -643,21 +624,82 @@ class PenerimaanController extends GetxController {
         'terra_check': adminData['terra_check'],
         'terra_var': adminData['terra_var'],
         'selisih_vol_tera': adminData['selisih_vol_tera'] ?? 0,
-        'date_inbound': adminData['date_inbound'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        'dtime_before': adminData['dtime_before'] ?? DateTime.now().toIso8601String(),
-        'iot_tank_details': jsonEncode(iotData),
-        'manual_tank_details': jsonEncode(manualData),
+        'date_inbound': adminData['date_inbound'] ??
+            DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        'dtime_before':
+            adminData['dtime_before'] ?? DateTime.now().toIso8601String(),
         'volume_terkini_liter': 0,
       };
 
       final List<File?> files = [
-        adminData['path_foto_doc'] != null ? File(adminData['path_foto_doc']) : null,
-        adminData['path_foto_depan'] != null ? File(adminData['path_foto_depan']) : null,
-        adminData['path_foto_samping'] != null ? File(adminData['path_foto_samping']) : null,
+        adminData['path_foto_doc'] != null
+            ? File(adminData['path_foto_doc'])
+            : null,
+        adminData['path_foto_depan'] != null
+            ? File(adminData['path_foto_depan'])
+            : null,
+        adminData['path_foto_samping'] != null
+            ? File(adminData['path_foto_samping'])
+            : null,
       ];
 
       final response = await _repository.submitTransaction(formMap, files);
       final String noBast = response['no_doc'] ?? "-";
+
+      // ---------------------------------------------------------
+      // HIT API_CREATE_INBOUND_TANK
+      // ---------------------------------------------------------
+      List<Map<String, dynamic>> tanksPayload = [];
+      for (final tank in tankListManualSnapshot) {
+        final String code = tank['code']!;
+
+        double volManual = 0.0;
+        double hManual = 0.0;
+        final ctrls = manualInputControllers[code];
+        if (ctrls != null) {
+          volManual =
+              double.tryParse(ctrls['volume']!.text.replaceAll('.', '')) ?? 0;
+          hManual =
+              double.tryParse(ctrls['height']!.text.replaceAll(',', '.')) ?? 0;
+        }
+
+        double volIot = 0.0;
+        double hIot = 0.0;
+        try {
+          final String underscoredCode = code.replaceAll(' ', '_');
+          final e = localTanks.firstWhere(
+              (x) => x.masterSolarTank?.kodeTank == underscoredCode);
+          volIot = e.volume ?? 0.0;
+          hIot = e.height ?? 0.0;
+        } catch (_) {}
+
+        tanksPayload.add({
+          "kode_tank": code.replaceAll(' ', '_'),
+          "volume_terkini_liter": volIot,
+          "tinggi_terkini_cm": hIot,
+          "volume_akhir_liter": 0.0,
+          "tinggi_akhir_cm": 0.0,
+          "tinggi_var_cm": 0.0,
+          "volume_var_liter": 0.0,
+          "volume_manual_liter": volManual,
+          "tinggi_manual_cm": hManual,
+          "volume_manual_var": 0.0,
+          "tinggi_manual_var": 0.0,
+          "input_type": "M",
+        });
+      }
+
+      try {
+        await _repository.createInboundTank({
+          "no_doc": noBast,
+          "no_po": adminData['purch_no'],
+          "tanks": tanksPayload,
+        });
+        debugPrint("✅ API_CREATE_INBOUND_TANK berhasil di-hit.");
+      } catch (e) {
+        debugPrint("⚠️ Gagal hit API_CREATE_INBOUND_TANK: $e");
+      }
+      // ---------------------------------------------------------
 
       final dataSebelum = PenerimaanSebelumModel(
         docTypeCode: formMap['doc_type_code'],
@@ -665,23 +707,27 @@ class PenerimaanController extends GetxController {
         storageCode: rawStorage,
         purchNo: formMap['purch_no'],
         vendorSpb: formMap['vendor_spb'],
-        volumeVendor: TextConvertHelper().parseToDouble(formMap['volume_vendor']),
-        densityVendor: TextConvertHelper().parseToDouble(formMap['density_vendor']),
+        volumeVendor:
+            TextConvertHelper().parseToDouble(formMap['volume_vendor']),
+        densityVendor:
+            TextConvertHelper().parseToDouble(formMap['density_vendor']),
         tempVendor: TextConvertHelper().parseToDouble(formMap['temp_vendor']),
         nopolVendor: formMap['nopol_vendor'],
         supirVendor: formMap['supir_vendor'],
-        kapasitasVendor: TextConvertHelper().parseToDouble(formMap['kapasitas_vendor']),
+        kapasitasVendor:
+            TextConvertHelper().parseToDouble(formMap['kapasitas_vendor']),
         terraVendor: TextConvertHelper().parseToDouble(formMap['terra_vendor']),
         terraCheck: TextConvertHelper().parseToDouble(formMap['terra_check']),
         terraVar: TextConvertHelper().parseToDouble(formMap['terra_var']),
-        selisihVolumeTerra: TextConvertHelper().parseToDouble(formMap['selisih_vol_tera']),
+        selisihVolumeTerra:
+            TextConvertHelper().parseToDouble(formMap['selisih_vol_tera']),
         segelKondisi: formMap['segel_kondisi'],
         tangkiPeka: formMap['tangki_peka'],
         segelTangkiAtas: formMap['segel_tangki_atas'],
         segelTangkiBawah: formMap['segel_tangki_bawah'],
         dateInbound: formMap['date_inbound'],
-        manualTankDetailsJson: formMap['manual_tank_details'],
-        iotTankDetailsJson: formMap['iot_tank_details'],
+        manualTankDetailsJson: jsonEncode(manualData),
+        iotTankDetailsJson: jsonEncode(iotData),
         pathFotoDoc: adminData['path_foto_doc'],
         pathFotoDepan: adminData['path_foto_depan'],
         pathFotoSamping: adminData['path_foto_samping'],
@@ -696,7 +742,8 @@ class PenerimaanController extends GetxController {
       );
 
       await _repository.saveLocalTransaction(trx);
-      await _repository.updateLocalTransactionDetails(noBast, manualData, iotData);
+      await _repository.updateLocalTransactionDetails(
+          noBast, manualData, iotData);
       await _repository.deleteDraft();
 
       Get.back();
@@ -707,12 +754,15 @@ class PenerimaanController extends GetxController {
         'manual_json_backup': jsonEncode(manualData),
         'iot_json_backup': jsonEncode(iotData),
         'tanggal': adminData['date_inbound'],
-        'waktu_sounding': DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now()),
+        'waktu_sounding':
+            DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now()),
         'status': 'pengisian_solar',
         'storage_code': finalStorageCode,
       });
     } catch (e) {
-      Get.back();
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
       _handleError(e);
     } finally {
       isSubmitting.value = false;
@@ -720,9 +770,12 @@ class PenerimaanController extends GetxController {
   }
 
   void _handleError(Object e) {
-    String msg = e.toString().replaceAll(RegExp(r'(Exception:|Error:)'), '').trim();
-    if (msg.contains("Timeout") || msg.contains("time out")) msg = "RTO: Server tidak merespon.";
-    else if (msg.contains("SocketException")) msg = "Koneksi internet bermasalah.";
+    String msg =
+        e.toString().replaceAll(RegExp(r'(Exception:|Error:)'), '').trim();
+    if (msg.contains("Timeout") || msg.contains("time out"))
+      msg = "RTO: Server tidak merespon.";
+    else if (msg.contains("SocketException"))
+      msg = "Koneksi internet bermasalah.";
     else if (msg.length > 100) msg = "${msg.substring(0, 100)}...";
     CustomSnackbar.show(
       title: "Gagal Submit",
@@ -738,11 +791,14 @@ class PenerimaanController extends GetxController {
   }
 
   List<T> _sortTanksByCode<T>(List<T> tanks, String Function(T) getCode) {
-    return List.from(tanks)..sort((a, b) {
-      final int na = int.tryParse(getCode(a).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      final int nb = int.tryParse(getCode(b).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      return na.compareTo(nb);
-    });
+    return List.from(tanks)
+      ..sort((a, b) {
+        final int na =
+            int.tryParse(getCode(a).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        final int nb =
+            int.tryParse(getCode(b).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        return na.compareTo(nb);
+      });
   }
 
   /// Set teks controller tanpa memicu listener (cegah loop kalibrasi)
@@ -750,7 +806,8 @@ class PenerimaanController extends GetxController {
     if (ctrl.text == value) return;
     ctrl.removeListener(_updateManualTotalVolume);
     ctrl.text = value;
-    ctrl.selection = TextSelection.fromPosition(TextPosition(offset: value.length));
+    ctrl.selection =
+        TextSelection.fromPosition(TextPosition(offset: value.length));
     ctrl.addListener(_updateManualTotalVolume);
   }
 

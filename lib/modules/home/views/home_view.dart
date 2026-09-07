@@ -470,7 +470,7 @@ class HomeView extends GetView<HomeController> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               scrollDirection: Axis.horizontal,
               itemCount: displayMenu.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 16),
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final menu = displayMenu[index];
                 return _menuItem(
@@ -503,7 +503,7 @@ class HomeView extends GetView<HomeController> {
           ),
           const SizedBox(height: 10),
           SizedBox(
-              width: (screenWidth * 0.22).clamp(80.0, 100.0),
+              width: (screenWidth * 0.22).clamp(75.0, 100.0),
               child: Text(label, textAlign: TextAlign.center, style: AppFonts.fUrbanistSemiBold10, maxLines: 2, overflow: TextOverflow.ellipsis)
           ),
         ],

@@ -8,6 +8,7 @@ import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/models/master_io/master_io_model.dart';
 import '../../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
+import '../../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
 import '../../../../datas/models/volume_storage/volume_storage.dart';
 import '../../../../datas/network/api_client_network.dart';
 import '../../../auth/services/login_service.dart';
@@ -74,7 +75,7 @@ class PengeluaranApiService {
         throw Exception('Gagal mengambil data unit');
       }
     } catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -152,10 +153,10 @@ class PengeluaranApiService {
       print("❌ [DEBUG] Error 404 API VENDOR URL: $urlTarget");
       print("❌ [DEBUG] Full URI Requested: ${e.requestOptions.uri}");
       print("Error getVendorList: $e");
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     } catch (e) {
       print("Error getVendorList: $e");
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -179,7 +180,7 @@ class PengeluaranApiService {
       List data = response.data;
       return data.map((e) => KonfigurasiApprovalModel.fromJson(e)).toList();
     } catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -248,7 +249,7 @@ class PengeluaranApiService {
             "Respon server sukses namun status false");
       }
     } catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -291,7 +292,7 @@ class PengeluaranApiService {
         );
       }
     } catch (e) {
-      rethrow; // Lempar error ke Controller untuk dihandle
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); } // Lempar error ke Controller untuk dihandle
     }
   }
 
@@ -323,7 +324,15 @@ class PengeluaranApiService {
           ));
       return response.data;
     } catch (e) {
-      rethrow;
+      if (e is DioException) {
+        if (e.response != null) {
+          print("❌ [SERVER ERROR createTransactionApproval] Status: ${e.response?.statusCode}");
+          print("❌ [SERVER ERROR createTransactionApproval] Data: ${e.response?.data}");
+        }
+        throw _handleDioError(e);
+      } else {
+        throw e.toString();
+      }
     }
   }
 
@@ -370,7 +379,7 @@ class PengeluaranApiService {
         print("❌ [SERVER ERROR] Status: ${e.response?.statusCode}");
         print("❌ [SERVER ERROR] Data: ${e.response?.data}");
       }
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -419,7 +428,7 @@ class PengeluaranApiService {
         print("❌ [UPLOAD ERROR] Status: ${e.response?.statusCode}");
         print("❌ [UPLOAD ERROR] Data: ${e.response?.data}");
       }
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -470,7 +479,7 @@ class PengeluaranApiService {
         print("❌ [UPLOAD IMAGE ERROR] Status: ${e.response?.statusCode}");
         print("❌ [UPLOAD IMAGE ERROR] Data: ${e.response?.data}");
       }
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -483,7 +492,7 @@ class PengeluaranApiService {
         UrlApiStatic.API_END_POINT +
             UrlApiStatic.API_GET_TRANSACTION_PENGELUARAN_DAILY,
         queryParameters: {
-          'date_inbound': dateInbound,
+          'tanggal_transaksi': dateInbound,
           'kode_unit': kodeUnit,
         },
         options: _getOptions(),
@@ -497,6 +506,26 @@ class PengeluaranApiService {
       }
     } catch (e) {
       print("Error fetching daily transactions: $e");
+      return [];
+    }
+  }
+
+  Future<List<PengeluaranOutstandingModel>> getOutstandingTransactions() async {
+    try {
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT +
+            UrlApiStatic.API_GET_OUTSTANDING_INBOUND_OPEN,
+        options: _getOptions(),
+      );
+
+      if (response.statusCode == 200) {
+        List dataRaw = response.data;
+        return dataRaw.map((e) => PengeluaranOutstandingModel.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print("Error fetching outstanding transactions: $e");
       return [];
     }
   }
@@ -538,7 +567,7 @@ class PengeluaranApiService {
         print("❌ [UPDATE ERROR] Status: ${e.response?.statusCode}");
         print("❌ [UPDATE ERROR] Data: ${e.response?.data}");
       }
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -563,7 +592,7 @@ class PengeluaranApiService {
         );
       }
     } catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -583,7 +612,7 @@ class PengeluaranApiService {
       );
       return response.data;
     } on DioException catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -616,7 +645,7 @@ class PengeluaranApiService {
       );
       return response.data;
     } on DioException catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
     }
   }
 
@@ -641,7 +670,33 @@ class PengeluaranApiService {
       );
       return response.data;
     } on DioException catch (e) {
-      rethrow;
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
+    }
+  }
+  String _handleDioError(DioException e) {
+    if (e.response != null) {
+      String serverMsg = "";
+      try {
+        if (e.response?.data != null && e.response?.data is Map) {
+          serverMsg = " " + (e.response?.data['message'] ?? e.response?.data.toString());
+        }
+      } catch (_) {}
+
+      switch (e.response!.statusCode) {
+        case 400: return 'Permintaan tidak valid, periksa kembali input Anda.';
+        case 401: return 'Sesi habis, silakan login kembali.';
+        case 403: return 'Akses ditolak.';
+        case 404: return 'Layanan tidak ditemukan (404).';
+        case 422: return 'Data tidak lengkap atau tidak sesuai.';
+        case 500:
+        case 502:
+        case 503: return 'Server sedang bermasalah, coba beberapa saat lagi.';
+        default: return 'Terjadi kesalahan sistem (Kode: ${e.response!.statusCode}).';
+      }
+    } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+      return 'Koneksi ke server lambat atau terputus (Timeout). Coba lagi nanti.';
+    } else {
+      return 'Tidak dapat terhubung ke server. Pastikan internet Anda stabil.';
     }
   }
 }

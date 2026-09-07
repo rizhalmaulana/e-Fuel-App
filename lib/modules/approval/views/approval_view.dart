@@ -82,7 +82,7 @@ class ApprovalView extends GetView<ApprovalController> {
 
                 _buildSectionTitle("Pemeriksaan Volume Solar"),
                 _buildSummaryRow("Volume Tangki Pengirim", valNum(data['volume_pengirim'] ?? data['volume_vendor'], "Ltr")),
-                _buildSummaryRow("Volume Tangki Kebun", valNum(data['volume_aktual'] ?? data['volume_kebun'], "Ltr")),
+                _buildSummaryRow("Volume Tangki Kebun", valNum(data['volume_yang_diterima'] ?? data['volume_aktual'] ?? data['volume_kebun'], "Ltr")),
                 Container(
                   margin: const EdgeInsets.only(top: 4),
                   padding: const EdgeInsets.all(8),
@@ -90,7 +90,7 @@ class ApprovalView extends GetView<ApprovalController> {
                       color: AppColors.primary.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(8)
                   ),
-                  child: _buildSummaryRow("Varian", valNum(data['varian_volume'] ?? data['var_solar_tangki'] ?? data['varian'], "Ltr")),
+                  child: _buildSummaryRow("Varian", valNum(data['varian_solar'] ?? data['varian_volume'] ?? data['var_solar_tangki'] ?? data['varian'], "Ltr")),
                 ),
 
                 const SizedBox(height: 16),
@@ -140,10 +140,12 @@ class ApprovalView extends GetView<ApprovalController> {
     String dateInbound = data['date_inbound'] ?? '-';
 
     String volume = "-";
-    if (data['volume_aktual'] != null) {
+    if (data['volume_yang_diterima'] != null) {
+      volume = "${double.tryParse(data['volume_yang_diterima'].toString())?.toStringAsFixed(0)} Ltr";
+    } else if (data['volume_aktual'] != null) {
       volume = "${double.tryParse(data['volume_aktual'].toString())?.toStringAsFixed(0)} Ltr";
-    } else if (data['volume_vendor'] != null) {
-      volume = "${double.tryParse(data['volume_vendor'].toString())?.toStringAsFixed(0)} Ltr";
+    } else {
+      volume = "0 Ltr";
     }
 
     return SingleChildScrollView(
@@ -387,7 +389,12 @@ class ApprovalView extends GetView<ApprovalController> {
         bool isLast = index == sortedApprovals.length - 1;
 
         String status = appv['status_approve'] ?? 'PENDING';
+        
         String title = appv['level_title'] ?? '-';
+        if (index == 0) title = "Kepala Gudang";
+        if (index == 1) title = "Kasie";
+        if (index == 2) title = "Manager";
+
         String note = appv['catatan'] ?? '';
 
         String rawDate = appv['tgl_approve']?.toString() ?? '';
@@ -469,6 +476,12 @@ class ApprovalView extends GetView<ApprovalController> {
         uniqueTanks.add(t);
       }
     }
+
+    uniqueTanks.sort((a, b) {
+      String codeA = a['kode_tank'] ?? '';
+      String codeB = b['kode_tank'] ?? '';
+      return codeA.compareTo(codeB);
+    });
 
     return Column(
       children: uniqueTanks.map((tank) {

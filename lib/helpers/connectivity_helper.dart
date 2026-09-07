@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:get/get.dart';
 import '../helpers/lotties_helper.dart';
 import '../widgets/dialog/dialog_flexible.dart';
+import '../configs/app_colors.dart';
 
 class ConnectivityHelper {
 
@@ -45,6 +46,7 @@ class ConnectivityHelper {
         logo: LottiesHelper().getLottieFailed(),
         title: 'Koneksi Terputus!',
         message: 'Aplikasi memerlukan koneksi internet stabil untuk melakukan proses ini. Silakan cek jaringan Anda.',
+        primaryColor: AppColors.alertSoftRed,
         primaryButtonText: 'Tutup',
         onPrimaryPressed: () {
           Get.back(result: false);

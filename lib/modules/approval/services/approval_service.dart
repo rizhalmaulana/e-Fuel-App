@@ -56,15 +56,15 @@ class ApprovalService {
     }
   }
 
-  Future<String?> downloadPdfDocument(String noDoc) async {
+  Future<String?> downloadPdfDocument(String noDoc, {bool isEbpb = false}) async {
     try {
       final auth = _loginService.getCurrentAuth();
       
-      bool isEbpb = noDoc.toUpperCase().contains('E-BPB');
       String endpoint = isEbpb 
           ? UrlApiStatic.API_EXPORT_EBPB_PDF_DOC 
           : UrlApiStatic.API_EXPORT_PDF_DOC;
-      String url = endpoint.replaceAll('{no_doc}', noDoc);
+      String url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', Uri.encodeComponent(noDoc));
+
 
       Directory? dir;
       if (Platform.isAndroid) {

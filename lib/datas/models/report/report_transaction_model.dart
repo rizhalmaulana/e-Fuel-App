@@ -16,6 +16,8 @@ class ReportTransactionModel {
   String? vendorSpb;
   String? nopolVendor;
   String? supirVendor;
+  double? aktualLiter;
+  double? varianLiter;
 
   // FOT (Pengeluaran) Fields
   String? unitIo;
@@ -41,6 +43,8 @@ class ReportTransactionModel {
     this.vendorSpb,
     this.nopolVendor,
     this.supirVendor,
+    this.aktualLiter,
+    this.varianLiter,
     this.unitIo,
     this.jumlahPengisianSolar,
     this.estimasiPengisianSolar,
@@ -65,6 +69,8 @@ class ReportTransactionModel {
       vendorSpb: json['vendor_spb'],
       nopolVendor: json['nopol_vendor'],
       supirVendor: json['supir_vendor'],
+      aktualLiter: json['volume_var_liter'] != null ? double.tryParse(json['volume_var_liter'].toString()) : json['aktual_liter'] != null ? double.tryParse(json['aktual_liter'].toString()) : null,
+      varianLiter: json['volume_var_liter'] != null && json['volume_vendor'] != null ? ((double.tryParse(json['volume_var_liter'].toString()) ?? 0) - (double.tryParse(json['volume_vendor'].toString()) ?? 0)) : json['varian_liter'] != null ? double.tryParse(json['varian_liter'].toString()) : null,
       volumeVendor: json['volume_vendor'] != null ? (json['volume_vendor'] as num).toInt() : null,
       unitIo: json['unit_io'],
       jumlahPengisianSolar: json['jumlah_pengisian_solar'] != null

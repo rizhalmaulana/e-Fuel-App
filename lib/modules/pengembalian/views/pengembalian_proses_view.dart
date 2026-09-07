@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:marquee/marquee.dart';
 import '../../../configs/app_colors.dart';
 import '../../../configs/app_fonts.dart';
 import '../controllers/pengembalian_proses_controller.dart';
@@ -14,7 +15,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
     return Scaffold(
       backgroundColor: AppColors.backgroundGrey,
       appBar: AppBar(
-        title: Text('Proses Pengembalian',
+        title: Text('Detail Pengembalian',
             style: AppFonts.fUrbanistBold18
                 .copyWith(color: AppColors.primary)),
         centerTitle: true,
@@ -39,15 +40,15 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
                     children: [
                       Expanded(child: _buildStaticField('Tanggal Transaksi', _formatDate(controller.data.createdAt))),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildStaticField('Nama Unit', controller.data.namaUnit)),
+                      Expanded(child: _buildStaticField('Nama Unit', controller.data.namaUnit, isMarquee: true)),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(child: _buildStaticField('No. Transaksi', controller.data.noDoc)),
+                      Expanded(child: _buildStaticField('No. Transaksi', controller.data.noDoc, isMarquee: true)),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildStaticField('No. IO', controller.data.noIo)),
+                      Expanded(child: _buildStaticField('No. IO', controller.data.noIo, isMarquee: true)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -58,40 +59,45 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
             const SizedBox(height: 16),
             
             _buildCardWrapper(
-              title: 'Volume Solar (${controller.data.satuan})',
+              title: 'Informasi Solar',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Expanded(child: _buildStaticField('Liter Pengambilan', controller.data.liter.toString())),
+                      Expanded(child: _buildStaticField('Liter Pengambilan', "${controller.data.aktualLiter} Ltr")),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildStaticField('Aktual Pengisian', controller.data.aktualLiter.toString())),
+                      Expanded(child: _buildStaticField('Aktual Pengisian', "${controller.data.aktualLiterTransfer} Ltr")),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildStaticField('Sisa Liter (Tercatat)', controller.data.varianLiter.toString(), isHighlighted: true),
+                  _buildStaticField('Varian Liter', "${controller.data.varianLiterTransfer} Ltr", isHighlighted: true),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
+            // _buildCardWrapper(
+            //   title: 'Input Pengembalian',
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       _buildInputField('Varian Liter Dikembalikan', controller.varianLiterController, isNumber: true),
+            //     ],
+            //   ),
+            // ),
+            // const SizedBox(height: 16),
+            
             _buildCardWrapper(
-              title: 'Input Pengembalian',
+              title: 'Lampiran',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildInputField('Varian Liter Dikembalikan', controller.varianLiterController, isNumber: true),
+                  _buildCameraBox(),
                   const SizedBox(height: 16),
-                  _buildInputField('Keterangan', controller.keteranganController, isNumber: false),
+                  _buildInputField('Keterangan (Opsional)', controller.keteranganController, isNumber: false),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            _buildCardWrapper(
-              title: 'Lampiran Foto',
-              child: _buildCameraBox(),
             ),
             
             const SizedBox(height: 32),
@@ -125,7 +131,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMM yyyy').format(date);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
     } catch (e) {
       return dateStr;
     }
@@ -160,7 +166,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
     );
   }
 
-  Widget _buildStaticField(String label, String value, {bool isHighlighted = false}) {
+  Widget _buildStaticField(String label, String value, {bool isHighlighted = false, bool isMarquee = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -168,19 +174,39 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
         const SizedBox(height: 6),
         Container(
           width: double.infinity,
+          height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: isHighlighted ? const Color(0xFFF0F5FF) : const Color(0xFFF7F7F7),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isHighlighted ? AppColors.primaryOrange.withOpacity(0.3) : Colors.transparent),
+            border: Border.all(color: isHighlighted ? AppColors.primary.withOpacity(0.3) : Colors.transparent),
           ),
-          child: Text(
-            value,
-            style: AppFonts.fUrbanistMedium14.copyWith(
-              color: isHighlighted ? AppColors.primaryOrange : AppColors.primaryText,
-              fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
-            ),
-          ),
+          child: isMarquee && value.length > 15
+              ? Marquee(
+                  text: value,
+                  style: AppFonts.fUrbanistMedium14.copyWith(
+                    color: isHighlighted ? AppColors.primaryOrange : AppColors.primaryText,
+                    fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
+                  ),
+                  scrollAxis: Axis.horizontal,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  blankSpace: 20.0,
+                  velocity: 30.0,
+                  pauseAfterRound: const Duration(seconds: 1),
+                  startPadding: 0,
+                  accelerationDuration: const Duration(seconds: 1),
+                  accelerationCurve: Curves.linear,
+                  decelerationDuration: const Duration(milliseconds: 500),
+                  decelerationCurve: Curves.easeOut,
+                )
+              : Text(
+                  value,
+                  style: AppFonts.fUrbanistMedium14.copyWith(
+                    color: isHighlighted ? AppColors.primary : AppColors.primaryText,
+                    fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
         ),
       ],
     );
@@ -215,25 +241,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
   }
 
   Widget _buildCameraBox() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(child: _buildPhotoBox(1, controller.foto1Path, 'Foto Alat Berat / Unit')),
-            const SizedBox(width: 12),
-            Expanded(child: _buildPhotoBox(2, controller.foto2Path, 'Foto Tangki')),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _buildPhotoBox(3, controller.foto3Path, 'Foto Bukti Pengembalian')),
-            const SizedBox(width: 12),
-            Expanded(child: const SizedBox()), // Empty slot for grid
-          ],
-        ),
-      ],
-    );
+    return _buildPhotoBox(1, controller.foto1Path, 'Foto Pengambilan Solar');
   }
 
   Widget _buildPhotoBox(int index, RxnString pathObs, String title) {
@@ -252,7 +260,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
                   child: Image.file(
                     File(path),
                     width: double.infinity,
-                    height: 110,
+                    height: 150,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -276,7 +284,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
             onTap: () => controller.pickImage(index, title),
             child: Container(
               width: double.infinity,
-              height: 110,
+              height: 150,
               decoration: BoxDecoration(
                 color: const Color(0xFFF7F7F7),
                 borderRadius: BorderRadius.circular(12),
@@ -294,7 +302,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
                         BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
                       ],
                     ),
-                    child: const Icon(Icons.camera_alt, color: AppColors.primaryOrange, size: 24),
+                    child: const Icon(Icons.camera_alt, color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(height: 8),
                   Text('Ambil Foto', style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)),

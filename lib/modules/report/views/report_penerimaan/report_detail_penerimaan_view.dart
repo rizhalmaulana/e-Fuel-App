@@ -84,13 +84,20 @@ class ReportDetailPenerimaanView extends GetView<ReportDetailPenerimaanControlle
   }
 
   Widget _buildTankList(List<dynamic> tanks) {
+    var sortedTanks = List.from(tanks);
+    sortedTanks.sort((a, b) {
+      String codeA = a['kode_tank']?.toString() ?? '';
+      String codeB = b['kode_tank']?.toString() ?? '';
+      return codeA.compareTo(codeB);
+    });
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: tanks.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
-        final tank = tanks[index] as Map<String, dynamic>;
+        final tank = sortedTanks[index] as Map<String, dynamic>;
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -123,6 +130,97 @@ class ReportDetailPenerimaanView extends GetView<ReportDetailPenerimaanControlle
           ),
         );
       },
+    );
+  }
+
+  Widget _buildApprovalTimeline(List approvals) {
+    var sortedApprovals = List.from(approvals);
+    sortedApprovals.sort((a, b) {
+      String levelA = a['level_approval']?.toString() ?? '';
+      String levelB = b['level_approval']?.toString() ?? '';
+      return levelA.compareTo(levelB);
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(sortedApprovals.length, (index) {
+        var appv = sortedApprovals[index];
+        bool isLast = index == sortedApprovals.length - 1;
+
+        String status = appv['status_approve'] ?? 'PENDING';
+        
+        String title = appv['level_title'] ?? '-';
+        if (index == 0) title = "Kepala Gudang";
+        if (index == 1) title = "Kasie";
+        if (index == 2) title = "Manager";
+
+        String note = appv['catatan'] ?? '';
+
+        String rawDate = appv['tgl_approve']?.toString() ?? '';
+        String dateFormatted = "-";
+        if (rawDate.isNotEmpty && rawDate != "null") {
+          DateTime dt = DateTime.parse(rawDate).toLocal();
+          dateFormatted = "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+        }
+
+        Color statusColor = (status == 'APPROVED') ? Colors.green : (status == 'REJECTED') ? Colors.red : Colors.orange;
+        IconData statusIcon = (status == 'APPROVED') ? Icons.check_circle : (status == 'REJECTED') ? Icons.cancel : Icons.access_time_filled;
+
+        return Stack(
+          children: [
+            if (!isLast)
+              Positioned(
+                left: 11,
+                top: 24,
+                bottom: 0,
+                child: Container(width: 2, color: Colors.grey.shade200),
+              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(statusIcon, color: statusColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(title, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText)),
+                            Text(dateFormatted, style: AppFonts.fUrbanistRegular10.copyWith(color: Colors.grey)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                          child: Text(status, style: AppFonts.fUrbanistBold10.copyWith(color: statusColor)),
+                        ),
+                        if (note.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F9FA),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE3E8F0)),
+                            ),
+                            child: Text(note, style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.darkText)),
+                          )
+                        ]
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ],
+        );
+      }),
     );
   }
 
@@ -205,7 +303,7 @@ class ReportDetailPenerimaanView extends GetView<ReportDetailPenerimaanControlle
 
             if (data['approvals'] != null && (data['approvals'] as List).isNotEmpty)
               _buildSection("Riwayat Persetujuan", [
-                Text("Terakreditasi / Disetujui oleh: ${_val(data['created_by'])}", style: AppFonts.fUrbanistRegular12),
+                _buildApprovalTimeline(data['approvals'] as List),
               ]),
           ],
         );

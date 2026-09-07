@@ -32,7 +32,6 @@ class PenerimaanSetelahController extends GetxController {
   final lastSyncTime = ''.obs;
 
   // --- STATE IoT vs MANUAL ---
-  final isSensorApiActive = true.obs;
   bool _isInjectingApiData = false;
 
   // --- DATA SEBELUM ---
@@ -271,20 +270,14 @@ class PenerimaanSetelahController extends GetxController {
       volCtrl.addListener(() {
         _updateTotalManual();
         refreshTrigger.value++;
-
-        if (isSensorApiActive.value && !_isInjectingApiData) {
-          int currentCapacity = _tankCapacities[code] ?? tankCapacity;
-          _onVolumeInputChanged(code, volCtrl.text, heightCtrl, currentCapacity);
-        }
-
         _saveCurrentProgressToDraft();
       });
 
       heightCtrl.addListener(() {
         refreshTrigger.value++;
 
-        if (!isSensorApiActive.value && !_isInjectingApiData) {
-          int currentCapacity = _tankCapacities[code] ?? tankCapacity;
+        if (!_isInjectingApiData) {
+          int currentCapacity = _tankCapacities[code] ?? 0;
           _onHeightInputChanged(code, heightCtrl.text, volCtrl, currentCapacity);
         }
 
@@ -415,7 +408,8 @@ class PenerimaanSetelahController extends GetxController {
       }
 
       _isInjectingApiData = false;
-      isSensorApiActive.value = anyDataFound;
+      
+      // Status tankSensorStatus dihapus
       _updateTotalManual();
 
       if (anyDataFound) {
@@ -437,7 +431,7 @@ class PenerimaanSetelahController extends GetxController {
       _setInitialSyncTime();
     } catch (e) {
       _isInjectingApiData = false;
-      isSensorApiActive.value = false;
+      _updateTotalManual();
       print("Error refresh: $e");
       CustomSnackbar.show(
         title: "Koneksi Sensor",
@@ -505,6 +499,7 @@ class PenerimaanSetelahController extends GetxController {
         heightAfterIoT: hAfterIoT,
         volumeVariantIoT: volAfterIoT - volBeforeIoT,
         heightVariantIoT: hAfterIoT - hBeforeIoT,
+        inputType: 'M',
       ));
     }
     return results;

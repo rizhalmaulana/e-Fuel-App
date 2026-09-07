@@ -76,9 +76,20 @@ class TransferOfflineService {
         List<dynamic> listData = response.data is List ? response.data : (response.data['data'] ?? []);
         
         List<TransferSolarModel> incomingData = listData.map((e) => TransferSolarModel.fromJson(e)).toList();
+        List<String> incomingDocs = incomingData.map((e) => e.noDoc).toList();
+        
+        // Hapus data lokal yang sudah tidak ada di backend (dihapus/status berubah)
+        // TETAPI HANYA JIKA data tersebut belum pernah di-submit/edit secara offline oleh user.
+        var itemsToDelete = _transferBox!.values
+            .where((e) => !incomingDocs.contains(e.noDoc) && !e.isOfflineSubmitted)
+            .toList();
+            
+        for (var item in itemsToDelete) {
+          await item.delete();
+        }
         
         for (var item in incomingData) {
-          var match = _transferBox!.values.where((e) => e.id == item.id).toList();
+          var match = _transferBox!.values.where((e) => e.noDoc == item.noDoc).toList();
           var existing = match.isNotEmpty ? match.first : null;
           
           if (existing == null) {
@@ -119,6 +130,11 @@ class TransferOfflineService {
     required String foto1Path,
     required String foto2Path,
     required String foto3Path,
+    required String supirCheck,
+    required num hmKmAwal,
+    required num hmKmAkhir,
+    required num ratio,
+    required num estimasi,
   }) async {
     await initBox();
     var match = _transferBox!.values.where((e) => e.id == id).toList();
@@ -129,6 +145,11 @@ class TransferOfflineService {
       existing.foto1Path = foto1Path;
       existing.foto2Path = foto2Path;
       existing.foto3Path = foto3Path;
+      existing.supirCheck = supirCheck;
+      existing.hmKmAwal = hmKmAwal;
+      existing.hmKmAkhir = hmKmAkhir;
+      existing.ratio = ratio;
+      existing.jumlahPengisianSolar = estimasi;
       existing.isOfflineSubmitted = true;
       await existing.save();
     }
@@ -139,15 +160,17 @@ class TransferOfflineService {
       final auth = _loginService.getCurrentAuth();
       
       final payloadData = {
+        "supir_check": data.supirCheck,
+        "hm_km_akhir": data.hmKmAkhir ?? 0,
         "no_io": data.noIo,
-        "liter": data.aktualLiter,
+        "liter": data.jumlahPengisianSolar ?? 0, // Estimasi liter
+        "hm_km_awal": data.hmKmAwal ?? 0,
         "cost_center": "",
         "date_inbound": DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        "status_inbound": "",
         "input_type": "A",
         "varian_liter": data.inputVarianLiter ?? 0,
-        "nopol_check": data.nopolCheck,
-        "no_doc_fot_ab": data.noDoc,
+        "ratio_input": data.ratio ?? 0,
+        "no_doc": data.noDoc,
         "aktual_liter": data.inputAktualLiter ?? 0,
         "jenis_pengeluaran": "Transfer",
         "satuan": data.satuan ?? "",
@@ -158,19 +181,19 @@ class TransferOfflineService {
         "payload": jsonEncode(payloadData),
       });
 
-      if (data.foto1Path != null) {
+      if (data.foto1Path != null && data.foto1Path!.isNotEmpty) {
         formData.files.add(MapEntry(
           "foto1",
           await MultipartFile.fromFile(data.foto1Path!),
         ));
       }
-      if (data.foto2Path != null) {
+      if (data.foto2Path != null && data.foto2Path!.isNotEmpty) {
         formData.files.add(MapEntry(
           "foto2",
           await MultipartFile.fromFile(data.foto2Path!),
         ));
       }
-      if (data.foto3Path != null) {
+      if (data.foto3Path != null && data.foto3Path!.isNotEmpty) {
         formData.files.add(MapEntry(
           "foto3",
           await MultipartFile.fromFile(data.foto3Path!),

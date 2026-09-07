@@ -41,70 +41,21 @@ class HomeRepository {
     List<VolumeTankDetailModel> syncedList = [];
     bool anyStockApiSuccess = false;
 
-    await Future.wait(masterTanks.map((tank) async {
-      try {
-        // Hit ke API Latest Stock
-        final response = await _homeService.getLatestStockTanks(
-          unitId: unitId,
-          tankCode: tank.masterSolarTank?.kodeTank ?? '',
-          dateLog: today,
-        );
-
-        // Ambil data dari cache lokal (Hive) sebagai fallback
-        final offlineTank = offlineData.firstWhere(
-              (o) => o.masterSolarTank?.kodeTank == tank.masterSolarTank?.kodeTank,
-          orElse: () => tank,
-        );
-
-        if (response != null && response is List && response.isNotEmpty) {
-          final stockData = response.last;
-          anyStockApiSuccess = true;
-
-          double vol = (stockData['stock_volume'] as num?)?.toDouble() ?? 0.0;
-          double h = (stockData['tinggi'] ?? stockData['height'] as num?)?.toDouble() ?? 0.0;
-
-          syncedList.add(VolumeTankDetailModel(
-            id: tank.id,
-            unit: tank.unit,
-            masterStorage: tank.masterStorage,
-            masterSolarTank: tank.masterSolarTank,
-            volume: vol,
-            height: h,
-            updatedAt: DateTime.now().toIso8601String(),
-            capacity: tank.capacity,
-          ));
-        }
-        else {
-          syncedList.add(VolumeTankDetailModel(
-            id: tank.id,
-            unit: tank.unit,
-            masterStorage: tank.masterStorage,
-            masterSolarTank: tank.masterSolarTank,
-            volume: offlineTank.volume,
-            height: offlineTank.height,
-            updatedAt: offlineTank.updatedAt,
-            capacity: tank.capacity,
-          ));
-        }
-      } catch (e) {
-        final offlineTank = offlineData.firstWhere(
-              (o) => o.masterSolarTank?.kodeTank == tank.masterSolarTank?.kodeTank,
-          orElse: () => tank,
-        );
-
-        syncedList.add(VolumeTankDetailModel(
-          id: tank.id,
-          unit: tank.unit,
-          masterStorage: tank.masterStorage,
-          masterSolarTank: tank.masterSolarTank,
-          volume: offlineTank.volume, // Gunakan data cache / Hive
-          height: offlineTank.height,
-          updatedAt: offlineTank.updatedAt,
-          capacity: tank.capacity,
-        ));
-        print("⚠️ [HomeRepo] Gagal fetch stock untuk tangki ${tank.masterSolarTank?.kodeTank}: $e");
-      }
-    })).timeout(const Duration(seconds: 10));
+    // API_GET_CHILD_DETAIL_STORAGE_TANK already returns the latest volume and height, 
+    // so we can just use the data from masterTanks directly.
+    for (var tank in masterTanks) {
+      anyStockApiSuccess = true;
+      syncedList.add(VolumeTankDetailModel(
+        id: tank.id,
+        unit: tank.unit,
+        masterStorage: tank.masterStorage,
+        masterSolarTank: tank.masterSolarTank,
+        volume: tank.volume,
+        height: tank.height,
+        updatedAt: DateTime.now().toIso8601String(),
+        capacity: tank.capacity,
+      ));
+    }
 
     if (syncedList.isNotEmpty) {
       final allCached = _fuelDataService.getApiManualTanks();

@@ -59,6 +59,37 @@ class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
     );
   }
 
+  Widget _buildTextField(TextEditingController controller, {required String hint, bool isNumber = false, bool isReadOnly = false, IconData? icon}) {
+    return TextField(
+      controller: controller,
+      readOnly: isReadOnly,
+      keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+      style: AppFonts.fUrbanistRegular14.copyWith(
+        color: isReadOnly ? AppColors.secondaryText : AppColors.primaryText,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: isReadOnly ? AppColors.backgroundGrey : const Color(0xFFFBEADB),
+        hintText: hint,
+        hintStyle: AppFonts.fUrbanistRegular14.copyWith(color: Colors.grey.shade400),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        prefixIcon: icon != null ? Icon(icon, color: AppColors.secondaryText, size: 20) : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: isReadOnly ? Colors.grey.shade300 : AppColors.primaryOrange),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: isReadOnly ? Colors.transparent : Colors.black12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: isReadOnly ? Colors.transparent : AppColors.primaryOrange),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPhotoBox(String title, IconData icon, bool isAlatBerat) {
     return Expanded(
       child: GestureDetector(
@@ -170,35 +201,68 @@ class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildInfoRow('Nama Unit', controller.data.namaUnit, 'No. IO', controller.data.noIo, icon1: Icons.local_shipping_outlined, icon2: Icons.confirmation_num_outlined),
-                          _buildInfoRow('Nama Supir', controller.data.supirCheck, '', '', icon1: Icons.person_outline, icon2: null),
+                          const SizedBox(height: 8),
+                          Text(controller.getLabelNamaSupir(), style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
+                          const SizedBox(height: 8),
+                          _buildTextField(controller.supirController, hint: controller.getLabelNamaSupir(), icon: Icons.person_outline),
+                          const SizedBox(height: 12),
+                          
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('${controller.getLabelHMKM()} Sebelumnya', style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
+                                    const SizedBox(height: 8),
+                                    _buildTextField(controller.hmAwalController, hint: '0', isNumber: true, isReadOnly: true),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('${controller.getLabelHMKM()} Saat Ini', style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
+                                    const SizedBox(height: 8),
+                                    _buildTextField(controller.hmAkhirController, hint: '0', isNumber: true),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Rasio', style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
+                                    const SizedBox(height: 8),
+                                    _buildTextField(controller.ratioController, hint: '0', isNumber: true, isReadOnly: false),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Estimasi (Ltr)', style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
+                                    const SizedBox(height: 8),
+                                    _buildTextField(controller.estimasiController, hint: '0', isNumber: true, isReadOnly: true),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
                           const SizedBox(height: 12),
                           const Divider(),
                           const SizedBox(height: 12),
-                          Text('Aktual Pengisian Solar (Ltr)', style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: controller.aktualController,
-                            keyboardType: TextInputType.number,
-                            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: const Color(0xFFFBEADB), // Soft orange highlight
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.primaryOrange),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: Colors.black12),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.primaryOrange),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
@@ -229,7 +293,7 @@ class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Varian (Ltr)', style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
+                                    Text('Sisa Solar (Ltr)', style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText)),
                                     const SizedBox(height: 8),
                                     Container(
                                       width: double.infinity,
@@ -249,6 +313,32 @@ class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Aktual Pengisian Solar (Ltr)', style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: controller.aktualController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+                            decoration: InputDecoration(
+                              filled: true,
+                              hintText: '0',
+                              fillColor: const Color(0xFFFBEADB), // Soft orange highlight
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: AppColors.primaryOrange),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: Colors.black12),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: AppColors.primaryOrange),
+                              ),
+                            ),
                           ),
                         ],
                       ),
