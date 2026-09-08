@@ -132,7 +132,7 @@ class TransferSolarModel extends HiveObject {
       hmKmAwal: json['hm_km_awal'] as num?,
       hmKmAkhir: json['hm_km_akhir'] as num?,
       ratio: json['ratio_input'] as num? ?? json['ratio'] as num?,
-      jumlahPengisianSolar: json['liter'] as num? ?? json['jumlah_pengisian_solar'] as num?,
+      jumlahPengisianSolar: json['estimasi_liter'] as num? ?? json['liter'] as num? ?? json['jumlah_pengisian_solar'] as num?,
     );
   }
 

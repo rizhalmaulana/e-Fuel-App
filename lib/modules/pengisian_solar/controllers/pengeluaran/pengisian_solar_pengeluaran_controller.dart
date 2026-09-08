@@ -45,6 +45,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   final messageResponse = ''.obs;
   final dateLogResponse = ''.obs;
   final isManualInput = false.obs;
+  final isTamu = false.obs;
 
   final List<String> jenisPengeluaranOptions = ['Bon Sementara', 'BPB'];
   final selectedJenisPengeluaran = 'Bon Sementara'.obs;
@@ -126,10 +127,11 @@ class PengisianSolarPengeluaranController extends GetxController {
     _hmKmAkhirArg = (payload['hm_km_akhir'] ?? '0').toString();
     _tanggalAkhirArg = (payload['tanggal_akhir'] ?? '').toString();
 
-    String initialDocType = payload['doc_type'] ?? 'FOT';
+    String initialDocType = payload['jenis_pengeluaran'] ?? args['jenis_pengeluaran'] ?? payload['doc_type'] ?? 'FOT';
     selectedJenisPengeluaran.value = (initialDocType == 'BPB') ? 'BPB' : 'Bon Sementara';
     
     isManualInput.value = args['isManualInput'] ?? false;
+    isTamu.value = (unitIO.value == 'TAMU');
 
     // Ambil storage code aktif dari Home Controller
     String rawStorage = _homeController.selectedStorage.value;
@@ -138,7 +140,7 @@ class PengisianSolarPengeluaranController extends GetxController {
     estimasiSolarC.text = jumlahSolarArg.value;
     aktualSolarC.text = "";
 
-    if (!isManualInput.value) {
+    if (!isManualInput.value && !isTamu.value) {
       refreshSensorMonitoring();
     }
   }
@@ -378,15 +380,26 @@ class PengisianSolarPengeluaranController extends GetxController {
 
       await Future.delayed(const Duration(milliseconds: 500));
 
-      print("-> Step 3: updateStatusTransactionApproval");
-      await _apiService.updateStatusTransactionApproval(
-        noDoc: finalNoDoc,
-        levelApproval: myConfig.levelApproval ?? "1",
-        statusApprove: 'APPROVED',
-        catatan: "Verifikasi Langsung Tanpa TTD ($currentDocType)",
-        isSign: false,
-        isPartnerSign: false,
-      );
+      print("-> Step 3: updateStatusTransactionApproval (isBpb: ${selectedJenisPengeluaran.value == 'BPB'})");
+      if (selectedJenisPengeluaran.value == 'BPB') {
+        await _apiService.updateStatusTransactionApprovalBpb(
+          noDoc: finalNoDoc,
+          levelApproval: myConfig.levelApproval ?? "1",
+          statusApprove: 'APPROVED',
+          catatan: "Verifikasi Langsung Tanpa TTD (BPB)",
+          isSign: false,
+          isPartnerSign: false,
+        );
+      } else {
+        await _apiService.updateStatusTransactionApproval(
+          noDoc: finalNoDoc,
+          levelApproval: myConfig.levelApproval ?? "1",
+          statusApprove: 'APPROVED',
+          catatan: "Verifikasi Langsung Tanpa TTD ($currentDocType)",
+          isSign: false,
+          isPartnerSign: false,
+        );
+      }
       print("-> Step 3 Selesai");
 
       await Future.delayed(const Duration(milliseconds: 200));

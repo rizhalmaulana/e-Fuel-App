@@ -159,6 +159,120 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
     );
   }
 
+  void _showCostCenterDialog(BuildContext context, dynamic item) {
+    String uniqueKey = item.id.toString();
+    final editController = TextEditingController(
+      text: controller.costCenterControllers[uniqueKey]?.text ?? (item.costCenter ?? ""),
+    );
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Edit Cost Center",
+                    style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryOrange),
+                  ),
+                  GestureDetector(
+                    onTap: () => Get.back(),
+                    child: const Icon(Icons.close, size: 20, color: AppColors.secondaryText),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "No. Doc: ${item.noDoc ?? '-'}",
+                style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Cost Center",
+                style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.primaryText),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: editController,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                  UpperCaseTextFormatter(),
+                ],
+                style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.darkText),
+                decoration: InputDecoration(
+                  hintText: "Masukkan Cost Center",
+                  hintStyle: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+                  filled: true,
+                  fillColor: AppColors.fieldBackground.withOpacity(0.3),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.secondaryText.withOpacity(0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.secondaryText.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.primaryOrange),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side: BorderSide(color: AppColors.secondaryText.withOpacity(0.4)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        "Batal",
+                        style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.secondaryText),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        String newText = editController.text.trim().toUpperCase();
+                        controller.updateCostCenter(uniqueKey, newText, item);
+                        Get.back();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryOrange,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        "Simpan",
+                        style: AppFonts.fUrbanistBold14.copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDataTable(BuildContext context) {
     // 3. UPDATE: Menggunakan rasio tinggi layar agar responsif di HP yang lebih kecil/besar
     final double tableHeight = MediaQuery.of(context).size.height * 0.5;
@@ -243,9 +357,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                   String uniqueKey = item.id.toString();
 
                   String noIoVal = item.noIo ?? "";
-                  String ioOrCc = (noIoVal.trim().isEmpty || noIoVal == "-")
-                      ? (item.costCenter ?? "-")
-                      : noIoVal;
+                  String displayCc = controller.costCenterControllers[uniqueKey]?.text ?? (item.costCenter ?? "");
 
                   return DataRow(
                     cells: [
@@ -264,9 +376,52 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                                   color: (item.hasBackdate ?? false)
                                       ? AppColors.primaryOrange
                                       : AppColors.primary)),
-                          Text(ioOrCc,
-                              style: AppFonts.fUrbanistMedium12
-                                  .copyWith(color: AppColors.secondaryText)),
+                          const SizedBox(height: 2),
+                          (noIoVal.trim().isEmpty || noIoVal == "-")
+                              ? GestureDetector(
+                                  onTap: () => _showCostCenterDialog(context, item),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: (displayCc.trim().isEmpty || displayCc == "-")
+                                          ? AppColors.alertSoftRed.withOpacity(0.1)
+                                          : AppColors.primaryOrange.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: (displayCc.trim().isEmpty || displayCc == "-")
+                                            ? AppColors.alertSoftRed.withOpacity(0.5)
+                                            : AppColors.primaryOrange.withOpacity(0.5),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          (displayCc.trim().isEmpty || displayCc == "-")
+                                              ? "Isi CC"
+                                              : displayCc,
+                                          style: AppFonts.fUrbanistBold10.copyWith(
+                                            color: (displayCc.trim().isEmpty || displayCc == "-")
+                                                ? AppColors.alertSoftRed
+                                                : AppColors.primaryOrange,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Icon(
+                                          Icons.edit,
+                                          size: 10,
+                                          color: (displayCc.trim().isEmpty || displayCc == "-")
+                                              ? AppColors.alertSoftRed
+                                              : AppColors.primaryOrange,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : Text(noIoVal,
+                                  style: AppFonts.fUrbanistMedium12
+                                      .copyWith(color: AppColors.secondaryText)),
                         ],
                       )),
                       DataCell(
@@ -454,6 +609,32 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
+                Obx(() {
+                  if (controller.hasOutstandingPreviousDate.value) {
+                    return Container(
+                      margin: const EdgeInsets.only(top: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.alertSoftRed.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.alertSoftRed.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: AppColors.alertSoftRed),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              controller.outstandingPreviousMessage.value,
+                              style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.alertSoftRed),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
                 const SizedBox(height: 16),
                 _buildCompactHeader(context),
                 const SizedBox(height: 16),

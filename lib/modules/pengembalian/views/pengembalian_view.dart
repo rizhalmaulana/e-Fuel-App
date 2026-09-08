@@ -275,7 +275,7 @@ class PengembalianView extends GetView<PengembalianController> {
                   Expanded(
                     child: _buildVolumeItem(
                       'Pengambilan',
-                      '${item.aktualLiter}',
+                      '${item.awalAktualLiter}',
                       'Ltr',
                       Icons.arrow_upward_rounded,
                       Colors.blue,

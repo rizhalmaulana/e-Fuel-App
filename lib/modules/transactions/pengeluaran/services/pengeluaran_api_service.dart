@@ -383,6 +383,49 @@ class PengeluaranApiService {
     }
   }
 
+  Future<dynamic> updateStatusTransactionApprovalBpb({
+    required String noDoc,
+    required String levelApproval,
+    required String statusApprove,
+    required String catatan,
+    required bool isSign,
+    required bool isPartnerSign,
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    String url = "${UrlApiStatic.API_END_POINT}${UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL_BPB}";
+
+    Map<String, dynamic> payloadData = {
+      "status_approve": statusApprove,
+      "level_approval": levelApproval,
+      "catatan": catatan,
+      "is_sign": isSign,
+      "is_partner_sign": isPartnerSign,
+    };
+
+    try {
+      var response = await _dio.put(
+        url,
+        queryParameters: {
+          'no_doc': noDoc,
+        },
+        data: payloadData,
+        options: Options(contentType: 'application/json', headers: {
+          "Authorization": "Bearer $token",
+        }),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [SERVER ERROR UPDATE STATUS BPB] Status: ${e.response?.statusCode}");
+        print("❌ [SERVER ERROR UPDATE STATUS BPB] Data: ${e.response?.data}");
+      }
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
+    }
+  }
+
   Future<dynamic> uploadSignatureTransactionApproval({
     required String noDoc,
     required String levelApproval,

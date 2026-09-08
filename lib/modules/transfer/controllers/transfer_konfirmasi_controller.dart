@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
 import '../../../../configs/app_colors.dart';
-import '../../../configs/app_fonts.dart';
 import '../services/transfer_offline_service.dart';
 import '../../../../datas/models/transfer/transfer_solar_model.dart';
 import '../controllers/transfer_controller.dart';
@@ -48,6 +47,11 @@ class TransferKonfirmasiController extends GetxController {
     
     hmAwalController.addListener(_calculateEstimasi);
     hmAkhirController.addListener(_calculateEstimasi);
+    ratioController.addListener(_calculateEstimasi);
+
+    if ((data.jumlahPengisianSolar ?? 0) == 0) {
+      _calculateEstimasi();
+    }
   }
 
   @override
@@ -55,6 +59,7 @@ class TransferKonfirmasiController extends GetxController {
     aktualController.removeListener(_calculateVarian);
     hmAwalController.removeListener(_calculateEstimasi);
     hmAkhirController.removeListener(_calculateEstimasi);
+    ratioController.removeListener(_calculateEstimasi);
     
     aktualController.dispose();
     pengambilanController.dispose();

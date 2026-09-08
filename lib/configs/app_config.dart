@@ -3,8 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppConfig {
   static const bool isDevMode = true;
   static const String appName = 'E-Fuel Mobile';
-
-  static String _version = '1.0.9+1'; // Default fallback
+  static String _version = '1.1.0+1'; // Default fallback
 
   static Future<void> initVersion() async {
     try {

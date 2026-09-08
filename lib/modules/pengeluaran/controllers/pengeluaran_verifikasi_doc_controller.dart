@@ -61,6 +61,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
   final ratio = '-'.obs;
   final keterangan = '-'.obs;
   final docType = '-'.obs;
+  final jenisPengeluaran = 'Bon Sementara'.obs;
   final aktualSolarC = TextEditingController();
   final statusSupir = 'Internal'.obs;
 
@@ -118,6 +119,8 @@ class PengeluaranVerifikasiDocController extends GetxController {
     ratio.value = (args['ratio'] ?? '-').toString();
     keterangan.value = args['keterangan'] ?? '-';
     docType.value = args['doc_type'] ?? 'FOT';
+    String initialJenis = args['jenis_pengeluaran'] ?? (args['payload'] != null ? args['payload']['jenis_pengeluaran'] : null) ?? (docType.value == 'BPB' ? 'BPB' : 'Bon Sementara');
+    jenisPengeluaran.value = (initialJenis == 'BPB') ? 'BPB' : 'Bon Sementara';
 
     statusSupir.value = args['status_supir'] ?? 'Internal';
     aktualSolarC.text = jumlahSolar.value;
@@ -368,16 +371,29 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
       await Future.delayed(const Duration(seconds: 1));
 
-      await _apiService.updateStatusTransactionApproval(
-        noDoc: finalNoDoc,
-        levelApproval: myConfig.levelApproval ?? "1",
-        statusApprove: 'APPROVED',
-        catatan: warehouseNoteController.text.isEmpty
-            ? "Verifikasi Dokumen Selesai"
-            : warehouseNoteController.text,
-        isSign: true,
-        isPartnerSign: true,
-      );
+      if (jenisPengeluaran.value == 'BPB') {
+        await _apiService.updateStatusTransactionApprovalBpb(
+          noDoc: finalNoDoc,
+          levelApproval: myConfig.levelApproval ?? "1",
+          statusApprove: 'APPROVED',
+          catatan: warehouseNoteController.text.isEmpty
+              ? "Verifikasi Dokumen Selesai"
+              : warehouseNoteController.text,
+          isSign: true,
+          isPartnerSign: true,
+        );
+      } else {
+        await _apiService.updateStatusTransactionApproval(
+          noDoc: finalNoDoc,
+          levelApproval: myConfig.levelApproval ?? "1",
+          statusApprove: 'APPROVED',
+          catatan: warehouseNoteController.text.isEmpty
+              ? "Verifikasi Dokumen Selesai"
+              : warehouseNoteController.text,
+          isSign: true,
+          isPartnerSign: true,
+        );
+      }
 
       await _apiService.uploadSignatureTransactionApproval(
         noDoc: finalNoDoc,

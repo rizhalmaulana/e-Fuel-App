@@ -169,7 +169,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                         fillColor: AppColors.alertSoftOrangeSecond,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE3E8F0))),
-                        suffixIcon: Obx(() => controller.isManualInput.value 
+                        suffixIcon: Obx(() => (controller.isManualInput.value || controller.isTamu.value) 
                             ? const SizedBox.shrink() 
                             : IconButton(
                           icon: controller.isRefreshingSensor.value
@@ -184,7 +184,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                   ],
                 ),
                 Obx(() {
-                  if (controller.tipeUnit.value.toUpperCase() == 'GS') {
+                  if (controller.tipeUnit.value.toUpperCase() == 'GS' || controller.isTamu.value) {
                     return const SizedBox.shrink();
                   }
                   return Column(
@@ -211,7 +211,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text("Sisa Solar (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
+                                Text("Varian (Liter)", style: AppFonts.fUrbanistSemiBold12.copyWith(color: AppColors.secondaryText)),
                                 const SizedBox(height: 8),
                                 _buildReadOnlyField(controller.varianSolarC),
                               ],

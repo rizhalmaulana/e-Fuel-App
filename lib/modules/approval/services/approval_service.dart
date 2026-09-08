@@ -80,9 +80,15 @@ class ApprovalService {
       String prefix = isEbpb ? 'EBPB' : 'BAST';
       String savePath = '${dir?.path}/${prefix}_$safeDocName.pdf';
 
+      Map<String, dynamic>? queryParams;
+      if (!endpoint.contains('{no_doc}')) {
+        queryParams = {'no_doc': noDoc};
+      }
+
       final response = await _dio.download(
         url,
         savePath,
+        queryParameters: queryParams,
         options: Options(
           headers: {
             "Authorization": "Bearer ${auth?.access ?? ''}",

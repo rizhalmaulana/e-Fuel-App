@@ -45,6 +45,7 @@ class PengeluaranController extends GetxController {
   final aktualSolarC = TextEditingController();
   final varianSolarC = TextEditingController();
   final tanggalTransaksiC = TextEditingController();
+  final noDocInputC = TextEditingController();
   String? _createdNoDoc;
 
   // --- Data Logic ---
@@ -214,6 +215,7 @@ class PengeluaranController extends GetxController {
     aktualSolarC.dispose();
     varianSolarC.dispose();
     tanggalTransaksiC.dispose();
+    noDocInputC.dispose();
     super.onClose();
   }
 
@@ -1077,15 +1079,7 @@ class PengeluaranController extends GetxController {
       return false;
     }
 
-    if (!isManualInput.value && isTamu && (fotoDispenser.value == null || fotoSupir.value == null)) {
-      Get.snackbar('Data Belum Lengkap', 'Foto Dispenser dan Foto Supir wajib dilampirkan untuk Kategori Tamu!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
-    }
-
-    if (isManualInput.value || isTamu) {
+    if (isManualInput.value) {
       if (aktualSolarC.text.isEmpty || double.tryParse(aktualSolarC.text.replaceAll(',', '.')) == 0) {
         Get.snackbar(
           'Data Belum Lengkap', 'Harap isi Aktual Pengeluaran Solar.',
@@ -1184,6 +1178,14 @@ class PengeluaranController extends GetxController {
     if (isTamu && ioController.text.trim().isEmpty) {
       Get.snackbar(
           'Data Belum Lengkap', 'Cost Center wajib diisi untuk kategori Tamu!',
+          backgroundColor: AppColors.alertSoftRed,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16));
+      return false;
+    }
+
+    if (selectedJenisBon.value == 'BPB' && noDocInputC.text.trim().isEmpty) {
+      Get.snackbar('Data Belum Lengkap', 'Harap input No. Doc untuk BPB!',
           backgroundColor: AppColors.alertSoftRed,
           colorText: Colors.white,
           margin: const EdgeInsets.all(16));
@@ -1318,6 +1320,7 @@ class PengeluaranController extends GetxController {
         "satuan": satuanC.text,
         "kode_unit": userKodeUnit.value,
         "kode_unit_original": selectedKodeUnitKebunPabrik.value ?? "",
+        "no_doc": selectedJenisBon.value == 'BPB' ? noDocInputC.text : "",
         "has_tf": (tipeUnitC.text == "AB" && isLangsungPom.value) ? true : false,
         "is_baby_tank": isLangsungPom.value,
         "date_inbound": DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -1338,23 +1341,14 @@ class PengeluaranController extends GetxController {
       
       if (_createdNoDoc == null) {
         final response = await _apiService.createInboundFot(payloadMap: payloadRequestAPI, photos: photos);
-        noDoc = response['no_doc'] ?? "-";
+        noDoc = selectedJenisBon.value == 'BPB' ? noDocInputC.text : (response['no_doc'] ?? "-");
         _createdNoDoc = noDoc;
-      }
-
-      // Khusus untuk Kategori TAMU yang berjalan di 1 page, foto dikirim via uploadImagePengeluaran (mirip flow manual/page2)
-      if (!isManualInput.value && isTamu) {
-        await _apiService.uploadImagePengeluaran(
-          noDoc: noDoc,
-          foto2: fotoDispenser.value!,
-          foto3: fotoSupir.value!,
-        );
       }
 
       await _saveToOutstanding(noDoc, payloadRequestAPI, fotoOdometer.value);
       await _draftService.deleteDraft();
 
-      if (isManualInput.value || isTamu) {
+      if (isManualInput.value) {
         // Lanjutkan API 2,3,4 langsung
         final auth = _loginService.getCurrentAuth();
         if (auth == null) throw "Data user tidak valid.";
@@ -1385,14 +1379,25 @@ class PengeluaranController extends GetxController {
 
         await Future.delayed(const Duration(milliseconds: 500));
 
-        await _apiService.updateStatusTransactionApproval(
-          noDoc: noDoc,
-          levelApproval: myConfig.levelApproval ?? "1",
-          statusApprove: 'APPROVED',
-          catatan: "Verifikasi Langsung Tanpa TTD (FOT)",
-          isSign: false,
-          isPartnerSign: false,
-        );
+        if (selectedJenisBon.value == 'BPB') {
+          await _apiService.updateStatusTransactionApprovalBpb(
+            noDoc: noDoc,
+            levelApproval: myConfig.levelApproval ?? "1",
+            statusApprove: 'APPROVED',
+            catatan: "Verifikasi Langsung Tanpa TTD (BPB)",
+            isSign: false,
+            isPartnerSign: false,
+          );
+        } else {
+          await _apiService.updateStatusTransactionApproval(
+            noDoc: noDoc,
+            levelApproval: myConfig.levelApproval ?? "1",
+            statusApprove: 'APPROVED',
+            catatan: "Verifikasi Langsung Tanpa TTD (FOT)",
+            isSign: false,
+            isPartnerSign: false,
+          );
+        }
 
         await Future.delayed(const Duration(milliseconds: 200));
 
@@ -1472,6 +1477,7 @@ class PengeluaranController extends GetxController {
             'status': 'pengisian_solar_pengeluaran',
             'payload': payloadRequestAPI,
             'isManualInput': isManualInput.value,
+            'jenis_pengeluaran': selectedJenisBon.value,
           },
         );
       }

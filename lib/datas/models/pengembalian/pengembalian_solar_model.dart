@@ -14,6 +14,8 @@ class PengembalianSolarModel {
   final num varianLiter;
   final num aktualLiterTransfer;
   final num varianLiterTransfer;
+  final num awalAktualLiter;
+  final num awalVarianLiter;
   final String keterangan;
   final String satuan;
   final String foto1;
@@ -38,6 +40,8 @@ class PengembalianSolarModel {
     required this.varianLiter,
     required this.aktualLiterTransfer,
     required this.varianLiterTransfer,
+    required this.awalAktualLiter,
+    required this.awalVarianLiter,
     required this.keterangan,
     required this.satuan,
     required this.foto1,
@@ -64,6 +68,8 @@ class PengembalianSolarModel {
       varianLiter: _parseNum(json['varian_liter']) ?? 0,
       aktualLiterTransfer: _parseNum(json['aktual_liter_transfer']) ?? _parseNum(json['aktual_liter_tf']) ?? _parseNum(json['aktual_liter']) ?? 0,
       varianLiterTransfer: _parseNum(json['varian_liter_transfer']) ?? _parseNum(json['varian_liter_tf']) ?? _parseNum(json['varian_liter']) ?? 0,
+      awalAktualLiter: _parseNum(json['awal_aktual_liter']) ?? _parseNum(json['aktual_liter']) ?? 0,
+      awalVarianLiter: _parseNum(json['awal_varian_liter']) ?? _parseNum(json['varian_liter']) ?? 0,
       keterangan: json['keterangan']?.toString() ?? '-',
       satuan: json['satuan']?.toString() ?? '',
       foto1: json['foto1']?.toString() ?? '',

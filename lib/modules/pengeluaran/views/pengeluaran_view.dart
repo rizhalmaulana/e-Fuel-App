@@ -785,6 +785,22 @@ class PengeluaranView extends GetView<PengeluaranController> {
                         onChanged: (val) => controller.switchJenisBon(val),
                         hint: "Pilih Jenis",
                       )),
+                  Obx(() {
+                    if (controller.selectedJenisBon.value == 'BPB') {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 12),
+                          _buildLabel("No. BPB"),
+                          _buildTextField(
+                            controller: controller.noDocInputC,
+                            hint: "Input No. Doc BPB",
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
                 ]),
                 const SizedBox(height: 12),
                 Row(
@@ -995,7 +1011,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
             ),
 
             Obx(() {
-              if (!controller.isManualInput.value && controller.isTipeGenset) {
+              if (!controller.isManualInput.value && (controller.isTipeGenset || controller.isTamu)) {
                 return const SizedBox.shrink();
               }
               return _buildSectionCard(
@@ -1144,7 +1160,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     );
                   }),
                   Obx(() {
-                    if (controller.isTamu || (controller.isTipeGenset && controller.isManualInput.value)) {
+                    if (controller.isTipeGenset && controller.isManualInput.value) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1168,38 +1184,40 @@ class PengeluaranView extends GetView<PengeluaranController> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildLabel("Estimasi (Liter)"),
-                                    _buildTextField(
-                                      controller: controller.pengisianSolarC,
-                                      readOnly: true,
-                                      hint: "0",
-                                    ),
-                                  ],
+                          if (!controller.isTamu) ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildLabel("Estimasi (Liter)"),
+                                      _buildTextField(
+                                        controller: controller.pengisianSolarC,
+                                        readOnly: true,
+                                        hint: "0",
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildLabel("Sisa Solar (Liter)"),
-                                    _buildTextField(
-                                      controller: controller.varianSolarC,
-                                      readOnly: true,
-                                      hint: "0",
-                                    ),
-                                  ],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildLabel("Varian (Liter)"),
+                                      _buildTextField(
+                                        controller: controller.varianSolarC,
+                                        readOnly: true,
+                                        hint: "0",
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           _buildLabel("Aktual Pengeluaran Solar (Liter)"),
                           _buildTextField(
                             controller: controller.aktualSolarC,
@@ -1215,6 +1233,9 @@ class PengeluaranView extends GetView<PengeluaranController> {
                         ],
                       );
                     } else {
+                      if (controller.isTamu) {
+                        return const SizedBox.shrink();
+                      }
                       return Row(
                         children: [
                           Expanded(
@@ -1298,32 +1319,6 @@ class PengeluaranView extends GetView<PengeluaranController> {
               ],
             ),
 
-            Obx(() {
-              if (controller.isManualInput.value || !controller.isTamu) return const SizedBox.shrink();
-
-              return _buildSectionCard(
-                title: "Dokumentasi Pengeluaran",
-                icon: Icons.camera_alt_rounded,
-                children: [
-                  _buildLabel("Foto Angka Meter Dispenser"),
-                  _buildPhotoUploader(
-                    file: controller.fotoDispenser.value,
-                    onTap: () => controller.takePhotoTAMU(false),
-                    onRemove: () => controller.hapusFotoTAMU(false),
-                    hint: "Wajib melampirkan foto meteran dispenser",
-                  ),
-                  const SizedBox(height: 16),
-                  _buildLabel("Foto Supir"),
-                  _buildPhotoUploader(
-                    file: controller.fotoSupir.value,
-                    onTap: () => controller.takePhotoTAMU(true),
-                    onRemove: () => controller.hapusFotoTAMU(true),
-                    hint: "Wajib melampirkan foto supir saat pengisian",
-                  ),
-                ],
-              );
-            }),
-
             const SizedBox(height: 20),
 
             // Tombol Submit
@@ -1338,7 +1333,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))),
                 child: Obx(() => Text(
-                    (controller.isManualInput.value || controller.isTamu)
+                    controller.isManualInput.value
                         ? "Submit Data"
                         : "Proses Pengisian",
                     style: AppFonts.fUrbanistBold16

@@ -65,7 +65,7 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: _buildStaticField('Liter Pengambilan', "${controller.data.aktualLiter} Ltr")),
+                      Expanded(child: _buildStaticField('Liter Pengambilan', "${controller.data.awalAktualLiter} Ltr")),
                       const SizedBox(width: 16),
                       Expanded(child: _buildStaticField('Aktual Pengisian', "${controller.data.aktualLiterTransfer} Ltr")),
                     ],

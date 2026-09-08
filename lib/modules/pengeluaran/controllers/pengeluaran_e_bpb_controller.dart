@@ -45,6 +45,9 @@ class PengeluaranEBpbController extends GetxController {
   var totalVolume = 0.0.obs;
   var totalQty = 0.obs;
 
+  var hasOutstandingPreviousDate = false.obs;
+  var outstandingPreviousMessage = "".obs;
+
   var selectedDateDisplay = "".obs;
   var selectedDateApi = "".obs;
 
@@ -55,6 +58,16 @@ class PengeluaranEBpbController extends GetxController {
 
   TextEditingController getCostCenterController(String id, {String? initialValue}) {
     return costCenterControllers.putIfAbsent(id, () => TextEditingController(text: initialValue ?? ""));
+  }
+
+  void updateCostCenter(String id, String newCostCenter, PengeluaranDailyModel item) {
+    if (costCenterControllers.containsKey(id)) {
+      costCenterControllers[id]!.text = newCostCenter;
+    } else {
+      costCenterControllers[id] = TextEditingController(text: newCostCenter);
+    }
+    item.costCenter = newCostCenter;
+    dailyTransactionList.refresh();
   }
 
   TextEditingController getNoteController(String id) {
@@ -99,7 +112,7 @@ class PengeluaranEBpbController extends GetxController {
       if (matched.isNotEmpty && matched['title_unit'] != null) {
         String namaUnit = matched['nama_unit'] ?? '';
         selectedUnitTitle.value = namaUnit.isNotEmpty 
-            ? "${matched['title_unit']} - $namaUnit" 
+            ? namaUnit
             : "${matched['title_unit']}";
       } else {
         selectedUnitTitle.value = unitCode;
@@ -116,6 +129,13 @@ class PengeluaranEBpbController extends GetxController {
   }
 
   void nextStep() {
+    if (hasOutstandingPreviousDate.value) {
+      Get.snackbar(
+          "Tidak Bisa Lanjut", outstandingPreviousMessage.value,
+          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      return;
+    }
+
     if (dailyTransactionList.isEmpty) {
       Get.snackbar("Data Kosong", "Tidak ada transaksi untuk diproses.",
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
@@ -124,8 +144,9 @@ class PengeluaranEBpbController extends GetxController {
 
     bool isValid = true;
     for (var item in dailyTransactionList) {
+      String key = item.id.toString();
       if (item.kategoriKendaraan == "TAMU") {
-        String costCenter = item.costCenter ?? "";
+        String costCenter = costCenterControllers[key]?.text ?? item.costCenter ?? "";
         if (costCenter.trim().isEmpty) {
           isValid = false;
           break;
@@ -243,6 +264,34 @@ class PengeluaranEBpbController extends GetxController {
   Future<void> fetchDailyTransactions() async {
     isLoading.value = true;
     try {
+      List<PengeluaranOutstandingModel> outstandingList = await _apiService.getOutstandingTransactions();
+      
+      DateTime selectedDateTime;
+      try {
+        selectedDateTime = DateFormat('yyyy-MM-dd').parse(selectedDateApi.value);
+      } catch (e) {
+        selectedDateTime = DateTime.now();
+      }
+
+      bool foundPrevious = false;
+      for (var item in outstandingList) {
+        try {
+           DateTime outstandingDate = DateFormat('yyyy-MM-dd').parse(item.tanggalTransaksi ?? "");
+           if (outstandingDate.isBefore(selectedDateTime)) {
+             foundPrevious = true;
+             break;
+           }
+        } catch (e) { }
+      }
+
+      if (foundPrevious) {
+        hasOutstandingPreviousDate.value = true;
+        outstandingPreviousMessage.value = "Tidak bisa submit E-BPB karena masih ada transaksi outstanding di tanggal sebelumnya.";
+      } else {
+        hasOutstandingPreviousDate.value = false;
+        outstandingPreviousMessage.value = "";
+      }
+
       var data = await _apiService.getDailyTransactions(
           dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);
       dailyTransactionList.assignAll(data);
@@ -301,9 +350,10 @@ class PengeluaranEBpbController extends GetxController {
     List<Map<String, dynamic>> fotPayload = [];
     for (var item in dailyTransactionList) {
       String key = item.id.toString();
+      bool isCc = (item.noIo?.trim().isEmpty ?? true) || item.noIo == "-";
       fotPayload.add({
         "no_doc": item.noDoc ?? "-",
-        "cost_center": item.kategoriKendaraan == "TAMU" ? (item.costCenter ?? "") : "",
+        "cost_center": isCc ? (costCenterControllers[key]?.text ?? item.costCenter ?? "") : "",
         "keterangan": noteControllers[key]?.text ?? ""
       });
     }
@@ -350,7 +400,7 @@ class PengeluaranEBpbController extends GetxController {
     try {
       Map<String, dynamic> payload = {
         "kode_unit": selectedUnitCode.value,
-        "date_inbound": selectedDateApi.value,
+        "tanggal_transaksi": selectedDateApi.value,
         "fot": fotPayload
       };
 
