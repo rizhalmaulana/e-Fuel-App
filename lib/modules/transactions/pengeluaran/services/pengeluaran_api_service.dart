@@ -7,6 +7,7 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/models/master_io/master_io_model.dart';
+import '../../../../datas/models/pengeluaran/detail_pengeluaran_model.dart';
 import '../../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
 import '../../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
 import '../../../../datas/models/volume_storage/volume_storage.dart';
@@ -553,6 +554,32 @@ class PengeluaranApiService {
     }
   }
 
+  Future<DetailPengeluaranModel?> getDetailPengeluaran(String noDoc) async {
+    try {
+      final String endpoint = UrlApiStatic.API_GET_DETAIL_PENGELUARAN
+          .replaceAll('{no_doc}', noDoc);
+      final response = await _dio.get(
+        UrlApiStatic.API_END_POINT + endpoint,
+        options: _getOptions(),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final Map<String, dynamic> body = response.data is Map
+            ? response.data as Map<String, dynamic>
+            : {};
+        final bool success = body['success'] == true;
+        if (success && body['data'] != null) {
+          return DetailPengeluaranModel.fromJson(
+              body['data'] as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error getDetailPengeluaran ($noDoc): $e');
+      return null;
+    }
+  }
+
   Future<List<PengeluaranOutstandingModel>> getOutstandingTransactions() async {
     try {
       final response = await _dio.get(
@@ -599,6 +626,43 @@ class PengeluaranApiService {
     try {
       var response = await _dio.post(
         url,
+        data: payload,
+        options: Options(contentType: 'application/json', headers: {
+          "Authorization": "Bearer $token",
+        }),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print("❌ [UPDATE ERROR] Status: ${e.response?.statusCode}");
+        print("❌ [UPDATE ERROR] Data: ${e.response?.data}");
+      }
+      if (e is DioException) { throw _handleDioError(e); } else { throw e.toString(); }
+    }
+  }
+
+  Future<dynamic> updateAktualLiterPengeluaranBPB({
+    required String noDoc,
+    required double aktual,
+    required double varianLiter,
+  }) async {
+    final loginService = Get.find<LoginService>();
+    final auth = loginService.getCurrentAuth();
+    final token = auth?.access ?? '';
+
+    String url = "${UrlApiStatic.API_END_POINT}${UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN_BPB}";
+
+    Map<String, dynamic> payload = {
+      'aktual_liter': aktual,
+      'varian_liter': varianLiter
+    };
+
+    try {
+      var response = await _dio.post(
+        url,
+        queryParameters: {
+          'no_doc': noDoc,
+        },
         data: payload,
         options: Options(contentType: 'application/json', headers: {
           "Authorization": "Bearer $token",

@@ -266,7 +266,8 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 110, // Fixed height agar rapi
+        height: null, // Biarkan content menentukan tinggi
+        constraints: const BoxConstraints(minHeight: 100),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: bgColor,
@@ -319,8 +320,16 @@ class PengisianSolarPenerimaanView extends GetView<PengisianSolarPenerimaanContr
                     borderRadius: BorderRadius.circular(4)
                 ),
                 child: Text(
-                  "Waktu Volume Awal \n$waktuSounding",
+                  () {
+                    // Sanitasi: potong 'T' → spasi, ambil max 16 karakter (YYYY-MM-DD HH:mm)
+                    final raw = waktuSounding ?? '-';
+                    final cleaned = raw.contains('T') ? raw.replaceFirst('T', ' ') : raw;
+                    final short = cleaned.length > 16 ? cleaned.substring(0, 16) : cleaned;
+                    return "Waktu Volume Awal \n$short";
+                  }(),
                   style: AppFonts.fUrbanistMedium10.copyWith(color: color, fontSize: 9),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               )
           ],

@@ -70,20 +70,34 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.description, size: 16, color: AppColors.primaryOrange),
-                    const SizedBox(width: 6),
-                    Text(
-                      "Doc. ${controller.noDoc.value}",
-                      style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryOrange),
-                    ),
-                  ],
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.description, size: 16, color: AppColors.primaryOrange),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          "Doc. ${controller.noDoc.value}",
+                          style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryOrange),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Text(
-                  controller.tanggal.value,
-                  style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
-                ),
+                const SizedBox(width: 8),
+                Obx(() {
+                  // Pastikan hanya tampilkan bagian tanggal (YYYY-MM-DD), bukan jam
+                  final raw = controller.tanggal.value;
+                  final display = raw.contains('T')
+                      ? raw.split('T').first
+                      : (raw.contains(' ') ? raw.split(' ').first : raw);
+                  return Text(
+                    display,
+                    style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
+                  );
+                }),
               ],
             ),
           ),
@@ -102,7 +116,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildInfoItem("Nama Unit", controller.unitIO.value, Icons.local_shipping_outlined),
+                          Obx(() => _buildInfoItem("Nama Unit", controller.unitIO.value, Icons.local_shipping_outlined)),
                           const SizedBox(height: 8),
                           Obx(() => _buildInfoItem(_getLabelNoPolisi(), controller.noPolisi.value, Icons.featured_play_list_outlined)),
                         ],

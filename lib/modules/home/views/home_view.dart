@@ -680,18 +680,21 @@ class HomeView extends GetView<HomeController> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(color: statusBgColor, borderRadius: BorderRadius.circular(8)),
-              child: Text(displayStatus, style: AppFonts.fUrbanistBold10.copyWith(color: statusColor)),
+              child: Center(
+                child: Text(displayStatus,
+                    style: AppFonts.fUrbanistBold10.copyWith(color: statusColor)),
+              ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(noDoc, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(noDoc, style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(tanggal, style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Expanded(child: Text(tanggal, style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               ],

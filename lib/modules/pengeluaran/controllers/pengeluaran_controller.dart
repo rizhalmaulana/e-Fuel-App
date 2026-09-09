@@ -1291,6 +1291,11 @@ class PengeluaranController extends GetxController {
         "doc_type": "FOT",
         "hm_km_akhir": double.tryParse(hmKmAkhirC.text) ?? 0,
         "no_io": isTamu ? "-" : ioController.text,
+        "unit_io": (selectedUnit.value?.namaUnit?.isNotEmpty == true
+            ? selectedUnit.value!.namaUnit
+            : (selectedUnit.value?.description?.isNotEmpty == true
+                ? selectedUnit.value!.description
+                : (selectedUnit.value?.noPolisi ?? '-'))),
         "liter": solarDouble,
         "hm_km_awal": double.tryParse(hmKmAwalC.text) ?? 0,
         "cost_center": isTamu ? ioController.text.toUpperCase() : "-",
@@ -1329,12 +1334,12 @@ class PengeluaranController extends GetxController {
             : DateFormat('yyyy-MM-dd').format(DateTime.now()),
       };
 
-      try {
-        String prettyPayload = const JsonEncoder.withIndent('  ').convert(payloadRequestAPI);
-        print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
-      } catch (e) {
-        print("Payload: $payloadRequestAPI");
-      }
+      // try {
+      //   String prettyPayload = const JsonEncoder.withIndent('  ').convert(payloadRequestAPI);
+      //   print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
+      // } catch (e) {
+      //   print("Payload: $payloadRequestAPI");
+      // }
 
       List<File?> photos = [isManualInput.value ? null : fotoOdometer.value, null, null];
       String noDoc = _createdNoDoc ?? "-";
@@ -1401,11 +1406,19 @@ class PengeluaranController extends GetxController {
 
         await Future.delayed(const Duration(milliseconds: 200));
 
-        await _apiService.updateAktualLiterPengeluaran(
-            noDoc: noDoc,
-            aktual: finalSolar,
-            varianLiter: finalVarianLiter
-        );
+        if (selectedJenisBon.value == 'BPB') {
+          await _apiService.updateAktualLiterPengeluaranBPB(
+              noDoc: noDoc,
+              aktual: finalSolar,
+              varianLiter: finalVarianLiter
+          );
+        } else {
+          await _apiService.updateAktualLiterPengeluaran(
+              noDoc: noDoc,
+              aktual: finalSolar,
+              varianLiter: finalVarianLiter
+          );
+        }
 
         if (selectedStatusSupir.value == 'Internal') {
           final HomeController homeController = Get.find<HomeController>();
@@ -1472,7 +1485,11 @@ class PengeluaranController extends GetxController {
           Routes.PENGISIAN_SOLAR_PENGELUARAN,
           arguments: {
             'noDoc': noDoc,
-            'unitIO': selectedUnit.value?.namaUnit,
+            'unitIO': (selectedUnit.value?.namaUnit?.isNotEmpty == true
+                ? selectedUnit.value!.namaUnit
+                : (selectedUnit.value?.description?.isNotEmpty == true
+                    ? selectedUnit.value!.description
+                    : (selectedUnit.value?.noPolisi ?? '-'))),
             'tanggal': DateFormat('dd/MM/yyyy').format(DateTime.now()),
             'status': 'pengisian_solar_pengeluaran',
             'payload': payloadRequestAPI,
@@ -1502,6 +1519,7 @@ class PengeluaranController extends GetxController {
     final pengeluaranDetail = PengeluaranModel(
         noDoc: noDoc,
         noIo: payload['no_io'],
+        unitIO: payload['unit_io'],
         nopolCheck: payload['nopol_check'],
         statusSupir: payload['status_supir'],
         supirCheck: payload['supir_check'],

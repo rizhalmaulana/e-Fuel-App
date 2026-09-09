@@ -14,6 +14,7 @@ class UrlApiStatic {
   static String API_POST_SIGNATURE_SECURITY = '/e_fuel/transaksi-approval/upload-signature-security/{no_doc}';
   static String API_POST_IMAGE_PENGELUARAN = '/e_fuel/inbound-open/upload-photos/{no_doc}';
   static String API_POST_ACTUAL_LITER_PENGELUARAN = '/e_fuel/inbound-open/update-aktual-liter/{no_doc}';
+  static String API_POST_ACTUAL_LITER_PENGELUARAN_BPB = '/e_fuel/inbound-open/aktual-liter-bpb';
 
   // EBPB
   static String API_GET_TRANSACTION_LIST_EBPB = '/e_fuel/transaksi-ebpb/list'; // Mengambil Transkasi Approval EBPB
@@ -42,6 +43,7 @@ class UrlApiStatic {
   static String API_GET_TRANSACTION_APPROVAL_LIST = '/e_fuel/transaksi-approval/list';
   static String API_GET_LITER_KABLIBRASI = '/e_fuel/master-kalibrasi/get-liter';
   static String API_GET_INBOUND_OPEN_DETAIL = '/e_fuel/fuel-inbound-open/detail/{no_doc}';
+  static String API_GET_DETAIL_PENGELUARAN = '/e_fuel/fuel-inbound-open/detail-pengeluaran/{no_doc}';
   static String API_GET_OUTSTANDING_INBOUND_OPEN = '/e_fuel/inbound-open/outstanding';
   static String API_GET_ALL_TRANSACTION_LIST = '/e_fuel/inbound-open/list-by-date';
   static String API_GET_DETAIL_DOC_FULL_APPROVED = '/e_fuel/inbound-all-approved/detail/{no_doc}';

@@ -6,11 +6,9 @@ import 'package:e_fuel/helpers/lotties_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../configs/app_icons.dart';
-import '../../../configs/app_lotties.dart';
 import '../../../datas/models/auth/auth_response_model.dart';
 import '../../../datas/models/inbound/inbound_model.dart';
 import '../../../datas/models/master_storage/master_storage_model.dart';
@@ -29,6 +27,10 @@ import '../../approval/services/approval_service.dart';
 import '../../fuel/services/fuel_sensor_service.dart';
 import '../../fuel/services/master_data_service.dart';
 import '../../notifications/services/notification_service.dart';
+import '../../transactions/outstanding_service.dart';
+import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
+import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
+import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 
 // Models
 import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
@@ -133,7 +135,9 @@ class HomeController extends GetxController {
     });
 
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-      final isOnline = result != ConnectivityResult.none;
+      final isOnline = result is List
+          ? !result.contains(ConnectivityResult.none)
+          : result != ConnectivityResult.none;
       if (isOnline && isUsingOfflineData.value) {
         isUsingOfflineData.value = false;
         final storageCode = _getStorageCode(selectedStorage.value);
@@ -495,54 +499,101 @@ class HomeController extends GetxController {
       if (authData == null) return;
 
       final kodeUnit = selectedUnitCode.value;
-      List<InboundModel> apiFINList = await _masterDataService.getInboundOpenList(
-        kodeUnit: kodeUnit,
-        statusInbound: 'O',
-        docType: 'FIN',
-      );
-
-      List<InboundModel> apiFOTList = await _masterDataService.getInboundOpenList(
-        kodeUnit: kodeUnit,
-        statusInbound: 'O',
-        docType: 'FOT',
-      );
-
       final List<Map<String, dynamic>> tempOutstanding = [];
-      for (var item in apiFINList) {
-        bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
-            (item.approvals == null || item.approvals!.isEmpty);
 
-        if (isDraft) {
-          tempOutstanding.add({
-            'noBast': item.noDoc ?? '-',
-            'title': 'Draft Penerimaan',
-            'type': 'FIN',
-            'date': TextConvertHelper().formatDate(item.dateInbound),
-            'amount': "${(item.volumeVendor ?? 0).toInt()} L",
-            'status': 'Draft',
-            'unit': item.kodeUnit,
-            'source': 'api',
-          });
+      // 1. Fetch Drafts from API Server (status_inbound == 'O')
+      try {
+        List<InboundModel> apiFINList = await _masterDataService.getInboundOpenList(
+          kodeUnit: kodeUnit,
+          statusInbound: 'O',
+          docType: 'FIN',
+        );
+
+        List<InboundModel> apiFOTList = await _masterDataService.getInboundOpenList(
+          kodeUnit: kodeUnit,
+          statusInbound: 'O',
+          docType: 'FOT',
+        );
+
+        for (var item in apiFINList) {
+          bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
+              (item.approvals == null || item.approvals!.isEmpty);
+
+          if (isDraft) {
+            tempOutstanding.add({
+              'noBast': item.noDoc ?? '-',
+              'title': 'Draft Penerimaan',
+              'type': 'FIN',
+              'date': TextConvertHelper().formatDate(item.dateInbound),
+              'amount': "${(item.volumeVendor ?? 0).toInt()} L",
+              'status': 'Draft',
+              'unit': item.kodeUnit,
+              'source': 'api',
+            });
+          }
         }
+
+        for (var item in apiFOTList) {
+          bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
+              (item.approvals == null || item.approvals!.isEmpty);
+
+          if (isDraft) {
+            tempOutstanding.add({
+              'noBast': item.noDoc ?? '-',
+              'title': 'Draft Pengeluaran',
+              'type': 'FOT',
+              'date': TextConvertHelper().formatDate(item.dateInbound),
+              'amount': "${(item.volumeVendor ?? 0).toInt()} L",
+              'status': 'Draft',
+              'unit': item.kodeUnit,
+              'source': 'api',
+            });
+          }
+        }
+      } catch (e) {
+        print("Error fetching server open transactions: $e");
       }
 
-      for (var item in apiFOTList) {
-        bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
-            (item.approvals == null || item.approvals!.isEmpty);
+      // 2. Fetch Drafts from Local Hive Outstanding (if not already fetched or offline)
+      try {
+        final outstandingService = OutstandingService(authData.user.username);
+        final localList = await outstandingService.getAllCombinedTransactions();
 
-        if (isDraft) {
-          tempOutstanding.add({
-            'noBast': item.noDoc ?? '-',
-            'title': 'Draft Pengeluaran',
-            'type': 'FOT',
-            'date': TextConvertHelper().formatDate(item.dateInbound),
-            'amount': "${(item.volumeVendor ?? 0).toInt()} L",
-            'status': 'Draft',
-            'unit': item.kodeUnit,
-            'source': 'api',
-          });
+        for (var item in localList) {
+          if (item is TransactionModel && item.status != 'selesai') {
+            bool exists = tempOutstanding.any((tx) => tx['noBast'] == item.noBast);
+            if (!exists) {
+              tempOutstanding.add({
+                'noBast': item.noBast,
+                'title': 'Draft Penerimaan',
+                'type': 'FIN',
+                'date': TextConvertHelper().formatDate(item.dataSebelum?.dateInbound ?? item.dateCreated),
+                'amount': "${(item.dataSebelum?.volumeVendor ?? 0).toInt()} L",
+                'status': 'Draft',
+                'unit': item.dataSebelum?.kodeUnit ?? kodeUnit,
+                'source': 'local',
+              });
+            }
+          } else if (item is TransactionPengeluaranModel && item.status != 'selesai') {
+            bool exists = tempOutstanding.any((tx) => tx['noBast'] == item.noBast);
+            if (!exists) {
+              tempOutstanding.add({
+                'noBast': item.noBast,
+                'title': 'Draft Pengeluaran',
+                'type': 'FOT',
+                'date': TextConvertHelper().formatDate(item.dataPengeluaran?.dateOutbound ?? item.dateCreated),
+                'amount': "${(item.dataPengeluaran?.jumlahPengisianSolar ?? 0).toInt()} L",
+                'status': 'Draft',
+                'unit': item.dataPengeluaran?.kodeUnit ?? kodeUnit,
+                'source': 'local',
+              });
+            }
+          }
         }
+      } catch (e) {
+        print("Error loading local outstanding transactions: $e");
       }
+
       outstandingTransactions.assignAll(tempOutstanding);
     } catch (e) {
       print("Error loading server transactions: $e");
@@ -628,10 +679,11 @@ class HomeController extends GetxController {
 
   Future<void> navigateToTransactionDetail(Map<String, dynamic> tx) async {
     String source = tx['source'] ?? 'local';
-    String noBast = tx['noBast'] ?? '';
+    String noBast = tx['noBast'] ?? tx['no_doc'] ?? '';
     String type = tx['type'] ?? '';
     String status = tx['status'] ?? '';
 
+    // --- Approval Items (Kasie & Manager) ---
     if (source == 'api' && status.toUpperCase() == 'PENDING') {
       Get.toNamed(Routes.APPROVAL, arguments: {'noBast': noBast, 'type': type});
       return;
@@ -640,6 +692,173 @@ class HomeController extends GetxController {
     if (source == 'api_ebpb' && status.toUpperCase() == 'PENDING') {
       Get.toNamed(Routes.APPROVAL_EBPB, arguments: {'noDoc': noBast, 'type': type});
       return;
+    }
+
+    // --- Draft Transaksi Items (Kepala Gudang / Asst. Traksi) ---
+    if (status.toLowerCase() == 'draft' || status.isEmpty) {
+      final auth = _loginService.getCurrentAuth();
+      if (auth == null) return;
+      final outstandingService = OutstandingService(auth.user.username);
+
+      if (type == 'FIN') {
+        // --- ALUR PENERIMAAN DRAFT ---
+        final localTrx = await outstandingService.getTransactionByNoBastService(noBast);
+        if (localTrx != null) {
+          String subStatus = localTrx.status;
+          if (subStatus == 'pengisian_solar') {
+            Get.toNamed(Routes.PENGISIAN_SOLAR, arguments: {
+              'noBast': localTrx.noBast,
+              'noPO': localTrx.dataSebelum?.purchNo ?? '-',
+              'noPolisi': localTrx.dataSebelum?.nopolVendor ?? '-',
+              'manual_json_backup': localTrx.dataSebelum?.manualTankDetailsJson,
+              'iot_json_backup': localTrx.dataSebelum?.iotTankDetailsJson,
+              'tanggal': localTrx.dataSebelum?.dateInbound ?? '-',
+              'waktu_sounding': localTrx.dateCreated,
+              'status': 'pengisian_solar',
+              'storage_code': localTrx.dataSebelum?.storageCode ?? '',
+            });
+            return;
+          } else if (subStatus == 'penerimaan_setelah') {
+            Get.toNamed(Routes.PENERIMAAN_SETELAH, arguments: {'noBast': localTrx.noBast});
+            return;
+          } else if (subStatus == 'verifikasi_bast') {
+            Get.toNamed(Routes.PENERIMAAAN_VERIFIKASI_BAST, arguments: {'noBast': localTrx.noBast});
+            return;
+          }
+        }
+
+        // Fallback jika tidak ada di Hive lokal
+        Get.toNamed(Routes.PENGISIAN_SOLAR, arguments: {
+          'noBast': noBast,
+          'noPO': '-',
+          'noPolisi': '-',
+          'tanggal': tx['date'] ?? '-',
+          'status': 'pengisian_solar',
+          'storage_code': _getStorageCode(selectedStorage.value),
+        });
+        return;
+
+      } else if (type == 'FOT') {
+        // --- ALUR PENGELUARAN DRAFT ---
+        final localTrx = await outstandingService.getTransactionPengeluaranByNoBast(noBast);
+        if (localTrx != null) {
+          String subStatus = localTrx.status;
+          if (subStatus == 'verifikasi_doc') {
+            Get.toNamed(Routes.PENGELUARAN_VERIFIKASI_DOC, arguments: {'noDoc': localTrx.noBast});
+            return;
+          } else {
+            final String resumeUnitIO = (localTrx.dataPengeluaran?.unitIO?.isNotEmpty == true && localTrx.dataPengeluaran?.unitIO != '-')
+                ? localTrx.dataPengeluaran!.unitIO!
+                : '-';
+
+            final String rawResumeTanggal = localTrx.dataPengeluaran?.dateOutbound ?? '';
+            final String resumeTanggal = rawResumeTanggal.contains('T')
+                ? rawResumeTanggal.split('T').first
+                : (rawResumeTanggal.contains(' ') ? rawResumeTanggal.split(' ').first : rawResumeTanggal.isNotEmpty ? rawResumeTanggal : DateFormat('yyyy-MM-dd').format(DateTime.now()));
+
+            Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
+              'noDoc': localTrx.noBast,
+              'unitIO': resumeUnitIO,
+              'tanggal': resumeTanggal,
+              'status': 'pengisian_solar_pengeluaran',
+              'payload': {
+                'no_doc': localTrx.noBast,
+                'no_io': localTrx.dataPengeluaran?.noIo,
+                'nopol_check': localTrx.dataPengeluaran?.nopolCheck,
+                'status_supir': localTrx.dataPengeluaran?.statusSupir,
+                'supir_check': localTrx.dataPengeluaran?.supirCheck,
+                'km_pengisian': localTrx.dataPengeluaran?.kmPengisian,
+                // jumlahPengisianSolar = estimasi; fallback ke liter jika null
+                'jumlah_pengisian_solar': localTrx.dataPengeluaran?.jumlahPengisianSolar ?? localTrx.dataPengeluaran?.liter,
+                'doc_type': localTrx.dataPengeluaran?.docType ?? 'FOT',
+                'hm_km_akhir': localTrx.dataPengeluaran?.hmKmAkhir,
+                'liter': localTrx.dataPengeluaran?.liter,
+                'hm_km_awal': localTrx.dataPengeluaran?.hmKmAwal,
+                'kategori_kendaraan': localTrx.dataPengeluaran?.kategoriKendaraan,
+                'jenis_pengeluaran': localTrx.dataPengeluaran?.jenisPengeluaran,
+                'cost_center': localTrx.dataPengeluaran?.costCenter,
+                'ratio': localTrx.dataPengeluaran?.ratio,
+                'tipe_unit_io': localTrx.dataPengeluaran?.tipeUnitIo,
+                'varian': localTrx.dataPengeluaran?.varian,
+                'tanggal_akhir': localTrx.dataPengeluaran?.tanggalAkhir,
+                'tanggal_awal': localTrx.dataPengeluaran?.tanggalAwal,
+                'satuan': localTrx.dataPengeluaran?.satuan,
+                'kode_unit': localTrx.dataPengeluaran?.kodeUnit,
+              },
+              'isManualInput': false,
+              'jenis_pengeluaran': localTrx.dataPengeluaran?.jenisPengeluaran ?? 'Bon Sementara',
+            });
+            return;
+          }
+        }
+
+        // Fallback: data tidak ada di Hive lokal → hit endpoint detail-pengeluaran
+        try {
+          final PengeluaranApiService pengeluaranApiService = PengeluaranApiService();
+          final detail = await pengeluaranApiService.getDetailPengeluaran(noBast);
+
+          if (detail != null) {
+            // Ambil hanya bagian YYYY-MM-DD dari dateInbound
+            // Handle format ISO 8601 dengan 'T' atau dengan spasi
+            String rawDate = detail.dateInbound;
+            final String tanggalBersih = rawDate.contains('T')
+                ? rawDate.split('T').first
+                : (rawDate.contains(' ') ? rawDate.split(' ').first : rawDate);
+
+            // Gunakan namaUnit jika ada, fallback ke kodeUnit
+            final String unitDisplay = (detail.namaUnit.isNotEmpty && detail.namaUnit != '-')
+                ? detail.namaUnit
+                : detail.kodeUnit;
+
+            Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
+              'noDoc': detail.noDoc,
+              'unitIO': unitDisplay,
+              'tanggal': tanggalBersih,
+              'status': 'pengisian_solar_pengeluaran',
+              'isManualInput': detail.inputType.toLowerCase() == 'manual',
+              'jenis_pengeluaran': 'Bon Sementara',
+              'payload': {
+                'no_doc': detail.noDoc,
+                'no_io': detail.noIo ?? '-',
+                'nopol_check': detail.nopolCheck ?? '-',
+                'supir_check': detail.supirCheck ?? '-',
+                'status_supir': 'Internal',
+                'km_pengisian': detail.hmKmAkhir,
+                'jumlah_pengisian_solar': detail.estimasiLiter,
+                'doc_type': detail.docType,
+                'hm_km_awal': detail.hmKmAwal,
+                'hm_km_akhir': detail.hmKmAkhir,
+                'ratio': detail.ratioInput,
+                'cost_center': detail.costCenter,
+                'tipe_unit_io': 'AB',
+                'varian': detail.varianLiter,
+                'tanggal_akhir': tanggalBersih,
+                'tanggal_awal': tanggalBersih,
+                'keterangan': detail.keterangan,
+              },
+            });
+          } else {
+            // Detail API juga gagal → minimal navigasi dengan noDoc saja
+            Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
+              'noDoc': noBast,
+              'tanggal': tx['date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now()),
+              'status': 'pengisian_solar_pengeluaran',
+              'payload': {'no_doc': noBast},
+              'isManualInput': false,
+              'jenis_pengeluaran': 'Bon Sementara',
+            });
+          }
+        } catch (e) {
+          print('Error fetching detail pengeluaran on resume: $e');
+          Get.snackbar(
+            'Gagal Memuat Data',
+            'Tidak dapat mengambil detail transaksi. Coba lagi.',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+        return;
+      }
     }
   }
 
