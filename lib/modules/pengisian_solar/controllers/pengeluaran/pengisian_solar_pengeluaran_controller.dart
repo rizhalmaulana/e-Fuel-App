@@ -108,8 +108,14 @@ class PengisianSolarPengeluaranController extends GetxController {
     final Map<String, dynamic> payload = args['payload'] ?? {};
 
     noDoc.value = args['noDoc'] ?? '-';
-    unitIO.value = args['unitIO'] ?? '-';
-    tanggal.value = args['tanggal'] ?? DateFormat('dd/MM/yyyy').format(DateTime.now());
+    unitIO.value = args['unitIO'] ?? (payload['tipe_unit_io'] ?? args['tipe_unit_io'] ?? '-').toString();
+
+    final String rawTanggal = args['tanggal']?.toString() ?? '';
+    tanggal.value = rawTanggal.isNotEmpty
+        ? (rawTanggal.contains('T')
+            ? rawTanggal.split('T').first
+            : (rawTanggal.contains(' ') ? rawTanggal.split(' ').first : rawTanggal))
+        : DateFormat('yyyy-MM-dd').format(DateTime.now());
     status.value = args['status'] ?? 'pengisian_solar_pengeluaran';
 
     // Parse data murni dari payload
@@ -139,6 +145,9 @@ class PengisianSolarPengeluaranController extends GetxController {
 
     estimasiSolarC.text = jumlahSolarArg.value;
     aktualSolarC.text = "";
+
+    // Hitung varian awal berdasarkan estimasi (aktual = 0, varian = -estimasi)
+    _calculateVarian();
 
     if (!isManualInput.value && !isTamu.value) {
       refreshSensorMonitoring();
@@ -417,11 +426,19 @@ class PengisianSolarPengeluaranController extends GetxController {
 
       // 5. Update Aktual Liter
       print("-> Step 5: updateAktualLiterPengeluaran");
-      await _apiService.updateAktualLiterPengeluaran(
-          noDoc: finalNoDoc,
-          aktual: finalSolar,
-          varianLiter: finalVarianLiter
-      );
+      if (selectedJenisPengeluaran.value == 'BPB') {
+        await _apiService.updateAktualLiterPengeluaranBPB(
+            noDoc: finalNoDoc,
+            aktual: finalSolar,
+            varianLiter: finalVarianLiter
+        );
+      } else {
+        await _apiService.updateAktualLiterPengeluaran(
+            noDoc: finalNoDoc,
+            aktual: finalSolar,
+            varianLiter: finalVarianLiter
+        );
+      }
       print("-> Step 5 Selesai");
 
       print("-> Step 6: updateUnitAfterTransaction (statusSupir: ${statusSupir.value})");
@@ -456,12 +473,12 @@ class PengisianSolarPengeluaranController extends GetxController {
         "varian_liter": finalVarianLiter
       };
 
-      try {
-        String prettyPayload = const JsonEncoder.withIndent('  ').convert(payload);
-        print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
-      } catch (e) {
-        print("Payload: $payload");
-      }
+      // try {
+      //   String prettyPayload = const JsonEncoder.withIndent('  ').convert(payload);
+      //   print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
+      // } catch (e) {
+      //   print("Payload: $payload");
+      // }
 
       print("-> Step 7: _updateLocalStatus");
       await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value?.path ?? '', fotoSupir.value?.path ?? '');
