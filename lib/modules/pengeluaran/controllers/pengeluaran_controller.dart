@@ -1000,7 +1000,7 @@ class PengeluaranController extends GetxController {
       var result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
         outPath,
-        quality: 60,
+        quality: 75,
         minWidth: 1024,
         minHeight: 1024,
       );
@@ -1221,6 +1221,7 @@ class PengeluaranController extends GetxController {
         primaryButtonText: "Submit",
         onPrimaryPressed: () {
           if (isSubmitting.value) return;
+          isSubmitting.value = true;
           Get.back();
           _submitDataToApi();
         },
@@ -1244,15 +1245,13 @@ class PengeluaranController extends GetxController {
               const SizedBox(height: 24),
               Text(
                 "Sedang Mengirim Data...",
-                style: AppFonts.fUrbanistBold16
-                    .copyWith(color: AppColors.primaryText),
+                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 "Mohon jangan tutup aplikasi",
-                style: AppFonts.fUrbanistRegular12
-                    .copyWith(color: AppColors.secondaryText),
+                style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1333,13 +1332,6 @@ class PengeluaranController extends GetxController {
             ? tanggalTransaksi.value 
             : DateFormat('yyyy-MM-dd').format(DateTime.now()),
       };
-
-      // try {
-      //   String prettyPayload = const JsonEncoder.withIndent('  ').convert(payloadRequestAPI);
-      //   print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
-      // } catch (e) {
-      //   print("Payload: $payloadRequestAPI");
-      // }
 
       List<File?> photos = [isManualInput.value ? null : fotoOdometer.value, null, null];
       String noDoc = _createdNoDoc ?? "-";
@@ -1499,14 +1491,16 @@ class PengeluaranController extends GetxController {
         );
       }
     } on DioException catch (e) {
-      isSubmitting.value = false;
-      Get.back();
       _handleApiError(e);
     } catch (e) {
-      isSubmitting.value = false;
-      Get.back();
       Get.snackbar("Error", "Terjadi kesalahan aplikasi: $e",
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+    } finally {
+      isSubmitting.value = false;
+
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
     }
   }
 
@@ -1559,36 +1553,28 @@ class PengeluaranController extends GetxController {
   void _handleApiError(DioException e) {
     String title = "Gagal Submit";
     String message = "Terjadi kesalahan koneksi";
-    if (e.response != null) {
+
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
+      title = "Waktu Koneksi Habis (Timeout)";
+      message = "Koneksi ke server terlalu lambat atau terputus. Pastikan sinyal stabil dan coba lagi.";
+    } else if (e.type == DioExceptionType.connectionError) {
+      title = "Tidak Ada Koneksi";
+      message = "Gagal terhubung ke server. Periksa jaringan internet Anda.";
+    } else if (e.response != null) {
       int statusCode = e.response!.statusCode ?? 500;
       var data = e.response!.data;
       String detailMsg = "";
+
       if (data is Map && data['detail'] != null) {
-        if (data['detail'] is String) {
-          detailMsg = data['detail'];
-        } else if (data['detail'] is List) {
-          try {
-            detailMsg = (data['detail'] as List).map((e) {
-              if (e is Map && e.containsKey('msg')) {
-                return e['msg'].toString();
-              }
-              return e.toString();
-            }).join(', ');
-          } catch (_) {
-            detailMsg = data['detail'].toString();
-          }
-        } else {
-          detailMsg = data['detail'].toString();
-        }
+        detailMsg = data['detail'].toString();
       }
+
       if (statusCode == 404) {
-        message = detailMsg.isNotEmpty
-            ? detailMsg
-            : "Internal Order (IO) tidak ditemukan di SAP/Database.";
+        message = detailMsg.isNotEmpty ? detailMsg : "Internal Order (IO) tidak ditemukan.";
       } else if (statusCode == 400) {
-        message = detailMsg.isNotEmpty
-            ? detailMsg
-            : "Data request tidak valid. Cek inputan Anda.";
+        message = detailMsg.isNotEmpty ? detailMsg : "Data request tidak valid.";
       } else if (statusCode == 500) {
         message = "Terjadi kesalahan pada Server (Internal Server Error).";
       } else {
@@ -1602,21 +1588,8 @@ class PengeluaranController extends GetxController {
       backgroundColor: AppColors.alertSoftRed,
       colorText: Colors.white,
       snackPosition: SnackPosition.TOP,
-      duration: const Duration(days: 365), // Dibuat lama agar tidak auto-close
-      isDismissible: true, // Bisa di-swipe untuk tutup
+      duration: const Duration(seconds: 5),
       margin: const EdgeInsets.all(16),
-      icon: const Icon(Icons.error_outline, color: Colors.white),
-      mainButton: TextButton(
-        onPressed: () {
-          if (Get.isSnackbarOpen) {
-            Get.closeCurrentSnackbar();
-          }
-        },
-        child: const Text(
-          "Tutup",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
     );
   }
 

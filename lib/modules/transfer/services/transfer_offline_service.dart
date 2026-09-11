@@ -4,21 +4,16 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import '../../../../datas/constant/url_api_static.dart';
+import '../../../../datas/network/api_client_network.dart';
 import '../../../../datas/models/transfer/transfer_solar_model.dart';
 import '../../auth/services/login_service.dart';
 
 class TransferOfflineService {
-  final Dio _dio = Dio();
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final LoginService _loginService = Get.find<LoginService>();
   
   Box<TransferSolarModel>? _transferBox;
   Box? _settingsBox;
-
-  TransferOfflineService() {
-    _dio.options.baseUrl = UrlApiStatic.API_END_POINT;
-    _dio.options.connectTimeout = const Duration(seconds: 10);
-    _dio.options.receiveTimeout = const Duration(seconds: 10);
-  }
 
   Options _getAuthOptionsJson() {
     final auth = _loginService.getCurrentAuth();
@@ -62,7 +57,7 @@ class TransferOfflineService {
     try {
       await initBox();
       
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LIST_ALAT_BERAT,
         queryParameters: {
           'kode_unit': kodeUnit,
@@ -200,7 +195,7 @@ class TransferOfflineService {
         ));
       }
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSFER_SOLAR,
         data: formData,
         options: Options(

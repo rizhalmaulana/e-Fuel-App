@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:e_fuel/configs/app_config.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../../../datas/models/volume_storage/volume_storage.dart';
 import '../../../../datas/network/api_client_network.dart'; // Sesuaikan path
@@ -13,7 +12,7 @@ import '../../../../datas/constant/url_api_static.dart';
 import '../../../auth/services/login_service.dart';
 
 class PenerimaanApiService {
-  final Dio _dio = ApiClientNetwork.dio;
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
 
   Options _getOptions() {
@@ -52,7 +51,7 @@ class PenerimaanApiService {
         }
       }
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_CREATE_INBOUND_OPEN,
         data: formData,
         options: _getOptions(),
@@ -75,7 +74,7 @@ class PenerimaanApiService {
     required bool statusActive,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
         queryParameters: {
           'transaction_type': transactionType,
@@ -96,7 +95,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_TANK;
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         url,
         data: payload,
         options: _getOptions(),
@@ -135,7 +134,7 @@ class PenerimaanApiService {
     print("🔵 [DEBUG] Payload Step 3: $payloadData");
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         data: payloadData,
         options: Options(
@@ -185,7 +184,7 @@ class PenerimaanApiService {
     print("🔵 [DEBUG] Payload Step 4: $payloadData");
 
     try {
-      var response = await _dio.put(
+      var response = await _apiClient.dio.put(
         url,
         data: payloadData,
         options: Options(
@@ -239,7 +238,7 @@ class PenerimaanApiService {
     print("🔵 [DEBUG] URL Step 5 (Upload Signature): $url");
 
     try {
-        var response = await _dio.post(
+        var response = await _apiClient.dio.post(
         url,
         data: formData,
         options: Options(
@@ -287,7 +286,7 @@ class PenerimaanApiService {
     print("🔵 [DEBUG] URL Step 5 (Upload Signature): $url");
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         data: formData,
         options: Options(
@@ -325,7 +324,7 @@ class PenerimaanApiService {
     print("🔵 [DEBUG] Payload: $dataPayload");
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         data: dataPayload,
         options: Options(
@@ -349,7 +348,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LATEST_STORAGE_STOCK;
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         queryParameters: {
           'kode_unit': unitId,
@@ -382,7 +381,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK;
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         queryParameters: {
           'kode_unit': unitId,
@@ -409,7 +408,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LATEST_TANK_STOCK;
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         queryParameters: {
           'kode_unit': unitId,
@@ -432,7 +431,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TANK_STOCK_LIST;
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
         options: _getOptions(),
@@ -450,7 +449,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_FLOW_IN;
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
         options: _getOptions(),
@@ -468,7 +467,7 @@ class PenerimaanApiService {
     try {
       String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_FLOW_OUT;
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         queryParameters: {'kode_unit': unitId, 'kode_tank': tankCode, 'date_log': dateLog},
         options: _getOptions(),

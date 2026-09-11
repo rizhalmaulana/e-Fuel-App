@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:e_fuel/datas/models/karyawan/karyawan_dbk/karyawan_dbk_list_dto.dart';
 import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
@@ -15,7 +14,7 @@ import '../../../../datas/network/api_client_network.dart';
 import '../../../auth/services/login_service.dart';
 
 class PengeluaranApiService {
-  final Dio _dio = ApiClientNetwork.dio;
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
 
   Options _getOptions() {
     try {
@@ -35,7 +34,7 @@ class PengeluaranApiService {
 
   Future<List<MasterIoModel>> getMasterIoList({String? unitId}) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_MASTER_IO_LIST,
         options: _getOptions(),
         queryParameters: {
@@ -84,7 +83,7 @@ class PengeluaranApiService {
     try {
       String endpoint = UrlApiStatic.API_GET_MASTER_IO_DETAIL
           .replaceAll('{internal_order}', internalOrder);
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + endpoint,
         options: _getOptions(),
       );
@@ -102,7 +101,7 @@ class PengeluaranApiService {
     try {
       String endpoint = UrlApiStatic.API_GET_UNIT_PER_AREA
           .replaceAll('{kode_unit}', kodeUnit);
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + endpoint,
         options: _getOptions(),
       );
@@ -120,7 +119,7 @@ class PengeluaranApiService {
     String urlTarget = UrlApiStatic.API_END_POINT +
         UrlApiStatic.API_GET_MASTER_IO_VENDOR_LIST.trim();
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         urlTarget,
         options: _getOptions(),
         queryParameters: {
@@ -167,7 +166,7 @@ class PengeluaranApiService {
     required bool statusActive,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT +
             UrlApiStatic.API_GET_KONFIGURASI_APPROVAL_LIST,
         queryParameters: {
@@ -192,7 +191,7 @@ class PengeluaranApiService {
     required String dateLog,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LATEST_STORAGE_STOCK,
         queryParameters: {
           'kode_unit': unitId,
@@ -237,7 +236,7 @@ class PengeluaranApiService {
         }
       }
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_OPEN,
         data: formData,
         options: _getOptions(),
@@ -277,7 +276,7 @@ class PengeluaranApiService {
         }
       }
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_INBOUND_FOT,
         data: formData,
         options: _getOptions(),
@@ -315,7 +314,7 @@ class PengeluaranApiService {
     };
 
     try {
-      var response = await _dio.post(url,
+      var response = await _apiClient.dio.post(url,
           data: payloadData,
           options: Options(
             contentType: 'application/json',
@@ -367,7 +366,7 @@ class PengeluaranApiService {
     };
 
     try {
-      var response = await _dio.put(
+      var response = await _apiClient.dio.put(
         url,
         data: payloadData,
         options: Options(contentType: 'application/json', headers: {
@@ -407,7 +406,7 @@ class PengeluaranApiService {
     };
 
     try {
-      var response = await _dio.put(
+      var response = await _apiClient.dio.put(
         url,
         queryParameters: {
           'no_doc': noDoc,
@@ -459,7 +458,7 @@ class PengeluaranApiService {
     });
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         data: formData,
         options: Options(headers: {
@@ -508,7 +507,7 @@ class PengeluaranApiService {
     });
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         data: formData,
         options: Options(
@@ -532,7 +531,7 @@ class PengeluaranApiService {
     required String kodeUnit,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT +
             UrlApiStatic.API_GET_TRANSACTION_PENGELUARAN_DAILY,
         queryParameters: {
@@ -558,7 +557,7 @@ class PengeluaranApiService {
     try {
       final String endpoint = UrlApiStatic.API_GET_DETAIL_PENGELUARAN
           .replaceAll('{no_doc}', noDoc);
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + endpoint,
         options: _getOptions(),
       );
@@ -582,7 +581,7 @@ class PengeluaranApiService {
 
   Future<List<PengeluaranOutstandingModel>> getOutstandingTransactions() async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT +
             UrlApiStatic.API_GET_OUTSTANDING_INBOUND_OPEN,
         options: _getOptions(),
@@ -624,7 +623,7 @@ class PengeluaranApiService {
     };
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         data: payload,
         options: Options(contentType: 'application/json', headers: {
@@ -658,7 +657,7 @@ class PengeluaranApiService {
     };
 
     try {
-      var response = await _dio.post(
+      var response = await _apiClient.dio.post(
         url,
         queryParameters: {
           'no_doc': noDoc,
@@ -682,7 +681,7 @@ class PengeluaranApiService {
     required Map<String, dynamic> payload,
   }) async {
     try {
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_TRANSACTION_EBPB,
         data: payload,
         options: _getOptions(),
@@ -708,7 +707,7 @@ class PengeluaranApiService {
     required String kodeUnit,
   }) async {
     try {
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT +
             UrlApiStatic.API_CREATE_TRANSACTION_EBPB_APPROVAL,
         data: {
@@ -745,7 +744,7 @@ class PengeluaranApiService {
         ),
       });
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_UPLOAD_SIGNATURE_EBPB,
         data: formData,
         options: _getOptions(),
@@ -764,7 +763,7 @@ class PengeluaranApiService {
     required bool isSign,
   }) async {
     try {
-      final response = await _dio.put(
+      final response = await _apiClient.dio.put(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_UPDATE_STATUS_EBPB,
         data: {
           "no_doc": noDoc,

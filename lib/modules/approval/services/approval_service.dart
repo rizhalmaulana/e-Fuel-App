@@ -11,14 +11,9 @@ import '../../../datas/network/api_client_network.dart';
 import '../../auth/services/login_service.dart';
 
 class ApprovalService {
-  final Dio _dio = Dio();
   final LoginService _loginService = Get.find<LoginService>();
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final PenerimaanApiService _penerimaanApiService = PenerimaanApiService();
-
-  ApprovalService() {
-    _dio.options.baseUrl = UrlApiStatic.API_END_POINT;
-    _dio.options.connectTimeout = const Duration(seconds: 20);
-  }
 
   Future<List<TransactionApprovalModel>> getApprovalList({
     String? levelApproval,
@@ -29,7 +24,7 @@ class ApprovalService {
   }) async {
     try {
       final auth = _loginService.getCurrentAuth();
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_GET_TRANSACTION_APPROVAL_LIST,
         queryParameters: {
           'kode_unit': kodeUnit,
@@ -85,7 +80,7 @@ class ApprovalService {
         queryParams = {'no_doc': noDoc};
       }
 
-      final response = await _dio.download(
+      final response = await _apiClient.dio.download(
         url,
         savePath,
         queryParameters: queryParams,
@@ -117,7 +112,7 @@ class ApprovalService {
         url = "${UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL}/$noDoc";
       }
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         url,
         options: Options(
           headers: {
@@ -139,7 +134,7 @@ class ApprovalService {
   Future<Map<String, dynamic>?> getEbpbDetail(String noDoc) async {
     try {
       final auth = _loginService.getCurrentAuth();
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TRANSACTION_DETAIL_EBPB,
         queryParameters: {
           'no_doc': noDoc,
@@ -203,7 +198,7 @@ class ApprovalService {
       final loginService = Get.find<LoginService>();
       final token = loginService.getCurrentAuth()?.access ?? '';
 
-      final response = await ApiClientNetwork.dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_APPROVAL_LIST_EBPB,
         queryParameters: {
           'kode_unit': kodeUnit,

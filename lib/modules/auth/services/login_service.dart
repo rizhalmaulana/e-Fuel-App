@@ -3,6 +3,7 @@ import 'package:e_fuel/datas/constant/url_api_static.dart';
 import 'package:e_fuel/datas/constant/value_key_static.dart';
 import 'package:e_fuel/modules/auth/services/login_user_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import '../../../datas/network/api_client_network.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 
@@ -24,18 +25,14 @@ class LoginService extends GetxService {
   Box<String>? _refreshBox;
 
   late final LoginUserService _loginUserService = Get.find<LoginUserService>();
-  final Dio _dio = Dio();
-
-  LoginService() {
-    _dio.options.baseUrl = UrlApiStatic.API_END_POINT;
-  }
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
 
   String? get accessToken => _tokenBox?.get(ValueKeyStatic.TOKEN_ACCESS_KEY);
   String? get refreshToken => _refreshBox?.get(ValueKeyStatic.TOKEN_REFRESH_KEY);
 
   Future<AuthResponseModel> login(String username, String password) async {
     try {
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_PAIR_AUTH,
         data: {
           'username': username,

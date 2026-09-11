@@ -2,24 +2,32 @@ import 'package:dio/dio.dart';
 import 'package:e_fuel/datas/constant/url_api_static.dart';
 
 class ApiClientNetwork {
-  static final Dio _dio = Dio(
-    BaseOptions(
-      baseUrl: UrlApiStatic.API_END_POINT,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 60),
-      sendTimeout: const Duration(seconds: 60),
-      headers: {
-        'Content-Type': 'application/json',
+  late Dio dio;
+
+  ApiClientNetwork() {
+    dio = Dio(
+      BaseOptions(
+        baseUrl: UrlApiStatic.API_END_POINT,
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(seconds: 20),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+
+    // (Opsional) Tambahkan interceptor khusus untuk logging error
+    dio.interceptors.add(InterceptorsWrapper(
+      onError: (DioException e, handler) {
+        if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.unknown) {
+          print("🔵 [API CLIENT] Timeout/Connection Error: ${e.message}");
+        }
+        return handler.next(e);
       },
-    ),
-  );
-
-  static bool _initialized = false;
-
-  static Dio get dio {
-    if (!_initialized) {
-      _initialized = true;
-    }
-    return _dio;
+    ));
   }
 }

@@ -5,16 +5,12 @@ import 'package:e_fuel/datas/models/unit_to_storage/unit_to_storage_model.dart';
 import 'package:e_fuel/datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import 'package:get/get.dart';
 import '../../../../datas/constant/url_api_static.dart';
+import '../../../../datas/network/api_client_network.dart';
 import '../../auth/services/login_service.dart';
 
 class MasterDataService {
-  final Dio _dio = Dio();
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final LoginService _loginService = Get.find<LoginService>();
-
-  MasterDataService() {
-    _dio.options.baseUrl = UrlApiStatic.API_END_POINT;
-    _dio.options.connectTimeout = const Duration(seconds: 20);
-  }
 
   Options _getAuthOptionsJson() {
     final auth = _loginService.getCurrentAuth();
@@ -29,15 +25,17 @@ class MasterDataService {
 
   void _logError(String context, dynamic e) {
     if (e is DioException) {
-      if (e.response != null) {
-        String serverMsg = e.response?.data['detail'] ??
-            e.response?.data['message'] ??
-            e.response?.statusMessage ??
-            "Server Error";
+      // Cek jika error murni karena masalah jaringan atau timeout
+      bool isNetworkError = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown; // Connection reset by peer sering masuk ke unknown
 
-        print("⚠️ [$context] Error ${e.response?.statusCode}: $serverMsg");
-      } else {
-        print("⚠️ [$context] Connection Error: ${e.message}");
+      if (isNetworkError) {
+        print("⚠️ [MasterDataService] Gagal ke server (Timeout), beralih ke data lokal.");
+        // Lemparkan custom exception atau kembalikan list kosong
+        // agar controller (HomeController) langsung mengeksekusi fallback data lokal.
+        throw Exception("NETWORK_TIMEOUT");
       }
     } else {
       print("⚠️ [$context] Unexpected Error: $e");
@@ -50,7 +48,7 @@ class MasterDataService {
     try {
       final currentAuth = _loginService.getCurrentAuth();
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_UNIT_TO_STORAGE,
         queryParameters: {
           'unit_id': unitId,
@@ -66,21 +64,19 @@ class MasterDataService {
         return [singleUnitStorage];
       }
       return [];
-
     } catch (e) {
-      _logError("GetStorage", e);
+      _logError("getStorageFromUnit", e);
       return []; // Return list kosong agar UI tidak crash
     }
   }
 
   // GET TANK FROM STORAGE
-  Future<List<StorageToTankModel>> getTankFromStorage({
-    required String unitId,
-    required String storageId,
-    String status = 'Y'
-  }) async {
+  Future<List<StorageToTankModel>> getTankFromStorage(
+      {required String unitId,
+      required String storageId,
+      String status = 'Y'}) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_STORAGE_TO_TANK,
         queryParameters: {
           'unit_id': unitId,
@@ -95,9 +91,8 @@ class MasterDataService {
         return listData.map((e) => StorageToTankModel.fromJson(e)).toList();
       }
       return [];
-
     } catch (e) {
-      _logError("GetTank", e);
+      _logError("getTankFromStorage", e);
       return [];
     }
   }
@@ -107,8 +102,9 @@ class MasterDataService {
     required String storageId,
   }) async {
     try {
-      final response = await _dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK,
+      final response = await _apiClient.dio.get(
+        UrlApiStatic.API_END_POINT +
+            UrlApiStatic.API_GET_CHILD_DETAIL_STORAGE_TANK,
         queryParameters: {
           'unit_id': unitId,
           'storage_id': storageId,
@@ -129,7 +125,7 @@ class MasterDataService {
 
   Future<List<Map<String, dynamic>>> getAllUnits() async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_UNIT,
         options: _getAuthOptionsJson(),
       );
@@ -139,7 +135,7 @@ class MasterDataService {
       }
       return [];
     } catch (e) {
-      print("⚠️ Error Get Unit: $e");
+      _logError("getAllUnits", e);
       return [];
     }
   }
@@ -150,7 +146,7 @@ class MasterDataService {
     String? docType,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_INBOUND_OPEN_LIST,
         queryParameters: {
           'kode_unit': kodeUnit,
@@ -170,7 +166,7 @@ class MasterDataService {
       }
       return [];
     } catch (e) {
-      _logError("GetInboundOpenList", e);
+      _logError("getInboundOpenList", e);
       return [];
     }
   }
@@ -181,7 +177,7 @@ class MasterDataService {
     required double tinggiMm,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_LITER_KABLIBRASI,
         queryParameters: {
           'capacity': kapasitas,
@@ -197,20 +193,9 @@ class MasterDataService {
         }
       }
       return null;
-
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        final detailMsg = e.response?.data['detail'] ?? "Data kalibrasi tidak ditemukan";
-
-        print("ℹ️ Kalibrasi Info: $detailMsg");
-        return null;
-      }
-
-      _logError("GetKalibrasi", e);
-      return null;
-
-    } catch (e) {
-      print("⚠️ Error Get Kalibrasi General: $e");
+    }
+    catch (e) {
+      _logError("getLiterFromCalibrationService", e);
       return null;
     }
   }

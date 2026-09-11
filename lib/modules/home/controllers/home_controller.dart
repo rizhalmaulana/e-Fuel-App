@@ -453,13 +453,13 @@ class HomeController extends GetxController {
           }
 
           ebpbList.sort((a, b) {
-            int levelA = getLevelNum(a['level_approve']?.toString() ?? '');
-            int levelB = getLevelNum(b['level_approve']?.toString() ?? '');
+            int levelA = getLevelNum(a['level_approval']?.toString() ?? '');
+            int levelB = getLevelNum(b['level_approval']?.toString() ?? '');
             return levelA.compareTo(levelB);
           });
 
           final activePendingNode = ebpbList.first;
-          final activeLevelNum = getLevelNum(activePendingNode['level_approve']?.toString() ?? '');
+          final activeLevelNum = getLevelNum(activePendingNode['level_approval']?.toString() ?? '');
           final userLevelNum = getLevelNum(userLevel);
 
           if (activeLevelNum == userLevelNum) {

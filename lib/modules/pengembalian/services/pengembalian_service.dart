@@ -2,26 +2,21 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../../../datas/constant/url_api_static.dart';
+import '../../../../datas/network/api_client_network.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
 import '../../auth/services/login_service.dart';
 import 'package:intl/intl.dart';
 
 class PengembalianService {
-  final Dio _dio = Dio();
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final LoginService _loginService = Get.find<LoginService>();
-
-  PengembalianService() {
-    _dio.options.baseUrl = UrlApiStatic.API_END_POINT;
-    _dio.options.connectTimeout = const Duration(seconds: 10);
-    _dio.options.receiveTimeout = const Duration(seconds: 10);
-  }
 
   Future<List<PengembalianSolarModel>> getListPengembalian() async {
     try {
       final auth = _loginService.getCurrentAuth();
       final kodeUnit = auth?.currentKodeUnit ?? '';
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_GET_LIST_PENGEMBALIAN_SOLAR,
         queryParameters: {
           "kode_unit": kodeUnit,
@@ -80,7 +75,7 @@ class PengembalianService {
         ));
       }
 
-      final response = await _dio.post(
+      final response = await _apiClient.dio.post(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_CREATE_PENGEMBALIAN_SOLAR,
         data: formData,
         options: Options(
