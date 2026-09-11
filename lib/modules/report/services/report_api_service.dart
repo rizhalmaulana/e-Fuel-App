@@ -8,7 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:flutter/material.dart';
 
 class ReportApiService {
-  final Dio _dio = ApiClientNetwork.dio;
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final LoginService _loginService = Get.find<LoginService>();
 
   Future<List<ReportTransactionModel>> getAllTransactions({
@@ -22,7 +22,7 @@ class ReportApiService {
     final cacheKey = 'report_cache_${transactionType}_$kodeUnit';
 
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_ALL_TRANSACTION_LIST,
         queryParameters: {
           'start_date': startDate,
@@ -103,7 +103,7 @@ class ReportApiService {
 
     try {
       String urlPath = UrlApiStatic.API_GET_DETAIL_DOC_FULL_APPROVED.replaceAll('{no_doc}', noDoc);
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + urlPath,
         options: Options(
           headers: {
@@ -129,7 +129,7 @@ class ReportApiService {
     try {
       String urlPath = UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.replaceAll('{no_doc}', noDoc);
 
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_END_POINT + urlPath,
         options: Options(
           headers: {

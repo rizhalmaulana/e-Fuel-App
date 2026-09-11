@@ -74,7 +74,7 @@ class PengembalianProsesController extends GetxController {
       var result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
         outPath,
-        quality: 60,
+        quality: 75,
         minWidth: 1024,
         minHeight: 1024,
       );

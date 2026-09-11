@@ -471,7 +471,7 @@ class PenerimaanSebelumController extends GetxController {
 
       var result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path, outPath,
-        quality: 60, minWidth: 1024, minHeight: 1024,
+        quality: 75, minWidth: 1024, minHeight: 1024,
       );
       await file.delete();
       return result != null ? File(result.path) : null;

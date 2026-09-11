@@ -8,7 +8,7 @@ import '../../pengeluaran/services/bon_sementara_local_service.dart';
 import '../repositories/home_repository.dart';
 
 class HomeService extends GetxService {
-  final Dio _dio = ApiClientNetwork.dio;
+  final ApiClientNetwork _apiClient = ApiClientNetwork();
   final BonSementaraLocalService _localService = BonSementaraLocalService();
   final HomeRepository repository = HomeRepository();
 
@@ -581,7 +581,7 @@ class HomeService extends GetxService {
     required String dateLog,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await _apiClient.dio.get(
         UrlApiStatic.API_GET_LATEST_TANK_STOCK,
         queryParameters: {
           'kode_unit': unitId,
