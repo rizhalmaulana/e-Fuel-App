@@ -574,7 +574,7 @@ class HomeView extends GetView<HomeController> {
                           onChanged: (val) {
                             if (val != null) controller.selectedDraftFilter.value = val;
                           },
-                          items: ['Semua', 'Penerimaan', 'Pengeluaran'].map((String value) {
+                          items: ['Semua', 'Penerimaan'].map((String value) {
                             return DropdownMenuItem<String>(
                               value: value,
                               child: Text(value, style: AppFonts.fUrbanistMedium10),

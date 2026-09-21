@@ -37,22 +37,15 @@ class ReportApiService {
         ),
       );
 
-      // [DEBUG] Print Response
-      print("🟢 [API RESPONSE] Status: ${response.statusCode}");
-
       if (response.statusCode == 200) {
         List dataRaw = [];
 
-        // [VALIDASI] Cek struktur JSON (List langsung atau dibungkus "data")
         if (response.data is List) {
           dataRaw = response.data;
         } else if (response.data is Map && response.data['data'] != null) {
-          dataRaw = response.data['data']; // Jika response: {"data": [...]}
+          dataRaw = response.data['data'];
         }
 
-        print("🟢 [API PARSING] Ditemukan ${dataRaw.length} data");
-
-        // Simpan ke Cache Lokal (Hive) saat kondisi Online
         try {
           var box = await Hive.openBox('report_cache_box');
           await box.put(cacheKey, dataRaw);
@@ -102,9 +95,11 @@ class ReportApiService {
     final token = auth?.access ?? '';
 
     try {
-      String urlPath = UrlApiStatic.API_GET_DETAIL_DOC_FULL_APPROVED.replaceAll('{no_doc}', noDoc);
       final response = await _apiClient.dio.get(
-        UrlApiStatic.API_END_POINT + urlPath,
+        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_DETAIL_DOC_FULL_APPROVED,
+        queryParameters: {
+          'no_doc': noDoc,
+        },
         options: Options(
           headers: {
             "Authorization": "Bearer $token",

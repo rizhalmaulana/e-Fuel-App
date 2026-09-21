@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:e_fuel/modules/transactions/penerimaan/services/penerimaan_api_service.dart';
-import 'package:e_fuel/modules/transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../datas/constant/url_api_static.dart';
@@ -20,7 +19,7 @@ class ApprovalService {
     required String kodeUnit,
     String? statusApprove,
     String? transactionType,
-    String? noBast, // 🟢 TAMBAHAN BARU
+    String? noBast,
   }) async {
     try {
       final auth = _loginService.getCurrentAuth();
@@ -46,7 +45,7 @@ class ApprovalService {
       }
       return [];
     } catch (e) {
-      print("⚠️ Gagal fetch approval list: $e");
+      _logError("getApprovalList", e);
       return [];
     }
   }
@@ -58,8 +57,8 @@ class ApprovalService {
       String endpoint = isEbpb 
           ? UrlApiStatic.API_EXPORT_EBPB_PDF_DOC 
           : UrlApiStatic.API_EXPORT_PDF_DOC;
-      String url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', Uri.encodeComponent(noDoc));
 
+      String url = UrlApiStatic.API_END_POINT + endpoint;
 
       Directory? dir;
       if (Platform.isAndroid) {
@@ -75,15 +74,12 @@ class ApprovalService {
       String prefix = isEbpb ? 'EBPB' : 'BAST';
       String savePath = '${dir?.path}/${prefix}_$safeDocName.pdf';
 
-      Map<String, dynamic>? queryParams;
-      if (!endpoint.contains('{no_doc}')) {
-        queryParams = {'no_doc': noDoc};
-      }
-
       final response = await _apiClient.dio.download(
         url,
         savePath,
-        queryParameters: queryParams,
+        queryParameters: {
+          'no_doc': noDoc,
+        },
         options: Options(
           headers: {
             "Authorization": "Bearer ${auth?.access ?? ''}",
@@ -97,7 +93,7 @@ class ApprovalService {
       }
       return null;
     } catch (e) {
-      print("❌ Error download PDF BAST/EBPB: $e");
+      _logError("downloadPdfDocument", e);
       return null;
     }
   }
@@ -105,15 +101,13 @@ class ApprovalService {
   Future<Map<String, dynamic>?> getInboundOpenDetail(String noDoc) async {
     try {
       final auth = _loginService.getCurrentAuth();
-
-      String url = UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.replaceAll('{no_doc}', noDoc);
-
-      if (!UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.contains('{no_doc}')) {
-        url = "${UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL}/$noDoc";
-      }
+      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL;
 
       final response = await _apiClient.dio.get(
         url,
+        queryParameters: {
+          'no_doc': noDoc,
+        },
         options: Options(
           headers: {
             "Authorization": "Bearer ${auth?.access ?? ''}",
@@ -126,7 +120,7 @@ class ApprovalService {
       }
       return null;
     } catch (e) {
-      print("Error fetching detail inbound: $e");
+      _logError("getInboundOpenDetail", e);
       return null;
     }
   }
@@ -151,7 +145,7 @@ class ApprovalService {
       }
       return null;
     } catch (e) {
-      print("Error fetching detail EBPB: $e");
+      _logError("getEbpbDetail", e);
       return null;
     }
   }
@@ -184,7 +178,7 @@ class ApprovalService {
 
       return true;
     } catch (e) {
-      print("Error submit approval: $e");
+      _logError("submitPenerimaanApprovalDecision", e);
       return false;
     }
   }
@@ -219,7 +213,25 @@ class ApprovalService {
       }
       return [];
     } catch (e) {
+      _logError("getApprovalListEbpb", e);
       rethrow;
+    }
+  }
+
+  void _logError(String context, dynamic e) {
+    if (e is DioException) {
+      // Cek jika error murni karena masalah jaringan atau timeout
+      bool isNetworkError = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown; // Connection reset by peer sering masuk ke unknown
+
+      if (isNetworkError) {
+        print("⚠️ [ApprovalService] Gagal ke server (Timeout), beralih ke data lokal.");
+        throw Exception("NETWORK_TIMEOUT");
+      }
+    } else {
+      print("⚠️ [$context] Unexpected Error: $e");
     }
   }
 }

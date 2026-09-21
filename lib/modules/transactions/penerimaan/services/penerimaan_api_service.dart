@@ -84,8 +84,15 @@ class PenerimaanApiService {
         options: _getOptions(),
       );
 
-      List data = response.data;
-      return data.map((e) => KonfigurasiApprovalModel.fromJson(e)).toList();
+      List data;
+      if (response.data is List) {
+        data = response.data;
+      } else if (response.data is Map && response.data['data'] != null) {
+        data = response.data['data'];
+      } else {
+        data = [];
+      }
+      return data.map<KonfigurasiApprovalModel>((e) => KonfigurasiApprovalModel.fromJson(e)).toList();
     } catch (e) {
       rethrow;
     }
@@ -162,14 +169,7 @@ class PenerimaanApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String endpoint = UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL;
-    String url;
-
-    if (endpoint.contains('{no_doc}')) {
-      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
-    } else {
-      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
-    }
+    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL;
 
     // Payload JSON Murni
     Map<String, dynamic> payloadData = {
@@ -186,6 +186,9 @@ class PenerimaanApiService {
     try {
       var response = await _apiClient.dio.put(
         url,
+        queryParameters: {
+          'no_doc': noDoc
+        },
         data: payloadData,
         options: Options(
             contentType: 'application/json',
@@ -214,14 +217,7 @@ class PenerimaanApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String endpoint = UrlApiStatic.API_POST_SIGNATURE_APPROVAL;
-    String url;
-
-    if (endpoint.contains('{no_doc}')) {
-      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
-    } else {
-      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
-    }
+    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_SIGNATURE_APPROVAL;
 
     FormData formData = FormData.fromMap({
       'level_approval': levelApproval,
@@ -240,6 +236,9 @@ class PenerimaanApiService {
     try {
         var response = await _apiClient.dio.post(
         url,
+        queryParameters: {
+          'no_doc': noDoc
+        },
         data: formData,
         options: Options(
             headers: {
@@ -266,14 +265,7 @@ class PenerimaanApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String endpoint = UrlApiStatic.API_POST_SIGNATURE_SECURITY;
-    String url;
-
-    if (endpoint.contains('{no_doc}')) {
-      url = UrlApiStatic.API_END_POINT + endpoint.replaceAll('{no_doc}', noDoc);
-    } else {
-      url = "${UrlApiStatic.API_END_POINT}$endpoint/$noDoc";
-    }
+    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_SIGNATURE_SECURITY;
 
     FormData formData = FormData.fromMap({
       'image_sign3': await MultipartFile.fromFile(
@@ -288,6 +280,9 @@ class PenerimaanApiService {
     try {
       var response = await _apiClient.dio.post(
         url,
+        queryParameters: {
+          'no_doc': noDoc
+        },
         data: formData,
         options: Options(
             headers: {

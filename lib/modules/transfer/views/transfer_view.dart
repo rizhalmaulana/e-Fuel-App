@@ -69,11 +69,35 @@ class TransferView extends GetView<TransferController> {
           );
         }),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => _showSearchBottomSheet(),
-          backgroundColor: AppColors.white,
-          mini: true,
-          child: const Icon(Icons.search, color: AppColors.primaryOrange),
+        floatingActionButton: Builder(
+          builder: (context) {
+            final tabController = DefaultTabController.of(context);
+            return AnimatedBuilder(
+              animation: tabController,
+              builder: (context, child) {
+                return Obx(() {
+                  final isUploadTab = tabController.index == 1;
+                  final hasUploadButton =
+                      controller.filteredSavedList.isNotEmpty;
+                  // Naikkan FAB saat tab "Menunggu Upload" menampilkan
+                  // tombol "Upload Semua" di bawah agar tidak tertumpuk.
+                  final bottomPadding =
+                      (isUploadTab && hasUploadButton) ? 90.0 : 0.0;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: bottomPadding),
+                    child: child!,
+                  );
+                });
+              },
+              child: FloatingActionButton(
+                onPressed: () => _showSearchBottomSheet(),
+                backgroundColor: AppColors.white,
+                mini: true,
+                child:
+                    const Icon(Icons.search, color: AppColors.primaryOrange),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -209,7 +233,8 @@ class TransferView extends GetView<TransferController> {
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.all(12),
+          padding:
+              const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
           itemCount: controller.filteredPendingList.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
@@ -250,7 +275,8 @@ class TransferView extends GetView<TransferController> {
         children: [
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.only(
+                  left: 12, right: 12, top: 12, bottom: 80),
               itemCount: controller.filteredSavedList.length,
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {

@@ -137,7 +137,7 @@ class PengisianSolarPengeluaranController extends GetxController {
     selectedJenisPengeluaran.value = (initialDocType == 'BPB') ? 'BPB' : 'Bon Sementara';
     
     isManualInput.value = args['isManualInput'] ?? false;
-    isTamu.value = (unitIO.value == 'TAMU');
+    isTamu.value = unitIO.value.toUpperCase().contains('TAMU');
 
     // Ambil storage code aktif dari Home Controller
     String rawStorage = _homeController.selectedStorage.value;
