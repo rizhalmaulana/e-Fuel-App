@@ -96,8 +96,6 @@ class HomeController extends GetxController {
   List<Map<String, dynamic>> get filteredOutstandingTransactions {
     if (selectedDraftFilter.value == 'Penerimaan') {
       return outstandingTransactions.where((tx) => tx['type'] == 'FIN').toList();
-    } else if (selectedDraftFilter.value == 'Pengeluaran') {
-      return outstandingTransactions.where((tx) => tx['type'] == 'FOT').toList();
     }
     return outstandingTransactions;
   }
@@ -322,8 +320,8 @@ class HomeController extends GetxController {
 
       if (selectedUnitCode.value.isNotEmpty && selectedStorage.value.isNotEmpty) {
         final storageCode = _getStorageCode(selectedStorage.value);
-        await _homeService.initDataFlow(selectedUnitCode.value, storageCode);
-        await _fetchManualTanksApi(selectedUnitCode.value, storageCode);
+        // await _homeService.initDataFlow(selectedUnitCode.value, storageCode);
+        // await _fetchManualTanksApi(selectedUnitCode.value, storageCode);
       }
     } catch (e) {
       debugPrint("Error saat refresh: $e");
@@ -509,12 +507,6 @@ class HomeController extends GetxController {
           docType: 'FIN',
         );
 
-        List<InboundModel> apiFOTList = await _masterDataService.getInboundOpenList(
-          kodeUnit: kodeUnit,
-          statusInbound: 'O',
-          docType: 'FOT',
-        );
-
         for (var item in apiFINList) {
           bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
               (item.approvals == null || item.approvals!.isEmpty);
@@ -524,24 +516,6 @@ class HomeController extends GetxController {
               'noBast': item.noDoc ?? '-',
               'title': 'Draft Penerimaan',
               'type': 'FIN',
-              'date': TextConvertHelper().formatDate(item.dateInbound),
-              'amount': "${(item.volumeVendor ?? 0).toInt()} L",
-              'status': 'Draft',
-              'unit': item.kodeUnit,
-              'source': 'api',
-            });
-          }
-        }
-
-        for (var item in apiFOTList) {
-          bool isDraft = (item.tanks == null || item.tanks!.isEmpty) &&
-              (item.approvals == null || item.approvals!.isEmpty);
-
-          if (isDraft) {
-            tempOutstanding.add({
-              'noBast': item.noDoc ?? '-',
-              'title': 'Draft Pengeluaran',
-              'type': 'FOT',
               'date': TextConvertHelper().formatDate(item.dateInbound),
               'amount': "${(item.volumeVendor ?? 0).toInt()} L",
               'status': 'Draft',
@@ -571,20 +545,6 @@ class HomeController extends GetxController {
                 'amount': "${(item.dataSebelum?.volumeVendor ?? 0).toInt()} L",
                 'status': 'Draft',
                 'unit': item.dataSebelum?.kodeUnit ?? kodeUnit,
-                'source': 'local',
-              });
-            }
-          } else if (item is TransactionPengeluaranModel && item.status != 'selesai') {
-            bool exists = tempOutstanding.any((tx) => tx['noBast'] == item.noBast);
-            if (!exists) {
-              tempOutstanding.add({
-                'noBast': item.noBast,
-                'title': 'Draft Pengeluaran',
-                'type': 'FOT',
-                'date': TextConvertHelper().formatDate(item.dataPengeluaran?.dateOutbound ?? item.dateCreated),
-                'amount': "${(item.dataPengeluaran?.jumlahPengisianSolar ?? 0).toInt()} L",
-                'status': 'Draft',
-                'unit': item.dataPengeluaran?.kodeUnit ?? kodeUnit,
                 'source': 'local',
               });
             }
@@ -736,127 +696,6 @@ class HomeController extends GetxController {
           'status': 'pengisian_solar',
           'storage_code': _getStorageCode(selectedStorage.value),
         });
-        return;
-
-      } else if (type == 'FOT') {
-        // --- ALUR PENGELUARAN DRAFT ---
-        final localTrx = await outstandingService.getTransactionPengeluaranByNoBast(noBast);
-        if (localTrx != null) {
-          String subStatus = localTrx.status;
-          if (subStatus == 'verifikasi_doc') {
-            Get.toNamed(Routes.PENGELUARAN_VERIFIKASI_DOC, arguments: {'noDoc': localTrx.noBast});
-            return;
-          } else {
-            final String resumeUnitIO = (localTrx.dataPengeluaran?.unitIO?.isNotEmpty == true && localTrx.dataPengeluaran?.unitIO != '-')
-                ? localTrx.dataPengeluaran!.unitIO!
-                : '-';
-
-            final String rawResumeTanggal = localTrx.dataPengeluaran?.dateOutbound ?? '';
-            final String resumeTanggal = rawResumeTanggal.contains('T')
-                ? rawResumeTanggal.split('T').first
-                : (rawResumeTanggal.contains(' ') ? rawResumeTanggal.split(' ').first : rawResumeTanggal.isNotEmpty ? rawResumeTanggal : DateFormat('yyyy-MM-dd').format(DateTime.now()));
-
-            Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-              'noDoc': localTrx.noBast,
-              'unitIO': resumeUnitIO,
-              'tanggal': resumeTanggal,
-              'status': 'pengisian_solar_pengeluaran',
-              'payload': {
-                'no_doc': localTrx.noBast,
-                'no_io': localTrx.dataPengeluaran?.noIo,
-                'nopol_check': localTrx.dataPengeluaran?.nopolCheck,
-                'status_supir': localTrx.dataPengeluaran?.statusSupir,
-                'supir_check': localTrx.dataPengeluaran?.supirCheck,
-                'km_pengisian': localTrx.dataPengeluaran?.kmPengisian,
-                // jumlahPengisianSolar = estimasi; fallback ke liter jika null
-                'jumlah_pengisian_solar': localTrx.dataPengeluaran?.jumlahPengisianSolar ?? localTrx.dataPengeluaran?.liter,
-                'doc_type': localTrx.dataPengeluaran?.docType ?? 'FOT',
-                'hm_km_akhir': localTrx.dataPengeluaran?.hmKmAkhir,
-                'liter': localTrx.dataPengeluaran?.liter,
-                'hm_km_awal': localTrx.dataPengeluaran?.hmKmAwal,
-                'kategori_kendaraan': localTrx.dataPengeluaran?.kategoriKendaraan,
-                'jenis_pengeluaran': localTrx.dataPengeluaran?.jenisPengeluaran,
-                'cost_center': localTrx.dataPengeluaran?.costCenter,
-                'ratio': localTrx.dataPengeluaran?.ratio,
-                'tipe_unit_io': localTrx.dataPengeluaran?.tipeUnitIo,
-                'varian': localTrx.dataPengeluaran?.varian,
-                'tanggal_akhir': localTrx.dataPengeluaran?.tanggalAkhir,
-                'tanggal_awal': localTrx.dataPengeluaran?.tanggalAwal,
-                'satuan': localTrx.dataPengeluaran?.satuan,
-                'kode_unit': localTrx.dataPengeluaran?.kodeUnit,
-              },
-              'isManualInput': false,
-              'jenis_pengeluaran': localTrx.dataPengeluaran?.jenisPengeluaran ?? 'Bon Sementara',
-            });
-            return;
-          }
-        }
-
-        // Fallback: data tidak ada di Hive lokal → hit endpoint detail-pengeluaran
-        try {
-          final PengeluaranApiService pengeluaranApiService = PengeluaranApiService();
-          final detail = await pengeluaranApiService.getDetailPengeluaran(noBast);
-
-          if (detail != null) {
-            // Ambil hanya bagian YYYY-MM-DD dari dateInbound
-            // Handle format ISO 8601 dengan 'T' atau dengan spasi
-            String rawDate = detail.dateInbound;
-            final String tanggalBersih = rawDate.contains('T')
-                ? rawDate.split('T').first
-                : (rawDate.contains(' ') ? rawDate.split(' ').first : rawDate);
-
-            // Gunakan namaUnit jika ada, fallback ke kodeUnit
-            final String unitDisplay = (detail.namaUnit.isNotEmpty && detail.namaUnit != '-')
-                ? detail.namaUnit
-                : detail.kodeUnit;
-
-            Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-              'noDoc': detail.noDoc,
-              'unitIO': unitDisplay,
-              'tanggal': tanggalBersih,
-              'status': 'pengisian_solar_pengeluaran',
-              'isManualInput': detail.inputType.toLowerCase() == 'manual',
-              'jenis_pengeluaran': 'Bon Sementara',
-              'payload': {
-                'no_doc': detail.noDoc,
-                'no_io': detail.noIo ?? '-',
-                'nopol_check': detail.nopolCheck ?? '-',
-                'supir_check': detail.supirCheck ?? '-',
-                'status_supir': 'Internal',
-                'km_pengisian': detail.hmKmAkhir,
-                'jumlah_pengisian_solar': detail.estimasiLiter,
-                'doc_type': detail.docType,
-                'hm_km_awal': detail.hmKmAwal,
-                'hm_km_akhir': detail.hmKmAkhir,
-                'ratio': detail.ratioInput,
-                'cost_center': detail.costCenter,
-                'tipe_unit_io': 'AB',
-                'varian': detail.varianLiter,
-                'tanggal_akhir': tanggalBersih,
-                'tanggal_awal': tanggalBersih,
-                'keterangan': detail.keterangan,
-              },
-            });
-          } else {
-            // Detail API juga gagal → minimal navigasi dengan noDoc saja
-            Get.toNamed(Routes.PENGISIAN_SOLAR_PENGELUARAN, arguments: {
-              'noDoc': noBast,
-              'tanggal': tx['date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now()),
-              'status': 'pengisian_solar_pengeluaran',
-              'payload': {'no_doc': noBast},
-              'isManualInput': false,
-              'jenis_pengeluaran': 'Bon Sementara',
-            });
-          }
-        } catch (e) {
-          print('Error fetching detail pengeluaran on resume: $e');
-          Get.snackbar(
-            'Gagal Memuat Data',
-            'Tidak dapat mengambil detail transaksi. Coba lagi.',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
-          );
-        }
         return;
       }
     }

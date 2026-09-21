@@ -274,7 +274,6 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
   }
 
   Widget _buildDataTable(BuildContext context) {
-    // 3. UPDATE: Menggunakan rasio tinggi layar agar responsif di HP yang lebih kecil/besar
     final double tableHeight = MediaQuery.of(context).size.height * 0.5;
 
     return Container(

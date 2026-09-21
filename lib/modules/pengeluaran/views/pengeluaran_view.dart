@@ -280,7 +280,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
           children: [
             Expanded(
               child: Text(
-                hasValue ? value!.toUpperCase() : (hint ?? ''),
+                hasValue ? value.toUpperCase() : (hint ?? ''),
                 style: hasValue
                     ? AppFonts.fUrbanistRegular12
                         .copyWith(color: AppColors.primaryText)
@@ -881,19 +881,21 @@ class PengeluaranView extends GetView<PengeluaranController> {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                          flex: 4,
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("Nama Unit"),
-                                _buildSearchableDropdown(
-                                  hint: "Pilih Unit",
-                                  value: displayNama,
-                                  onTap: () => _showUnitSearchSheet(context),
-                                ),
-                              ])),
-                      const SizedBox(width: 12),
+                      if (!controller.isTamu) ...[
+                        Expanded(
+                            flex: 4,
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildLabel("Nama Unit"),
+                                  _buildSearchableDropdown(
+                                    hint: "Pilih Unit",
+                                    value: displayNama,
+                                    onTap: () => _showUnitSearchSheet(context),
+                                  ),
+                                ])),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                           flex: 4,
                           child: Column(
@@ -1234,7 +1236,23 @@ class PengeluaranView extends GetView<PengeluaranController> {
                       );
                     } else {
                       if (controller.isTamu) {
-                        return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel("Aktual Pengeluaran Solar (Liter)"),
+                            _buildTextField(
+                              controller: controller.aktualSolarC,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                  decimal: true),
+                              hint: "0",
+                              customFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9.,]')),
+                                DecimalInputFormatter(),
+                              ],
+                            ),
+                          ],
+                        );
                       }
                       return Row(
                         children: [

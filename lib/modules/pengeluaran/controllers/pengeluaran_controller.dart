@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:e_fuel/configs/app_colors.dart';
+import 'package:e_fuel/datas/models/kategori_kendaraan/master_kategori_kendaraan.dart';
 import 'package:e_fuel/datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
 import 'package:e_fuel/helpers/text_convert_helper.dart';
 import 'package:e_fuel/modules/home/services/home_service.dart';
@@ -51,6 +52,15 @@ class PengeluaranController extends GetxController {
   // --- Data Logic ---
   final List<String> jenisBonList = ['Bon Sementara', 'BPB'];
   final jenisKategoriList = <String>[].obs;
+  final masterKategoriList = <MasterKategoriKendaraan>[].obs;
+
+  MasterKategoriKendaraan? get _selectedKategoriObj {
+    try {
+      return masterKategoriList.firstWhere((e) => e.namaKategori == selectedKategoriKendaraan.value);
+    } catch (_) {
+      return null;
+    }
+  }
   var userInitialTitle = "LKE";
   final List<String> statusSupirList = ['Internal', 'Eksternal'];
 
@@ -118,6 +128,7 @@ class PengeluaranController extends GetxController {
   final satuanC = TextEditingController();
   final hmKmAwalC = TextEditingController();
   final hmKmAkhirC = TextEditingController();
+  final namaUnitTamuC = TextEditingController();
   final dateAwalC = TextEditingController();
   final dateAkhirC = TextEditingController();
   final varianC = TextEditingController();
@@ -134,7 +145,12 @@ class PengeluaranController extends GetxController {
 
   bool get isTipeGenset => (tipeUnit.value?.toUpperCase() ?? '') == 'GS';
   bool get isBpbMode => selectedJenisBon.value == 'BPB';
-  bool get isTamu => selectedKategoriKendaraan.value == 'TAMU';
+  bool get isTamu {
+    if (masterKategoriList.isNotEmpty) {
+      return _selectedKategoriObj?.kategoriKendaraan.startsWith('TM') ?? false;
+    }
+    return selectedKategoriKendaraan.value == 'TAMU';
+  }
 
   @override
   void onInit() {
@@ -216,6 +232,7 @@ class PengeluaranController extends GetxController {
     varianSolarC.dispose();
     tanggalTransaksiC.dispose();
     noDocInputC.dispose();
+    namaUnitTamuC.dispose();
     super.onClose();
   }
 
@@ -242,15 +259,21 @@ class PengeluaranController extends GetxController {
     platController.clear();
     isPlatReadOnly.value = false;
 
-    if (val == 'TAMU') {
+    final valUpper = val.toUpperCase();
+    if (valUpper.contains('TAMU')) {
       _setupTamuMode(val);
       selectedKodeKebunPabrik.value = userTitleUnit.value;
       selectedKodeUnitKebunPabrik.value = userKodeUnit.value;
+
+      final kodeKategori = _selectedKategoriObj?.kategoriKendaraan;
+      if (kodeKategori != null) {
+        _fetchTamuData(kodeKategori);
+      }
     } else {
       _setupInternalMode();
       searchUnit('');
 
-      if (val == 'VENDOR' || (!val.contains('NON') && val.contains('INTERNAL'))) {
+      if (valUpper.contains('VENDOR') || (!valUpper.contains('NON') && valUpper.contains('INTERNAL'))) {
         selectedKodeKebunPabrik.value = userTitleUnit.value;
         selectedKodeUnitKebunPabrik.value = userKodeUnit.value;
       } else {
@@ -263,8 +286,22 @@ class PengeluaranController extends GetxController {
     update();
   }
 
+  Future<void> _fetchTamuData(String kodeKategori) async {
+    try {
+      final res = await _apiService.getTamuList(kodeKategori);
+      if (res.isNotEmpty) {
+        final data = res.first;
+        ioController.text = data.costCenter ?? '';
+      }
+    } catch (e) {
+      print("Gagal fetch master IO tamu: $e");
+    }
+  }
+
   void _setupInternalMode() {
     selectedUnit.value = null;
+
+    namaUnitTamuC.clear();
 
     ratioC.text = "0"; // Default 0
     ratioInput.text = ""; // UI 0
@@ -276,6 +313,8 @@ class PengeluaranController extends GetxController {
   }
 
   void _setupTamuMode(String kategori) {
+    namaUnitTamuC.text = "";
+
     final tamuUnit = MasterIoModel(
         namaUnit: kategori,
         description: "External $kategori",
@@ -305,7 +344,7 @@ class PengeluaranController extends GetxController {
     pengisianSolarC.text = "0";
     isLiterReadOnly.value = false; // (Editable)
 
-    isIoReadOnly.value = false;
+    isIoReadOnly.value = true;
     filteredUnitList.assignAll([tamuUnit]);
   }
 
@@ -489,12 +528,15 @@ class PengeluaranController extends GetxController {
     try {
       isLoadingUnit.value = true;
 
-      final isVendor = (selectedKategoriKendaraan.value ?? '').toUpperCase() == 'VENDOR';
-      final isTamuKategori = selectedKategoriKendaraan.value?.contains('TAMU') ?? false;
+      final isVendor = masterKategoriList.isNotEmpty
+          ? (_selectedKategoriObj?.kategoriKendaraan == 'VEN')
+          : (selectedKategoriKendaraan.value ?? '').toUpperCase() == 'VENDOR';
+      final isTamuKategori = masterKategoriList.isNotEmpty
+          ? (_selectedKategoriObj?.kategoriKendaraan.startsWith('TM') ?? false)
+          : selectedKategoriKendaraan.value?.contains('TAMU') ?? false;
       String? currentUnitId = selectedKodeUnitKebunPabrik.value;
 
       List<MasterIoModel> data;
-
       if (isVendor) {
         data = await _apiService.getVendorList();
       } else {
@@ -536,6 +578,22 @@ class PengeluaranController extends GetxController {
     }
   }
 
+  Future<void> fetchMasterKategori() async {
+    try {
+      final res = await _apiService.getMasterKategoriKendaraan(isActive: true);
+      if (res.isNotEmpty) {
+        masterKategoriList.assignAll(res);
+        jenisKategoriList.assignAll(res.map((e) => e.namaKategori).where((e) => e.isNotEmpty).toList());
+        if (selectedKategoriKendaraan.value == null || !jenisKategoriList.contains(selectedKategoriKendaraan.value)) {
+          var firstInternal = res.firstWhere((e) => e.kategoriKendaraan == 'INT', orElse: () => res.first);
+          selectedKategoriKendaraan.value = firstInternal.namaKategori;
+        }
+      }
+    } catch (e) {
+      print("Error fetchMasterKategori: $e");
+    }
+  }
+
   Future<void> fetchUnitsPerArea() async {
     final auth = _loginService.getCurrentAuth();
     if (auth != null && auth.currentKodeUnit != null) {
@@ -543,6 +601,7 @@ class PengeluaranController extends GetxController {
 
       try {
         var data = await _apiService.getUnitsPerArea(auth.currentKodeUnit!);
+
         List<String> titles = [];
         List<String> units = [];
 
@@ -565,9 +624,6 @@ class PengeluaranController extends GetxController {
           }
         }
 
-        String oldCategory = selectedKategoriKendaraan.value ?? '';
-        String? oldKebun = selectedKodeKebunPabrik.value;
-
         selectedKategoriKendaraan.value = null;
         selectedKodeKebunPabrik.value = null;
 
@@ -577,14 +633,15 @@ class PengeluaranController extends GetxController {
         userTitleUnit.value = defaultTitle;
         userKodeUnit.value = defaultUnit;
 
-        jenisKategoriList.assignAll([
-          'INTERNAL $defaultTitle',
-          'INTERNAL NON $defaultTitle',
-          'VENDOR',
-          'TAMU'
-        ]);
-
-        selectedKategoriKendaraan.value = 'INTERNAL $defaultTitle';
+        if (masterKategoriList.isEmpty) {
+          jenisKategoriList.assignAll([
+            'INTERNAL $defaultTitle',
+            'INTERNAL NON $defaultTitle',
+            'VENDOR',
+            'TAMU'
+          ]);
+          selectedKategoriKendaraan.value = 'INTERNAL $defaultTitle';
+        }
         selectedKodeKebunPabrik.value = defaultTitle;
         selectedKodeUnitKebunPabrik.value = defaultUnit;
       } catch (e) {
@@ -592,6 +649,7 @@ class PengeluaranController extends GetxController {
       } finally {
         isLoadingUnitsPerArea.value = false;
         fetchUnitList();
+        fetchMasterKategori();
       }
     }
   }
@@ -1290,11 +1348,13 @@ class PengeluaranController extends GetxController {
         "doc_type": "FOT",
         "hm_km_akhir": double.tryParse(hmKmAkhirC.text) ?? 0,
         "no_io": isTamu ? "-" : ioController.text,
-        "unit_io": (selectedUnit.value?.namaUnit?.isNotEmpty == true
-            ? selectedUnit.value!.namaUnit
-            : (selectedUnit.value?.description?.isNotEmpty == true
-                ? selectedUnit.value!.description
-                : (selectedUnit.value?.noPolisi ?? '-'))),
+        "unit_io": isTamu 
+            ? (_selectedKategoriObj?.kategoriKendaraan ?? "-")
+            : (selectedUnit.value?.namaUnit?.isNotEmpty == true
+                ? selectedUnit.value!.namaUnit
+                : (selectedUnit.value?.description?.isNotEmpty == true
+                    ? selectedUnit.value!.description
+                    : (selectedUnit.value?.noPolisi ?? '-'))),
         "liter": solarDouble,
         "hm_km_awal": double.tryParse(hmKmAwalC.text) ?? 0,
         "cost_center": isTamu ? ioController.text.toUpperCase() : "-",
@@ -1309,6 +1369,9 @@ class PengeluaranController extends GetxController {
             ? ""
             : dateAkhir.value,
         "kategori_kendaraan": () {
+          if (masterKategoriList.isNotEmpty && _selectedKategoriObj != null) {
+            return _selectedKategoriObj!.kategoriKendaraan;
+          }
           final kategori = (selectedKategoriKendaraan.value ?? "").toUpperCase();
           if (kategori.contains("INTERNAL NON")) return "INC";
           if (kategori.contains("INTERNAL")) return "INT";
@@ -1342,7 +1405,6 @@ class PengeluaranController extends GetxController {
         _createdNoDoc = noDoc;
       }
 
-      await _saveToOutstanding(noDoc, payloadRequestAPI, fotoOdometer.value);
       await _draftService.deleteDraft();
 
       if (isManualInput.value) {
@@ -1504,51 +1566,7 @@ class PengeluaranController extends GetxController {
     }
   }
 
-  Future<void> _saveToOutstanding(
-      String noDoc, Map<String, dynamic> payload, File? foto) async {
-    final auth = _loginService.getCurrentAuth();
-    if (auth == null) return;
 
-    final outstandingService = OutstandingService(auth.user.username);
-    final pengeluaranDetail = PengeluaranModel(
-        noDoc: noDoc,
-        noIo: payload['no_io'],
-        unitIO: payload['unit_io'],
-        nopolCheck: payload['nopol_check'],
-        statusSupir: payload['status_supir'],
-        supirCheck: payload['supir_check'],
-        kmPengisian: payload['km_pengisian'],
-        jumlahPengisianSolar: payload['jumlah_pengisian_solar'],
-        userName: auth.user.username,
-        dateOutbound: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
-        pathFoto1: foto?.path,
-        pathFoto2: null,
-        pathFoto3: null,
-        keterangan: payload['keterangan'],
-        docType: payload['doc_type'],
-        hmKmAkhir: payload['hm_km_akhir'],
-        liter: payload['liter'],
-        hmKmAwal: payload['hm_km_awal'],
-        kategoriKendaraan: payload['kategori_kendaraan'],
-        jenisPengeluaran: payload['jenis_pengeluaran'],
-        costCenter: payload['cost_center'],
-        ratio: payload['ratio'],
-        tipeUnitIo: payload['tipe_unit_io'],
-        varian: payload['varian'],
-        tanggalAkhir: payload['tanggal_akhir'],
-        tanggalAwal: payload['tanggal_awal'],
-        satuan: payload['satuan'],
-        kodeUnit: payload['kode_unit']);
-
-    final trx = TransactionPengeluaranModel(
-      noBast: noDoc,
-      status: 'pengisian_solar_pengeluaran',
-      dateCreated: DateTime.now().toIso8601String(),
-      dataPengeluaran: pengeluaranDetail,
-    );
-
-    await outstandingService.saveTransactionPengeluaran(trx);
-  }
 
   void _handleApiError(DioException e) {
     String title = "Gagal Submit";

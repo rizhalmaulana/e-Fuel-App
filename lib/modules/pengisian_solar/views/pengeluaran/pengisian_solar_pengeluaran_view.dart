@@ -128,7 +128,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Obx(() {
-                            if (controller.unitIO.value.isNotEmpty && controller.unitIO.value == "TAMU") return _buildInfoItem("Cost Center", controller.costCenter.value, Icons.confirmation_number_outlined);
+                            if (controller.isTamu.value) return _buildInfoItem("Cost Center", controller.costCenter.value, Icons.confirmation_number_outlined);
                             return _buildInfoItem("No. IO", controller.noIO.value, Icons.confirmation_number_outlined);
                           }),
                           const SizedBox(height: 8),

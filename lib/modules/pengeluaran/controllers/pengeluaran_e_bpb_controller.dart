@@ -273,24 +273,24 @@ class PengeluaranEBpbController extends GetxController {
         selectedDateTime = DateTime.now();
       }
 
-      bool foundPrevious = false;
-      for (var item in outstandingList) {
-        try {
-           DateTime outstandingDate = DateFormat('yyyy-MM-dd').parse(item.tanggalTransaksi ?? "");
-           if (outstandingDate.isBefore(selectedDateTime)) {
-             foundPrevious = true;
-             break;
-           }
-        } catch (e) { }
-      }
-
-      if (foundPrevious) {
-        hasOutstandingPreviousDate.value = true;
-        outstandingPreviousMessage.value = "Tidak bisa submit E-BPB karena masih ada transaksi outstanding di tanggal sebelumnya.";
-      } else {
-        hasOutstandingPreviousDate.value = false;
-        outstandingPreviousMessage.value = "";
-      }
+      // bool foundPrevious = false;
+      // for (var item in outstandingList) {
+      //   try {
+      //      DateTime outstandingDate = DateFormat('yyyy-MM-dd').parse(item.tanggalTransaksi ?? "");
+      //      if (outstandingDate.isBefore(selectedDateTime)) {
+      //        foundPrevious = true;
+      //        break;
+      //      }
+      //   } catch (e) { }
+      // }
+      //
+      // if (foundPrevious) {
+      //   hasOutstandingPreviousDate.value = true;
+      //   outstandingPreviousMessage.value = "Tidak bisa submit E-BPB karena masih ada transaksi outstanding di tanggal sebelumnya.";
+      // } else {
+      //   hasOutstandingPreviousDate.value = false;
+      //   outstandingPreviousMessage.value = "";
+      // }
 
       var data = await _apiService.getDailyTransactions(
           dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);

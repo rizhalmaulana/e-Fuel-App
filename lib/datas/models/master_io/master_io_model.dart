@@ -1,5 +1,6 @@
-class MasterIoModel {
+class   MasterIoModel {
   String? internalOrder;
+  String? costCenter;
   String? kodeUnit;
   String? namaUnit;
   String? description;
@@ -8,10 +9,11 @@ class MasterIoModel {
   String? rfId;
   String? statusUnit;
   String? tipeUnitIo;
-  bool isActive;
+  bool? isActive;
 
   MasterIoModel({
     this.internalOrder,
+    this.costCenter,
     this.kodeUnit,
     this.namaUnit,
     this.description,
@@ -20,12 +22,13 @@ class MasterIoModel {
     this.rfId,
     this.statusUnit,
     this.tipeUnitIo,
-    required this.isActive
+    this.isActive
   });
 
   factory MasterIoModel.fromJson(Map<String, dynamic> json) {
     return MasterIoModel(
       internalOrder: json['internal_order'],
+      costCenter: json['cost_center'],
       kodeUnit: json['kode_unit'],
       namaUnit: json['nama_unit'],
       description: json['deskripsi_unit'],
