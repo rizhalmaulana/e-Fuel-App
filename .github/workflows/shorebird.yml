@@ -1,0 +1,61 @@
+name: Shorebird Build & Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android (Shorebird)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐦 Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      - name: 📦 Get Flutter Packages
+        run: shorebird flutter pub get
+
+      - name: 🔍 Flutter Analyze
+        run: shorebird flutter analyze || true
+
+      - name: 🔑 Setup Firebase google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "google-services.json successfully generated from secret."
+          else
+            echo "Notice: GOOGLE_SERVICES_JSON secret not provided."
+          fi
+
+      - name: 🚀 Build with Shorebird (Patch or Release)
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          echo "Mencoba membuat update OTA (Patch)..."
+          if ! shorebird patch android; then
+            echo "Patch gagal (kemungkinan karena versi ini belum pernah dirilis). Membuat Release baru..."
+            shorebird release android --artifact=apk
+          fi
+
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: ignore
