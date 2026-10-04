@@ -6,6 +6,13 @@ workflows:
       flutter: stable
       groups:
         - firebase
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
     scripts:
       - name: Set up local.properties
         script: |
