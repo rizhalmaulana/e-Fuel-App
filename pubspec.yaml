@@ -1,0 +1,114 @@
+name: e_fuel
+description: "Monitoring transaction receipt of diesel and expenditure of diesel"
+publish_to: 'none'
+
+version: 1.1.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # 1. Inti
+  get: ^4.6.6
+
+  # 2. Penyimpanan
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.4
+  path_provider: ^2.1.5
+
+  # 3. Jaringan
+  dio: ^5.9.0
+  connectivity_plus: ^7.0.0
+
+  # 4. Utilitas
+  url_launcher: ^6.3.2
+  intl: ^0.20.2
+  google_fonts: ^6.3.2
+  shimmer: ^3.0.0
+  flutter_svg: ^2.2.1
+  flutter_screenutil: ^5.9.3
+  device_info_plus: ^11.5.0
+  permission_handler: ^12.0.1
+  lottie: ^3.3.1
+  json_annotation: ^4.9.0
+
+  # 5. Geolokasi, Foto dan Tanda Tangan
+  geolocator: ^10.1.0
+  #image_picker: ^1.1.2
+  camera: 0.11.2
+  flutter_image_compress: ^2.3.0
+  signature: ^6.3.0
+
+  # 6. Firebase
+  firebase_core: ^4.2.1
+  firebase_messaging: ^16.0.4
+  firebase_database: 12.1.0
+  open_filex: ^4.7.0
+  package_info_plus: ^9.0.1
+  shorebird_code_push: ^2.0.6
+  firebase_crashlytics: ^5.2.0
+  marquee: ^2.3.0
+  sticky_headers: ^0.3.0+2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # 7. Generator Kode
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.9
+  flutter_lints: ^6.0.0
+  json_serializable: ^6.8.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/ic_e_fuel.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/images/
+    - assets/icons/
+    - assets/lotties/
+    - shorebird.yaml
+
+  fonts:
+    - family: Urbanist
+      fonts:
+        - asset: assets/fonts/Urbanist-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Urbanist-LightItalic.ttf
+          weight: 300
+          style: italic
+
+        # Tambahkan Regular (w400)
+        - asset: assets/fonts/Urbanist-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Urbanist-Italic.ttf # Sesuaikan nama file
+          weight: 400
+          style: italic
+
+        # Tambahkan Medium (w500)
+        - asset: assets/fonts/Urbanist-Medium.ttf
+          weight: 500
+
+        # Tambahkan SemiBold (w600)
+        - asset: assets/fonts/Urbanist-SemiBold.ttf
+          weight: 600
+
+        # Tambahkan Bold (w700)
+        - asset: assets/fonts/Urbanist-Bold.ttf
+          weight: 700
+
+        # Tambahkan ExtraBold (w800)
+        - asset: assets/fonts/Urbanist-ExtraBold.ttf
+          weight: 800
