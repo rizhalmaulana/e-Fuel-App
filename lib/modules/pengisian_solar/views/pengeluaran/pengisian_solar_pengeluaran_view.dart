@@ -198,7 +198,9 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                   ],
                 ),
                 Obx(() {
-                  if (controller.tipeUnit.value.toUpperCase() == 'GS' || controller.isTamu.value) {
+                  if (controller.tipeUnit.value.toUpperCase() == 'GS' ||
+                      controller.isTamu.value ||
+                      controller.isVendor.value) {
                     return const SizedBox.shrink();
                   }
                   return Column(

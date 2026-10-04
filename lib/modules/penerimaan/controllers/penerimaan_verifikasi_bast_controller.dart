@@ -43,6 +43,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
   // Form Controllers
   final volumePengirimController = TextEditingController();
   final volumeKebunController = TextEditingController();
+  final volumeTangkiSolarPengirimController = TextEditingController();
   final varianController = TextEditingController();
 
   final catatanGudangController = TextEditingController();
@@ -132,10 +133,10 @@ class PenerimaanVerifikasiBastController extends GetxController {
           hAfter = double.tryParse(TextConvertHelper().cleanNumber(values['height'] ?? '0')) ?? 0.0;
         }
 
-        double volBefore = volBeforeMap[tankCode] ?? 0.0;
-        double hBefore = heightBeforeMap[tankCode] ?? 0.0;
-        double volIoTBefore = volBeforeIoTMap[tankCode] ?? 0.0;
-        double hIoTBefore = heightBeforeIoTMap[tankCode] ?? 0.0;
+        double volBefore = volBeforeMap[tankCode.replaceAll(' ', '_')] ?? 0.0;
+        double hBefore = heightBeforeMap[tankCode.replaceAll(' ', '_')] ?? 0.0;
+        double volIoTBefore = volBeforeIoTMap[tankCode.replaceAll(' ', '_')] ?? 0.0;
+        double hIoTBefore = heightBeforeIoTMap[tankCode.replaceAll(' ', '_')] ?? 0.0;
 
         restoredList.add(FillingModel(
             transactionId: activeNoBast.value,
@@ -185,6 +186,9 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
         if (detail.volumeVendor != null) {
           volumePengirimController.text = TextConvertHelper().formatNumber(detail.volumeVendor!);
+          double jmlLtr = detail.volumeVendor ?? 0.0;
+          double selisihTera = detail.selisihVolumeTerra ?? 0.0;
+          volumeTangkiSolarPengirimController.text = TextConvertHelper().formatNumber(jmlLtr - selisihTera);
           hitungVarian(); // Trigger perhitungan varian awal
         }
       }
@@ -220,10 +224,10 @@ class PenerimaanVerifikasiBastController extends GetxController {
   }
 
   void hitungVarian() {
-    double pengirim = double.tryParse(volumePengirimController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+    double pengirim = double.tryParse(volumeTangkiSolarPengirimController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
     double kebun = double.tryParse(volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
 
-    // Varian adalah sisa solar di Pengirim (Pengirim - Diterima Kebun)
+    // Varian (Volume Selisih Solar) = Diterima Kebun - Volume Tangki Solar Pengirim
     double varian = kebun - pengirim;
     varianController.text = TextConvertHelper().formatNumber(varian);
   }
@@ -386,7 +390,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
       // Prepare Payload
       List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) {
         return {
-          "kode_tank": item.tankCode,
+          "kode_tank": item.tankCode.replaceAll(' ', '_'),
           "volume_terkini_liter": item.volumeBeforeIoT ?? 0.0,
           "tinggi_terkini_cm": item.heightBeforeIoT ?? 0.0,
           "volume_akhir_liter": item.volumeAfterIoT ?? 0.0,
@@ -400,6 +404,8 @@ class PenerimaanVerifikasiBastController extends GetxController {
           "input_type": "M",
         };
       }).toList();
+
+      debugPrint("Payload Setelah Sounding: $tanksPayload");
 
       // Submit Inbound Tank
         await _repository.createInboundTank({
@@ -493,7 +499,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
   @override
   void onClose() {
     volumePengirimController.dispose(); volumeKebunController.dispose();
-    varianController.dispose(); catatanGudangController.dispose(); securityNameController.dispose();
+    volumeTangkiSolarPengirimController.dispose(); varianController.dispose(); catatanGudangController.dispose(); securityNameController.dispose();
     signatureGudangController.dispose(); signatureSecurityController.dispose();
     signaturePartnerController.dispose();pageController.dispose();
     super.onClose();

@@ -36,9 +36,10 @@ class DialogFlexible extends StatelessWidget {
           color: AppColors.background,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             if (logo != null) ...[
               logo!,
               const SizedBox(height: 16),
@@ -67,6 +68,7 @@ class DialogFlexible extends StatelessWidget {
 
             _buildButtonArea(context),
           ],
+        ),
         ),
       ),
     );

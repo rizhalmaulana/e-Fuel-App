@@ -184,10 +184,10 @@ class PenerimaanSetelahController extends GetxController {
       draftData.forEach((tankCode, values) {
         if (manualInputControllers.containsKey(tankCode)) {
           if (values is Map) {
-            manualInputControllers[tankCode]?['volume']?.text =
-                values['volume'] ?? '';
-            manualInputControllers[tankCode]?['height']?.text =
-                values['height'] ?? '';
+            String draftVol = values['volume']?.toString() ?? '';
+            String draftHeight = values['height']?.toString() ?? '';
+            manualInputControllers[tankCode]?['volume']?.text = draftVol.isNotEmpty ? draftVol : '0';
+            manualInputControllers[tankCode]?['height']?.text = draftHeight.isNotEmpty ? draftHeight : '0';
           }
         }
       });
@@ -264,8 +264,8 @@ class PenerimaanSetelahController extends GetxController {
 
   void _setupControllersForTank(String code, int tankCapacity) {
     if (!manualInputControllers.containsKey(code)) {
-      final volCtrl = TextEditingController();
-      final heightCtrl = TextEditingController();
+      final volCtrl = TextEditingController(text: '0');
+      final heightCtrl = TextEditingController(text: '0');
 
       volCtrl.addListener(() {
         _updateTotalManual();
@@ -296,7 +296,7 @@ class PenerimaanSetelahController extends GetxController {
     _debounceTimers[tankCode] = Timer(const Duration(milliseconds: 800), () {
       String cleanVol = volumeText.replaceAll('.', '').replaceAll(',', '.');
       if (cleanVol.isEmpty) {
-        _silentSetText(heightCtrl, "");
+        _silentSetText(heightCtrl, "0");
         return;
       }
 
@@ -316,7 +316,7 @@ class PenerimaanSetelahController extends GetxController {
     _debounceTimers[tankCode] = Timer(const Duration(milliseconds: 800), () async {
       String cleanHeight = heightText.replaceAll('.', '').replaceAll(',', '.');
       if (cleanHeight.isEmpty) {
-        volCtrl.text = "";
+        volCtrl.text = "0";
         _updateTotalManual();
         return;
       }
@@ -400,10 +400,14 @@ class PenerimaanSetelahController extends GetxController {
             'display_code': tankCode.replaceAll('_', ' ')
           };
 
+          // Tidak meng-overwrite field manual (tetap menggunakan default 0 / input pengguna),
+          // karena data IoT sudah disimpan terpisah di iotSesudahMap.
+          /*
           if (manualInputControllers.containsKey(tankCode)) {
             _silentSetText(manualInputControllers[tankCode]!['volume']!, vol > 0 ? TextConvertHelper().formatNumber(vol) : '');
             _silentSetText(manualInputControllers[tankCode]!['height']!, height > 0 ? TextConvertHelper().formatNumber(height) : '');
           }
+          */
         }
       }
 

@@ -51,6 +51,7 @@ class PenerimaanSebelumController extends GetxController {
   final tinggiTeraSoundingController = TextEditingController();
   final selisihTinggiTeraController = TextEditingController();
   final selisihVolumeTeraController = TextEditingController();
+  final volumeTangkiSolarPengirimController = TextEditingController();
   final nilaiKepekaanController = TextEditingController();
   final segelTangkiAtasController = TextEditingController();
   final segelTangkiBawahController = TextEditingController();
@@ -73,6 +74,7 @@ class PenerimaanSebelumController extends GetxController {
 
     tinggiTeraSpbController.addListener(_calculateTerraDiff);
     tinggiTeraSoundingController.addListener(_calculateTerraDiff);
+    jumlahLtrController.addListener(_calculateVolumeTangkiSolarPengirim);
 
     selisihTinggiTeraController.addListener(_calculateVolumeTerraDiff);
     nilaiKepekaanController.addListener(_calculateVolumeTerraDiff);
@@ -201,8 +203,8 @@ class PenerimaanSebelumController extends GetxController {
   }
 
   void _calculateTerraDiff() {
-    double spb = _parseSafeDouble(tinggiTeraSpbController.text);
-    double check = _parseSafeDouble(tinggiTeraSoundingController.text);
+    double spb = _parseSafeDouble(tinggiTeraSpbController.text, isFormatted: false);
+    double check = _parseSafeDouble(tinggiTeraSoundingController.text, isFormatted: false);
     double diff = spb - check;
 
     selisihTinggiTeraController.text = TextConvertHelper().formatNumber(diff);
@@ -210,8 +212,8 @@ class PenerimaanSebelumController extends GetxController {
   }
 
   void _calculateVolumeTerraDiff() {
-    double diffHeight = _parseSafeDouble(selisihTinggiTeraController.text);
-    double sensitivity = _parseSafeDouble(nilaiKepekaanController.text);
+    double diffHeight = _parseSafeDouble(selisihTinggiTeraController.text, isFormatted: true);
+    double sensitivity = _parseSafeDouble(nilaiKepekaanController.text, isFormatted: false);
 
     if (sensitivity == 0) {
       if (selisihVolumeTeraController.text != "0") {
@@ -226,19 +228,33 @@ class PenerimaanSebelumController extends GetxController {
     if (selisihVolumeTeraController.text != result) {
       selisihVolumeTeraController.text = result;
     }
+    
+    _calculateVolumeTangkiSolarPengirim();
   }
 
-  double _parseSafeDouble(String text) {
-    if (text.isEmpty) return 0.0;
-
-    if (text.contains('.') && !text.contains(',')) {
-      if ('.'.allMatches(text).length == 1) {
-        return double.tryParse(text) ?? 0.0;
-      }
+  void _calculateVolumeTangkiSolarPengirim() {
+    double jumlahLtr = _parseSafeDouble(jumlahLtrController.text, isFormatted: true);
+    double selisihVolTera = _parseSafeDouble(selisihVolumeTeraController.text, isFormatted: true);
+    double result = jumlahLtr - selisihVolTera;
+    String formattedResult = TextConvertHelper().formatNumber(result);
+    
+    if (volumeTangkiSolarPengirimController.text != formattedResult) {
+      volumeTangkiSolarPengirimController.text = formattedResult;
     }
+  }
 
-    String clean = text.replaceAll('.', '').replaceAll(',', '.');
-    return double.tryParse(clean) ?? 0.0;
+  double _parseSafeDouble(String text, {bool isFormatted = false}) {
+    if (text.isEmpty) return 0.0;
+    
+    if (isFormatted) {
+      // Jika field menggunakan pemisah ribuan otomatis (SeparatorInputFormatter / formatNumber)
+      String clean = text.replaceAll('.', '').replaceAll(',', '.');
+      return double.tryParse(clean) ?? 0.0;
+    } else {
+      // Jika field murni angka murni tanpa pemisah ribuan (titik / koma murni dianggap desimal)
+      String clean = text.replaceAll(',', '.');
+      return double.tryParse(clean) ?? 0.0;
+    }
   }
 
   void setActivePhotoLabel(String label) {
@@ -363,6 +379,7 @@ class PenerimaanSebelumController extends GetxController {
       'terra_var': TextConvertHelper().cleanNumber(selisihTinggiTeraController.text),
       'tangki_peka': nilaiKepekaanController.text,
       'selisih_vol_tera': TextConvertHelper().cleanNumber(selisihVolumeTeraController.text),
+      'volume_tangki_solar_pengirim': TextConvertHelper().cleanNumber(volumeTangkiSolarPengirimController.text),
       'segel_tangki_atas': segelTangkiAtasController.text,
       'segel_tangki_bawah': segelTangkiBawahController.text,
       'segel_kondisi': kondisiSegelSelected.value,
@@ -532,7 +549,7 @@ class PenerimaanSebelumController extends GetxController {
     noDoController.dispose(); jumlahLtrController.dispose(); densityObsController.dispose();
     temperatureObsController.dispose(); noPolisiController.dispose(); namaSopirController.dispose();
     kapasitasTangkiController.dispose(); tinggiTeraSpbController.dispose(); tinggiTeraSoundingController.dispose();
-    selisihTinggiTeraController.dispose(); selisihVolumeTeraController.dispose(); nilaiKepekaanController.dispose(); segelTangkiAtasController.dispose();
+    selisihTinggiTeraController.dispose(); selisihVolumeTeraController.dispose(); nilaiKepekaanController.dispose(); segelTangkiAtasController.dispose(); volumeTangkiSolarPengirimController.dispose();
     segelTangkiBawahController.dispose();
     super.onClose();
   }

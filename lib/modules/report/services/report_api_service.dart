@@ -95,8 +95,12 @@ class ReportApiService {
     final token = auth?.access ?? '';
 
     try {
+      final String url = UrlApiStatic.buildDynamicUrl(
+        UrlApiStatic.API_GET_DETAIL_DOC_FULL_APPROVED,
+        noDoc: noDoc,
+      );
       final response = await _apiClient.dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_DETAIL_DOC_FULL_APPROVED,
+        url,
         queryParameters: {
           'no_doc': noDoc,
         },
@@ -122,10 +126,13 @@ class ReportApiService {
     final token = auth?.access ?? '';
 
     try {
-      String urlPath = UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL.replaceAll('{no_doc}', noDoc);
+      final String url = UrlApiStatic.buildDynamicUrl(
+        UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL,
+        noDoc: noDoc,
+      );
 
       final response = await _apiClient.dio.get(
-        UrlApiStatic.API_END_POINT + urlPath,
+        url,
         options: Options(
           headers: {
             "Authorization": "Bearer $token",

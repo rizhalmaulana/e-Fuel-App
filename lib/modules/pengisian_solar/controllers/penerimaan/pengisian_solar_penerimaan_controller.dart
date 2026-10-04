@@ -144,7 +144,13 @@ class PengisianSolarPenerimaanController extends GetxController {
       if (tankDataList.isNotEmpty) {
         for (var tank in tankDataList) {
           if (tank['volume'] != null) {
-            kalkulasiTotalVolume += (tank['volume'] as num).toDouble();
+            double vol = 0.0;
+            if (tank['volume'] is num) {
+              vol = (tank['volume'] as num).toDouble();
+            } else if (tank['volume'] is String) {
+              vol = double.tryParse(tank['volume'].toString()) ?? 0.0;
+            }
+            kalkulasiTotalVolume += vol;
           }
         }
       }

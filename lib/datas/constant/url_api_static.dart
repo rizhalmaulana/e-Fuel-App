@@ -3,6 +3,25 @@ class UrlApiStatic {
   static const String API_END_POINT = 'http://192.168.1.39:8000/api';
   static String TOKEN_API_KEY = r"Xy9$2fG7!LpQz#8VmRt6&NsWb@3KdEj4UhPoYxCq";
 
+  static bool get isProd => API_END_POINT.contains('digilink.teladanprima.com');
+
+  static String buildDynamicUrl(String basePath, {String? noDoc}) {
+    String fullUrl = API_END_POINT + basePath;
+    if (basePath.contains('/transaksi-ebpb/export-pdf')) {
+      if (!isProd && noDoc != null && noDoc.isNotEmpty) {
+        return fullUrl.endsWith('/') ? "$fullUrl$noDoc" : "$fullUrl/$noDoc";
+      }
+      return fullUrl;
+    }
+    if (isProd && noDoc != null && noDoc.isNotEmpty) {
+      if (!fullUrl.endsWith('/')) {
+        fullUrl += '/';
+      }
+      return fullUrl + noDoc;
+    }
+    return fullUrl;
+  }
+
   // POST
   static String API_PAIR_AUTH = '/authentifikasi/pair';
   static String API_CREATE_INBOUND_OPEN = '/e_fuel/inbound-open/create'; // Create Inbound Penerimaan

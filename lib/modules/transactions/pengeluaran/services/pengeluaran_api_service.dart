@@ -456,8 +456,10 @@ class PengeluaranApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url = UrlApiStatic.API_END_POINT +
-        UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL,
+      noDoc: noDoc,
+    );
 
     Map<String, dynamic> payloadData = {
       "status_approve": statusApprove,
@@ -503,8 +505,10 @@ class PengeluaranApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url =
-        "${UrlApiStatic.API_END_POINT}${UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL_BPB}";
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL_BPB,
+      noDoc: noDoc,
+    );
 
     Map<String, dynamic> payloadData = {
       "status_approve": statusApprove,
@@ -551,8 +555,10 @@ class PengeluaranApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url =
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_SIGNATURE_APPROVAL;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_POST_SIGNATURE_APPROVAL,
+      noDoc: noDoc,
+    );
 
     FormData formData = FormData.fromMap({
       'level_approval': levelApproval,
@@ -601,8 +607,10 @@ class PengeluaranApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url =
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_IMAGE_PENGELUARAN;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_POST_IMAGE_PENGELUARAN,
+      noDoc: noDoc,
+    );
 
     FormData formData = FormData.fromMap({
       'foto2': await MultipartFile.fromFile(
@@ -673,8 +681,10 @@ class PengeluaranApiService {
 
   Future<DetailPengeluaranModel?> getDetailPengeluaran(String noDoc) async {
     try {
-      final String url =
-          UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_DETAIL_PENGELUARAN;
+      final String url = UrlApiStatic.buildDynamicUrl(
+        UrlApiStatic.API_GET_DETAIL_PENGELUARAN,
+        noDoc: noDoc,
+      );
       final response = await _apiClient.dio.get(
         url,
         queryParameters: {'no_doc': noDoc},
@@ -735,8 +745,10 @@ class PengeluaranApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url = UrlApiStatic.API_END_POINT +
-        UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN,
+      noDoc: noDoc,
+    );
 
     Map<String, dynamic> payload = {
       'aktual_liter': aktual,
@@ -775,8 +787,10 @@ class PengeluaranApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url =
-        "${UrlApiStatic.API_END_POINT}${UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN_BPB}";
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_POST_ACTUAL_LITER_PENGELUARAN_BPB,
+      noDoc: noDoc,
+    );
 
     Map<String, dynamic> payload = {
       'aktual_liter': aktual,

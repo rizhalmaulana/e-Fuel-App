@@ -337,12 +337,12 @@ class PenerimaanController extends GetxController {
         'capacity': capacity,
       };
 
-      // Isi controller secara "silent" agar tidak memicu listener kalibrasi
+      // Sesuai permintaan: default input manual dikosongkan/di-set 0 
+      // agar tidak otomatis mengambil dari IoT. IoT tetap tersimpan di tankListIoT.
       if (manualInputControllers.containsKey(formattedKey)) {
         final ctrls = manualInputControllers[formattedKey]!;
-        _silentSetText(ctrls['volume']!, TextConvertHelper().formatNumber(vol));
-        _silentSetText(
-            ctrls['height']!, height > 0 ? height.toInt().toString() : '');
+        _silentSetText(ctrls['volume']!, '0');
+        _silentSetText(ctrls['height']!, '0');
       }
     }));
 
@@ -393,8 +393,8 @@ class PenerimaanController extends GetxController {
       final int cap = tank.capacity;
 
       if (!manualInputControllers.containsKey(key)) {
-        final volCtrl = TextEditingController();
-        final heightCtrl = TextEditingController();
+        final volCtrl = TextEditingController(text: '0');
+        final heightCtrl = TextEditingController(text: '0');
 
         volCtrl.addListener(() {
           _updateManualTotalVolume();
@@ -560,8 +560,6 @@ class PenerimaanController extends GetxController {
       List<Map<String, dynamic>> manualData = [];
       List<Map<String, dynamic>> iotData = [];
 
-      final localTanks = _repository.getLocalSensorData(_currentStorageCode);
-
       for (final tank in tankListManualSnapshot) {
         final String code = tank['code']!;
         final ctrls = manualInputControllers[code];
@@ -569,11 +567,9 @@ class PenerimaanController extends GetxController {
         double volIot = 0.0;
         double hIot = 0.0;
         try {
-          final String underscoredCode = code.replaceAll(' ', '_');
-          final e = localTanks.firstWhere(
-              (x) => x.masterSolarTank?.kodeTank == underscoredCode);
-          volIot = e.volume ?? 0.0;
-          hIot = e.height ?? 0.0;
+          final iot = tankListIoT.firstWhere((x) => x['code'] == code);
+          volIot = (iot['volume'] as num?)?.toDouble() ?? 0.0;
+          hIot = (iot['height'] as num?)?.toDouble() ?? 0.0;
         } catch (_) {}
 
         if (ctrls != null) {
@@ -666,11 +662,9 @@ class PenerimaanController extends GetxController {
         double volIot = 0.0;
         double hIot = 0.0;
         try {
-          final String underscoredCode = code.replaceAll(' ', '_');
-          final e = localTanks.firstWhere(
-              (x) => x.masterSolarTank?.kodeTank == underscoredCode);
-          volIot = e.volume ?? 0.0;
-          hIot = e.height ?? 0.0;
+          final iot = tankListIoT.firstWhere((x) => x['code'] == code);
+          volIot = (iot['volume'] as num?)?.toDouble() ?? 0.0;
+          hIot = (iot['height'] as num?)?.toDouble() ?? 0.0;
         } catch (_) {}
 
         tanksPayload.add({
@@ -690,6 +684,8 @@ class PenerimaanController extends GetxController {
       }
 
       try {
+        debugPrint("Payload Sebelum Sounding: $tanksPayload");
+
         await _repository.createInboundTank({
           "no_doc": noBast,
           "no_po": adminData['purch_no'],

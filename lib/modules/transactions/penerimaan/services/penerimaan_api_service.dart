@@ -169,7 +169,10 @@ class PenerimaanApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_UPDATE_STATUS_TRANSACTION_APPROVAL,
+      noDoc: noDoc,
+    );
 
     // Payload JSON Murni
     Map<String, dynamic> payloadData = {
@@ -217,7 +220,10 @@ class PenerimaanApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_SIGNATURE_APPROVAL;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_POST_SIGNATURE_APPROVAL,
+      noDoc: noDoc,
+    );
 
     FormData formData = FormData.fromMap({
       'level_approval': levelApproval,
@@ -265,7 +271,10 @@ class PenerimaanApiService {
     final auth = loginService.getCurrentAuth();
     final token = auth?.access ?? '';
 
-    String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_SIGNATURE_SECURITY;
+    String url = UrlApiStatic.buildDynamicUrl(
+      UrlApiStatic.API_POST_SIGNATURE_SECURITY,
+      noDoc: noDoc,
+    );
 
     FormData formData = FormData.fromMap({
       'image_sign3': await MultipartFile.fromFile(
