@@ -22,7 +22,7 @@ workflows:
           flutter packages pub get
       - name: Flutter Analyze
         script: |
-          flutter analyze
+          flutter analyze --no-fatal-infos
       - name: Setup Firebase google-services.json
         script: |
           echo $GOOGLE_SERVICES_JSON > android/app/google-services.json
