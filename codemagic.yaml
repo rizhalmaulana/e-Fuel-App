@@ -32,6 +32,10 @@ workflows:
       - name: Build with Shorebird
         script: |
           export PATH="$HOME/.shorebird/bin:$PATH"
-          shorebird release android --force
+          echo "Mencoba membuat update OTA (Patch)..."
+          if ! shorebird patch android --force; then
+            echo "Patch gagal (kemungkinan karena versi ini belum pernah dirilis). Membuat Release baru..."
+            shorebird release android --force
+          fi
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
