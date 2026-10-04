@@ -26,7 +26,6 @@ class TransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String rawStatus = (transaction['status'] ?? 'Proses').toString();
 
-    final String noIO = (transaction['noIO'] ?? '-').toString();
     final String noBast = (transaction['noBast'] ?? '-').toString();
     final String unitOrDesc = (transaction['desc'] ?? '-').toString();
     final String platNomer = (transaction['plat'] ?? 'Tidak Ada Plat').toString();
