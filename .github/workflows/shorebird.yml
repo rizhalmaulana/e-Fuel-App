@@ -1,4 +1,4 @@
-name: Shorebird Build & Release
+name: Shorebird CI/CD Pipeline
 
 on:
   push:
@@ -6,10 +6,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Android (Shorebird)
+  # ==========================================
+  # JOB 1: Validasi & Analisis Kode (Cepat ~1 min)
+  # ==========================================
+  validate:
+    name: 🔍 Code Analysis & Lint
     runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
 
+      - name: 💙 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Get Flutter Packages
+        run: flutter pub get
+
+      - name: 🔍 Run Flutter Analyze
+        run: flutter analyze || true
+
+  # ==========================================
+  # JOB 2: Build Shorebird & APK (Jalan jika Job 1 Selesai)
+  # ==========================================
+  build:
+    name: 🚀 Build & Release (Shorebird)
+    needs: [ validate ]
+    runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -34,27 +59,24 @@ jobs:
       - name: 📦 Get Flutter Packages
         run: flutter pub get
 
-      - name: 🔍 Flutter Analyze
-        run: flutter analyze || true
-
       - name: 🔑 Setup Firebase google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-            echo "google-services.json successfully generated from secret."
+            echo "google-services.json successfully generated."
           else
             echo "Notice: GOOGLE_SERVICES_JSON secret not provided."
           fi
 
-      - name: 🚀 Build with Shorebird (Patch or Release)
+      - name: 🚀 Shorebird Smart Build (Patch or Release)
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
           echo "Mencoba membuat update OTA (Patch)..."
           if ! shorebird patch android; then
-            echo "Patch gagal (kemungkinan karena versi ini belum pernah dirilis). Membuat Release baru..."
+            echo "Patch gagal. Membuat Release baru..."
             shorebird release android --artifact=apk
           fi
 
