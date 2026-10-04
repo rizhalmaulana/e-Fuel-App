@@ -46,6 +46,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   final dateLogResponse = ''.obs;
   final isManualInput = false.obs;
   final isTamu = false.obs;
+  final isVendor = false.obs;
 
   final List<String> jenisPengeluaranOptions = ['Bon Sementara', 'BPB'];
   final selectedJenisPengeluaran = 'Bon Sementara'.obs;
@@ -138,6 +139,10 @@ class PengisianSolarPengeluaranController extends GetxController {
     
     isManualInput.value = args['isManualInput'] ?? false;
     isTamu.value = unitIO.value.toUpperCase().contains('TAMU');
+    // Kategori VENDOR dikirim dari form Pengeluaran; fallback ke payload
+    // kategori_kendaraan ('VEN') bila dibuka dari jalur lain (tracking/draft).
+    isVendor.value = (args['isVendor'] as bool?) ??
+        (payload['kategori_kendaraan']?.toString().toUpperCase() == 'VEN');
 
     // Ambil storage code aktif dari Home Controller
     String rawStorage = _homeController.selectedStorage.value;
@@ -495,6 +500,7 @@ class PengisianSolarPengeluaranController extends GetxController {
           secondaryColor: AppColors.secondaryOrange,
           primaryButtonText: "Kembali ke Beranda",
           onPrimaryPressed: () {
+            Get.back();
             Get.offAllNamed(Routes.HOME);
           },
         ),
@@ -542,6 +548,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   }
 
   Future<void> saveAndExit() async {
+    Get.back();
     Get.offAllNamed(Routes.HOME);
   }
 }

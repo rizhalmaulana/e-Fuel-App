@@ -152,6 +152,27 @@ class PengeluaranController extends GetxController {
     return selectedKategoriKendaraan.value == 'TAMU';
   }
 
+  bool get isVendor {
+    if (masterKategoriList.isNotEmpty) {
+      return _selectedKategoriObj?.kategoriKendaraan == 'VEN';
+    }
+    return (selectedKategoriKendaraan.value ?? '').toUpperCase() == 'VENDOR';
+  }
+
+  /// INTERNAL NON (kode kategori 'INC'): wajib pilih Kode Kebun/Pabrik.
+  bool get isInternalNon {
+    if (masterKategoriList.isNotEmpty) {
+      final code =
+          (_selectedKategoriObj?.kategoriKendaraan ?? '').toUpperCase();
+      if (code == 'INC') return true;
+      if (code == 'INT' || code == 'VEN' || code.startsWith('TM')) {
+        return false;
+      }
+    }
+    final v = (selectedKategoriKendaraan.value ?? '').toUpperCase();
+    return v.contains('INTERNAL NON') || v.trim() == 'INC';
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -273,12 +294,16 @@ class PengeluaranController extends GetxController {
       _setupInternalMode();
       searchUnit('');
 
-      if (valUpper.contains('VENDOR') || (!valUpper.contains('NON') && valUpper.contains('INTERNAL'))) {
+      if (isVendor || !isInternalNon) {
+        // INTERNAL (INT) & VENDOR: pakai unit milik user yang login.
         selectedKodeKebunPabrik.value = userTitleUnit.value;
         selectedKodeUnitKebunPabrik.value = userKodeUnit.value;
       } else {
+        // INTERNAL NON (INC): user wajib pilih Kode Kebun/Pabrik,
+        // refresh daftarnya dari server agar selalu terbaru.
         selectedKodeKebunPabrik.value = null;
         selectedKodeUnitKebunPabrik.value = null;
+        refreshKodeKebunList();
       }
 
       fetchUnitList();
@@ -441,7 +466,7 @@ class PengeluaranController extends GetxController {
   }
 
   void _calculateAutomatedValues() {
-    if (isTamu) return;
+    if (isTamu || isVendor) return;
 
     if (isTipeGenset) {
       _calculateGensetDiff();
@@ -583,7 +608,14 @@ class PengeluaranController extends GetxController {
       final res = await _apiService.getMasterKategoriKendaraan(isActive: true);
       if (res.isNotEmpty) {
         masterKategoriList.assignAll(res);
-        jenisKategoriList.assignAll(res.map((e) => e.namaKategori).where((e) => e.isNotEmpty).toList());
+        // Hilangkan duplikat & spasi berlebih dari API agar value dropdown
+        // selalu tepat satu (mencegah assertion DropdownButton).
+        final names = res
+            .map((e) => e.namaKategori.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet()
+            .toList();
+        jenisKategoriList.assignAll(names);
         if (selectedKategoriKendaraan.value == null || !jenisKategoriList.contains(selectedKategoriKendaraan.value)) {
           var firstInternal = res.firstWhere((e) => e.kategoriKendaraan == 'INT', orElse: () => res.first);
           selectedKategoriKendaraan.value = firstInternal.namaKategori;
@@ -651,6 +683,34 @@ class PengeluaranController extends GetxController {
         fetchUnitList();
         fetchMasterKategori();
       }
+    }
+  }
+
+  /// Refresh daftar Kode Kebun/Pabrik dari server TANPA me-reset pilihan
+  /// kategori (tidak seperti [fetchUnitsPerArea] yang dipakai saat init).
+  /// Dipanggil saat kategori INTERNAL NON (INC) dipilih.
+  Future<void> refreshKodeKebunList() async {
+    final auth = _loginService.getCurrentAuth();
+    if (auth == null || auth.currentKodeUnit == null) return;
+    isLoadingUnitsPerArea.value = true;
+    try {
+      var data = await _apiService.getUnitsPerArea(auth.currentKodeUnit!);
+
+      List<String> titles = [];
+      List<String> units = [];
+      for (var item in data) {
+        String title = item['title_unit']?.toString() ?? "";
+        String unit = item['kode_unit']?.toString() ?? "";
+        if (title.isNotEmpty && !titles.contains(title)) titles.add(title);
+        if (unit.isNotEmpty && !units.contains(unit)) units.add(unit);
+      }
+
+      listTitleUnitPerArea.assignAll(titles);
+      listKodeUnitPerArea.assignAll(units);
+    } catch (e) {
+      print("Error refreshKodeKebunList: $e");
+    } finally {
+      isLoadingUnitsPerArea.value = false;
     }
   }
 
@@ -1119,7 +1179,7 @@ class PengeluaranController extends GetxController {
         selectedUnit.value == null ||
         selectedStatusSupir.value == null ||
         driverNameC.text.isEmpty ||
-        (!isTamu && pengisianSolarC.text.isEmpty) ||
+        (!isTamu && !isVendor && pengisianSolarC.text.isEmpty) ||
         platController.text.isEmpty) {
       Get.snackbar('Data Belum Lengkap', 'Harap lengkapi semua form inputan!',
           backgroundColor: AppColors.alertSoftRed,
@@ -1160,7 +1220,7 @@ class PengeluaranController extends GetxController {
       return false;
     }
 
-    if ((selectedKategoriKendaraan.value ?? '').contains('INTERNAL NON') &&
+    if (isInternalNon &&
         selectedKodeKebunPabrik.value == null) {
       Get.snackbar(
           'Data Belum Lengkap', 'Pilih Kode Kebun/Pabrik terlebih dahulu!',
@@ -1181,15 +1241,15 @@ class PengeluaranController extends GetxController {
     double inputSolar = double.tryParse(
             TextConvertHelper().cleanNumber(pengisianSolarC.text)) ??
         0;
-    if (inputSolar <= 0 && !isTamu && !isTipeGenset) {
+    if (inputSolar <= 0 && !isTamu && !isTipeGenset && !isVendor) {
       Get.snackbar(
           'Validasi Solar', 'Jumlah pengisian solar harus lebih dari 0',
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       return false;
     }
 
-    // Validasi untuk Tipe Kendaraan (KD/AB) - Kecuali Tamu
-    if (isTipeKendaraan && !isTamu) {
+    // Validasi untuk Tipe Kendaraan (KD/AB) - Kecuali Tamu & Vendor
+    if (isTipeKendaraan && !isTamu && !isVendor) {
       double awal =
           double.tryParse(TextConvertHelper().cleanNumber(hmKmAwalC.text)) ?? 0;
       double akhir =
@@ -1210,8 +1270,8 @@ class PengeluaranController extends GetxController {
       }
     }
 
-    // Validasi untuk Genset (Menggunakan Tanggal) - Kecuali Tamu
-    if (!isTipeKendaraan && !isTamu) {
+    // Validasi untuk Genset (Menggunakan Tanggal) - Kecuali Tamu & Vendor
+    if (!isTipeKendaraan && !isTamu && !isVendor) {
       // Asumsi GS atau lainnya pakai Tanggal
       if (dateAwalC.text.isNotEmpty && dateAkhirC.text.isNotEmpty) {
         DateTime? start = _parseFlexibleDate(dateAwalC.text);
@@ -1528,6 +1588,7 @@ class PengeluaranController extends GetxController {
             secondaryColor: AppColors.secondaryOrange,
             primaryButtonText: "Kembali ke Beranda",
             onPrimaryPressed: () {
+              Get.back();
               Get.offAllNamed(Routes.HOME);
             },
           ),
@@ -1548,6 +1609,7 @@ class PengeluaranController extends GetxController {
             'status': 'pengisian_solar_pengeluaran',
             'payload': payloadRequestAPI,
             'isManualInput': isManualInput.value,
+            'isVendor': isVendor,
             'jenis_pengeluaran': selectedJenisBon.value,
           },
         );

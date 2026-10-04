@@ -215,9 +215,16 @@ class PengeluaranView extends GetView<PengeluaranController> {
     String? value,
     String? hint,
   }) {
+    // Safety: hilangkan duplikat & pastikan value ada di items.
+    // Mencegah crash "There should be exactly one item with
+    // [DropdownButton]'s value" saat list dari API berubah / terduplikat
+    // sementara value lama masih terpilih.
+    final safeItems = items.toSet().toList();
+    final safeValue =
+        (value != null && safeItems.contains(value)) ? value : null;
     return DropdownButtonFormField<String>(
       isExpanded: true,
-      value: value,
+      value: safeValue,
       icon:
           const Icon(Icons.keyboard_arrow_down, color: AppColors.primaryOrange),
       decoration: InputDecoration(
@@ -240,7 +247,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
           style: AppFonts.fUrbanistLight12
               .copyWith(color: AppColors.secondaryText)),
       selectedItemBuilder: (BuildContext context) {
-        return items.map<Widget>((String item) {
+        return safeItems.map<Widget>((String item) {
           // Panggil widget running text yang baru kita buat
           return AutoScrollText(
             text: item.toUpperCase(),
@@ -249,7 +256,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
           );
         }).toList();
       },
-      items: items.map((String val) {
+      items: safeItems.map((String val) {
         return DropdownMenuItem<String>(
           value: val,
           child: Text(val.toUpperCase(),
@@ -841,8 +848,7 @@ class PengeluaranView extends GetView<PengeluaranController> {
                               );
                             }
 
-                            if (controller.selectedKategoriKendaraan.value!
-                                .contains('INTERNAL NON')) {
+                            if (controller.isInternalNon) {
                               return _buildStandardDropdown(
                                 items: controller.listTitleUnitPerArea,
                                 value: controller.selectedKodeKebunPabrik.value,
@@ -1013,15 +1019,28 @@ class PengeluaranView extends GetView<PengeluaranController> {
             ),
 
             Obx(() {
-              if (!controller.isManualInput.value && (controller.isTipeGenset || controller.isTamu)) {
+              if (!controller.isManualInput.value &&
+                  (controller.isTipeGenset ||
+                      controller.isTamu ||
+                      controller.isVendor)) {
                 return const SizedBox.shrink();
               }
               return _buildSectionCard(
-                title: (controller.isTamu || controller.isTipeGenset) ? "Data Pengisian Solar" : "Data HM/KM",
-                icon: (controller.isTamu || controller.isTipeGenset) ? Icons.local_gas_station_rounded : Icons.speed_rounded,
+                title: (controller.isTamu ||
+                        controller.isTipeGenset ||
+                        controller.isVendor)
+                    ? "Data Pengisian Solar"
+                    : "Data HM/KM",
+                icon: (controller.isTamu ||
+                        controller.isTipeGenset ||
+                        controller.isVendor)
+                    ? Icons.local_gas_station_rounded
+                    : Icons.speed_rounded,
                 children: [
                   Obx(() {
-                    if (controller.isTamu || controller.isTipeGenset) {
+                    if (controller.isTamu ||
+                        controller.isTipeGenset ||
+                        controller.isVendor) {
                       return const SizedBox.shrink();
                     }
 
@@ -1104,7 +1123,9 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     );
                   }),
                   Obx(() {
-                    if (controller.isTamu || controller.isTipeGenset) {
+                    if (controller.isTamu ||
+                        controller.isTipeGenset ||
+                        controller.isVendor) {
                       return const SizedBox.shrink();
                     }
                     return Column(
@@ -1162,7 +1183,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                     );
                   }),
                   Obx(() {
-                    if (controller.isTipeGenset && controller.isManualInput.value) {
+                    if ((controller.isTipeGenset || controller.isVendor) &&
+                        controller.isManualInput.value) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

@@ -81,16 +81,16 @@ class PenerimaanView extends GetView<PenerimaanController> {
                 style: AppFonts.fUrbanistMedium12
                     .copyWith(color: AppColors.secondaryText),
               ),
-              Obx(() => InkWell(
-                    onTap: controller.refreshData,
-                    child: controller.isRefreshing.value
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.refresh,
-                            color: AppColors.primary, size: 18),
-                  )),
+              // Obx(() => InkWell(
+              //       onTap: controller.refreshData,
+              //       child: controller.isRefreshing.value
+              //           ? const SizedBox(
+              //               width: 18,
+              //               height: 18,
+              //               child: CircularProgressIndicator(strokeWidth: 2))
+              //           : const Icon(Icons.refresh,
+              //               color: AppColors.primary, size: 18),
+              //     )),
             ],
           ),
           const SizedBox(height: 4),

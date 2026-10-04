@@ -58,7 +58,7 @@ class ApprovalService {
           ? UrlApiStatic.API_EXPORT_EBPB_PDF_DOC 
           : UrlApiStatic.API_EXPORT_PDF_DOC;
 
-      String url = UrlApiStatic.API_END_POINT + endpoint;
+      String url = UrlApiStatic.buildDynamicUrl(endpoint, noDoc: noDoc);
 
       Directory? dir;
       if (Platform.isAndroid) {
@@ -101,7 +101,7 @@ class ApprovalService {
   Future<Map<String, dynamic>?> getInboundOpenDetail(String noDoc) async {
     try {
       final auth = _loginService.getCurrentAuth();
-      String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL;
+      String url = UrlApiStatic.buildDynamicUrl(UrlApiStatic.API_GET_INBOUND_OPEN_DETAIL, noDoc: noDoc);
 
       final response = await _apiClient.dio.get(
         url,
@@ -128,8 +128,12 @@ class ApprovalService {
   Future<Map<String, dynamic>?> getEbpbDetail(String noDoc) async {
     try {
       final auth = _loginService.getCurrentAuth();
+      final String url = UrlApiStatic.buildDynamicUrl(
+        UrlApiStatic.API_GET_TRANSACTION_DETAIL_EBPB,
+        noDoc: noDoc,
+      );
       final response = await _apiClient.dio.get(
-        UrlApiStatic.API_END_POINT + UrlApiStatic.API_GET_TRANSACTION_DETAIL_EBPB,
+        url,
         queryParameters: {
           'no_doc': noDoc,
         },

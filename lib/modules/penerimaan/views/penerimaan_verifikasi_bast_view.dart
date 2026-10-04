@@ -342,9 +342,15 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           const SizedBox(height: 16),
 
           _buildTextField(
-              "Volume Tangki Pengirim (Ltr)",
+              "Kapasitas Tangki Pengirim (Ltr)",
               controller.volumePengirimController,
               onChanged: (val) => controller.hitungVarian()
+          ),
+
+          _buildTextField(
+              "Volume Tangki Solar Pengirim (Ltr)",
+              controller.volumeTangkiSolarPengirimController,
+              readOnly: true
           ),
 
           _buildTextField(
@@ -354,7 +360,7 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
           ),
 
           _buildTextField(
-              "Varian / Sisa Solar Pengirim (Ltr)",
+              "Volume Selisih Solar (Ltr)",
               controller.varianController,
               readOnly: true
           ),
@@ -455,13 +461,14 @@ class PenerimaanVerifikasiBastView extends GetView<PenerimaanVerifikasiBastContr
                   // --- PERHITUNGAN FISIK / VOLUME SOLAR ---
                   _buildSectionTitle("Pemeriksaan Volume Solar"),
 
-                  _buildSummaryRow("Vol. Tangki Pengirim", "${controller.volumePengirimController.text} Ltr"),
+                  _buildSummaryRow("Kapasitas Tangki Pengirim", "${controller.volumePengirimController.text} Ltr"),
+                  _buildSummaryRow("Volume Tangki Solar Pengirim", "${controller.volumeTangkiSolarPengirimController.text} Ltr"),
                   _buildSummaryRow("Total Solar Diterima Kebun", "${controller.volumeKebunController.text} Ltr"),
                   Container(
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
-                    child: _buildSummaryRow("Sisa Solar", "${controller.varianController.text} Ltr"),
+                    child: _buildSummaryRow("Varian Solar", "${controller.varianController.text} Ltr"),
                   ),
                 ],
               );
