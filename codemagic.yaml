@@ -4,6 +4,8 @@ workflows:
     max_build_duration: 120
     environment:
       flutter: stable
+      groups:
+        - firebase
     scripts:
       - name: Set up local.properties
         script: |
