@@ -11,6 +11,9 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter packages pub get
+      - name: Setup Firebase google-services.json
+        script: |
+          echo $GOOGLE_SERVICES_JSON > android/app/google-services.json
       - name: Build Android APK
         script: |
           flutter build apk --release
