@@ -14,6 +14,7 @@ import '../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../datas/models/filling/filling_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
 import '../../../helpers/connectivity_helper.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
@@ -321,24 +322,24 @@ class PenerimaanVerifikasiBastController extends GetxController {
   Future<void> submitBast() async {
     if (!await ConnectivityHelper.validateNetwork()) return;
 
-    Get.dialog(
+    final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),
         title: "Konfirmasi Submit",
         message: "Apakah Anda yakin data dan tanda tangan sudah benar?",
         primaryColor: AppColors.primary,
         secondaryButtonText: "Cek Lagi",
-        onSecondaryPressed: () => Get.back(),
+        onSecondaryPressed: () => Get.back(result: false),
         primaryButtonText: "Ya, Submit",
-        onPrimaryPressed: () {
-          Get.back();
-          Future.delayed(const Duration(milliseconds: 300), () {
-            _processSubmit();
-          });
-        },
+        onPrimaryPressed: () => Get.back(result: true),
       ),
       barrierDismissible: false,
     );
+
+    if (confirm == true) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      _processSubmit();
+    }
   }
 
   Future<void> _processSubmit() async {
@@ -463,7 +464,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
         Get.back();
       }
 
-      String errorMessage = (e is String) ? e : TextConvertHelper().handleApiError(e);
+      String errorMessage = (e is String) ? e : NetworkErrorHelper.getFriendlyErrorMessage(e);
       print("ERROR SUBMIT BAST: $e");
 
       _showResultDialog(isSuccess: false, message: errorMessage);

@@ -19,6 +19,7 @@ import '../../../datas/models/master_io/master_io_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_model.dart';
 import '../../../helpers/connectivity_helper.dart';
 import '../../../helpers/lotties_helper.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/component/custom_camera_view.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
@@ -1326,8 +1327,8 @@ class PengeluaranController extends GetxController {
     return true;
   }
 
-  void _processSubmitToApi() {
-    Get.dialog(
+  Future<void> _processSubmitToApi() async {
+    final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieConfirmation(),
         title: "Konfirmasi Submit",
@@ -1335,17 +1336,18 @@ class PengeluaranController extends GetxController {
         primaryColor: AppColors.primaryOrange,
         secondaryColor: AppColors.secondaryOrange,
         secondaryButtonText: "Kembali",
-        onSecondaryPressed: () => Get.back(),
+        onSecondaryPressed: () => Get.back(result: false),
         primaryButtonText: "Submit",
-        onPrimaryPressed: () {
-          if (isSubmitting.value) return;
-          isSubmitting.value = true;
-          Get.back();
-          _submitDataToApi();
-        },
+        onPrimaryPressed: () => Get.back(result: true),
       ),
       barrierDismissible: false,
     );
+
+    if (confirm == true) {
+      if (isSubmitting.value) return;
+      await Future.delayed(const Duration(milliseconds: 150));
+      _submitDataToApi();
+    }
   }
 
   Future<void> _submitDataToApi() async {
@@ -1631,45 +1633,9 @@ class PengeluaranController extends GetxController {
 
 
   void _handleApiError(DioException e) {
-    String title = "Gagal Submit";
-    String message = "Terjadi kesalahan koneksi";
-
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.sendTimeout) {
-      title = "Waktu Koneksi Habis (Timeout)";
-      message = "Koneksi ke server terlalu lambat atau terputus. Pastikan sinyal stabil dan coba lagi.";
-    } else if (e.type == DioExceptionType.connectionError) {
-      title = "Tidak Ada Koneksi";
-      message = "Gagal terhubung ke server. Periksa jaringan internet Anda.";
-    } else if (e.response != null) {
-      int statusCode = e.response!.statusCode ?? 500;
-      var data = e.response!.data;
-      String detailMsg = "";
-
-      if (data is Map && data['detail'] != null) {
-        detailMsg = data['detail'].toString();
-      }
-
-      if (statusCode == 404) {
-        message = detailMsg.isNotEmpty ? detailMsg : "Internal Order (IO) tidak ditemukan.";
-      } else if (statusCode == 400) {
-        message = detailMsg.isNotEmpty ? detailMsg : "Data request tidak valid.";
-      } else if (statusCode == 500) {
-        message = "Terjadi kesalahan pada Server (Internal Server Error).";
-      } else {
-        message = detailMsg.isNotEmpty ? detailMsg : "Error Code: $statusCode";
-      }
-    }
-
-    Get.snackbar(
-      title,
-      message,
-      backgroundColor: AppColors.alertSoftRed,
-      colorText: Colors.white,
-      snackPosition: SnackPosition.TOP,
-      duration: const Duration(seconds: 5),
-      margin: const EdgeInsets.all(16),
+    NetworkErrorHelper.showErrorSnackbar(
+      title: "Gagal Submit",
+      error: e,
     );
   }
 

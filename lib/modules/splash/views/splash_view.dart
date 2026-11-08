@@ -116,7 +116,7 @@ class SplashView extends GetView<SplashController> {
                 
                 // Informasi Versi di paling bawah
                 Text(
-                  'versi ${AppConfig.versionProd}',
+                  'versi ${AppConfig.displayVersion}',
                   textAlign: TextAlign.center,
                   style: AppFonts.fUrbanistMedium12.copyWith(
                     color: AppColors.secondaryText,

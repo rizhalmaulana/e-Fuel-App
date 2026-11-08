@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../configs/app_colors.dart';
 import '../../../configs/app_icons.dart';
 import '../../../datas/models/auth/auth_response_model.dart';
 import '../../../datas/models/inbound/inbound_model.dart';
@@ -93,11 +94,135 @@ class HomeController extends GetxController {
   final outstandingTransactions = <Map<String, dynamic>>[].obs;
   final selectedDraftFilter = 'Semua'.obs;
 
-  List<Map<String, dynamic>> get filteredOutstandingTransactions {
-    if (selectedDraftFilter.value == 'Penerimaan') {
-      return outstandingTransactions.where((tx) => tx['type'] == 'FIN').toList();
+  // Filter & Search Draft Transaksi
+  final draftSearchQuery = ''.obs;
+  final draftStartDate = Rxn<DateTime>();
+  final draftEndDate = Rxn<DateTime>();
+  final TextEditingController draftSearchController = TextEditingController();
+
+  bool get isDraftFiltered =>
+      draftSearchQuery.value.trim().isNotEmpty ||
+      draftStartDate.value != null ||
+      draftEndDate.value != null;
+
+  String get draftFilterLabel {
+    if (draftStartDate.value != null && draftEndDate.value != null) {
+      final start = DateFormat('dd/MM').format(draftStartDate.value!);
+      final end = DateFormat('dd/MM').format(draftEndDate.value!);
+      if (start == end) return start;
+      return '$start - $end';
+    } else if (draftStartDate.value != null) {
+      return DateFormat('dd/MM').format(draftStartDate.value!);
+    } else if (draftSearchQuery.value.trim().isNotEmpty) {
+      final q = draftSearchQuery.value.trim();
+      return q.length > 10 ? '${q.substring(0, 10)}...' : q;
     }
-    return outstandingTransactions;
+    return 'Filter & Cari';
+  }
+
+  void resetDraftFilters() {
+    draftSearchQuery.value = '';
+    draftSearchController.clear();
+    draftStartDate.value = null;
+    draftEndDate.value = null;
+  }
+
+  void setDraftDatePreset(String preset) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (preset == 'today') {
+      draftStartDate.value = today;
+      draftEndDate.value = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    } else if (preset == '7days') {
+      draftStartDate.value = today.subtract(const Duration(days: 7));
+      draftEndDate.value = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    } else if (preset == '30days') {
+      draftStartDate.value = today.subtract(const Duration(days: 30));
+      draftEndDate.value = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    } else if (preset == 'all') {
+      draftStartDate.value = null;
+      draftEndDate.value = null;
+    }
+  }
+
+  Future<void> pickDraftDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      locale: const Locale('id', 'ID'),
+      initialDateRange: draftStartDate.value != null && draftEndDate.value != null
+          ? DateTimeRange(start: draftStartDate.value!, end: draftEndDate.value!)
+          : null,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      draftStartDate.value = picked.start;
+      draftEndDate.value = picked.end;
+    }
+  }
+
+  List<Map<String, dynamic>> get filteredOutstandingTransactions {
+    List<Map<String, dynamic>> list = outstandingTransactions;
+
+    // Filter berdasarkan query pencarian (No BAST atau No PO)
+    final query = draftSearchQuery.value.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      list = list.where((tx) {
+        final noBast = (tx['noBast'] ?? '').toString().toLowerCase();
+        final noPo = (tx['noPo'] ?? '').toString().toLowerCase();
+        return noBast.contains(query) || noPo.contains(query);
+      }).toList();
+    }
+
+    // Filter berdasarkan rentang tanggal
+    if (draftStartDate.value != null || draftEndDate.value != null) {
+      list = list.where((tx) {
+        final rawDate = tx['rawDate'];
+        DateTime? txDate;
+        if (rawDate is DateTime) {
+          txDate = rawDate;
+        } else if (rawDate is String) {
+          txDate = DateTime.tryParse(rawDate);
+        }
+        if (txDate == null) return true;
+
+        if (draftStartDate.value != null) {
+          final start = DateTime(
+            draftStartDate.value!.year,
+            draftStartDate.value!.month,
+            draftStartDate.value!.day,
+          );
+          if (txDate.isBefore(start)) return false;
+        }
+
+        if (draftEndDate.value != null) {
+          final end = DateTime(
+            draftEndDate.value!.year,
+            draftEndDate.value!.month,
+            draftEndDate.value!.day,
+            23, 59, 59,
+          );
+          if (txDate.isAfter(end)) return false;
+        }
+
+        return true;
+      }).toList();
+    }
+
+    return list;
   }
 
   // Permissions
@@ -117,14 +242,24 @@ class HomeController extends GetxController {
 
     _loadDataForActiveUser().then((success) async {
       try {
-        if (success) {
-          await _initialDataSync();
-        } else {
+        if (!success) {
           Get.offAllNamed(Routes.LOGIN);
+          return;
         }
+
+        // Cache-First (Optimistic UI):
+        // Jika data lokal sudah ada di Hive (misal user baru selesai transaksi dan kembali ke Home),
+        // langsung matikan skeleton agar dashboard tampil seketika (0 ms blocking).
+        if (_cachedStorages.isNotEmpty || manualTanksList.isNotEmpty) {
+          isLoading.value = false;
+        }
+
+        // Jalankan sinkronisasi data server secara non-blocking di background
+        await _initialDataSync();
       } catch (e) {
         print("Error in initial load: $e");
       } finally {
+        // Pastikan loading skeleton selalu mati apapun kondisinya
         isLoading.value = false;
       }
     }).catchError((e) {
@@ -151,9 +286,11 @@ class HomeController extends GetxController {
       final authData = _loginService.getCurrentAuth();
       if (authData == null) return;
 
-      final unitCode = authData.currentKodeUnit;
+      final unitCode = selectedUnitCode.value.isNotEmpty
+          ? selectedUnitCode.value
+          : (authData.currentKodeUnit ?? '');
 
-      if (unitCode != null && unitCode.isNotEmpty) {
+      if (unitCode.isNotEmpty) {
         final apiStorages = await _masterDataService.getStorageFromUnit(unitId: unitCode);
 
         if (apiStorages.isNotEmpty) {
@@ -176,16 +313,17 @@ class HomeController extends GetxController {
     final auth = _loginService.getCurrentAuth();
     if (auth == null) return;
 
-    outstandingTransactions.clear();
-    approvalTransactions.clear();
+    // Tidak melakukan clear() agar data lokal yang sudah tampil tidak berkedip/hilang
+    // assignAll() akan menimpa data secara mulus begitu respon server diterima
 
-    if (auth.user.isApprover) {
-      await _loadApproverTransactions();
-    } else {
-      await _loadServerOpenTransactions();
-    }
+    // 1. Pastikan master data & storage tersinkronisasi dari server terlebih dahulu
+    await _syncMasterDataFromServer();
 
-    _syncMasterDataFromServer();
+    // 2. Muat transaksi (Draft / Approval) dan refresh data tangki secara bersamaan
+    await Future.wait([
+      auth.user.isApprover ? _loadApproverTransactions() : _loadServerOpenTransactions(),
+      _refreshTankData(),
+    ]);
   }
 
   Future<bool> _loadDataForActiveUser() async {
@@ -197,8 +335,11 @@ class HomeController extends GetxController {
     await _sensorService.initSensorBox(username);
     await _fuelDataService.openFuelDataBox(username);
 
-    loadUserData(authData: authData);
-    _fetchAndSetUnitTitle(selectedUnitCode.value);
+    // Set selectedUnitCode lebih awal agar tidak bernilai kosong saat sync
+    selectedUnitCode.value = authData.currentKodeUnit ?? 'E000';
+
+    await loadUserData(authData: authData);
+    await _fetchAndSetUnitTitle(selectedUnitCode.value);
 
     // Muat data storage dari cache lokal
     _cachedStorages = _fuelDataService.getLocalStorages();
@@ -215,7 +356,45 @@ class HomeController extends GetxController {
       isUsingOfflineData.value = true; // tandai sementara sebagai offline
     }
 
+    // Muat draft transaksi lokal terlebih dahulu agar UI langsung terisi tanpa menunggu server
+    await _loadLocalDrafts(authData);
+
     return true;
+  }
+
+  Future<void> _loadLocalDrafts(AuthResponseModel authData) async {
+    try {
+      final kodeUnit = selectedUnitCode.value.isNotEmpty
+          ? selectedUnitCode.value
+          : (authData.currentKodeUnit ?? '');
+      final outstandingService = OutstandingService(authData.user.username);
+      final localList = await outstandingService.getAllCombinedTransactions();
+
+      final List<Map<String, dynamic>> temp = [];
+      for (var item in localList) {
+        if (item is TransactionModel && item.status != 'selesai') {
+          final rawDateStr = item.dataSebelum?.dateInbound ?? item.dateCreated;
+          DateTime? parsedDate = DateTime.tryParse(rawDateStr);
+          temp.add({
+            'noBast': item.noBast,
+            'noPo': item.dataSebelum?.purchNo ?? '-',
+            'title': 'Draft Penerimaan',
+            'type': 'FIN',
+            'date': TextConvertHelper().formatDate(rawDateStr),
+            'rawDate': parsedDate ?? DateTime.now(),
+            'amount': "${(item.dataSebelum?.volumeVendor ?? 0).toInt()} L",
+            'status': 'Draft',
+            'unit': item.dataSebelum?.kodeUnit ?? kodeUnit,
+            'source': 'local',
+          });
+        }
+      }
+      if (temp.isNotEmpty && outstandingTransactions.isEmpty) {
+        outstandingTransactions.assignAll(temp);
+      }
+    } catch (e) {
+      debugPrint("⚠️ [HomeController] Gagal memuat draft lokal: $e");
+    }
   }
 
   void _updateUiFromManualData() {
@@ -311,33 +490,36 @@ class HomeController extends GetxController {
   Future<void> onRefreshData() async {
     if (!await ConnectivityHelper.validateNetwork()) return;
 
-    isLoading.value = true;
     try {
-      await Future.wait([
-        _initialDataSync(),
-        _refreshTankData(),
-      ]);
-
-      if (selectedUnitCode.value.isNotEmpty && selectedStorage.value.isNotEmpty) {
-        final storageCode = _getStorageCode(selectedStorage.value);
-        // await _homeService.initDataFlow(selectedUnitCode.value, storageCode);
-        // await _fetchManualTanksApi(selectedUnitCode.value, storageCode);
-      }
+      await _initialDataSync();
     } catch (e) {
       debugPrint("Error saat refresh: $e");
-    } finally {
-      isLoading.value = false;
     }
   }
 
   Future<void> _refreshTankData() async {
-    if (selectedUnitCode.value.isNotEmpty && selectedStorage.value.isNotEmpty) {
+    // Jika storage belum terpilih namun tersedia, pilih lokasi pertama
+    if (storageLocations.isNotEmpty &&
+        (selectedStorage.value.isEmpty ||
+         selectedStorage.value == 'Pilih Lokasi Storage' ||
+         !storageLocations.contains(selectedStorage.value))) {
+      selectedStorage.value = storageLocations.first;
+    }
+
+    if (selectedUnitCode.value.isNotEmpty &&
+        selectedStorage.value.isNotEmpty &&
+        selectedStorage.value != 'Tidak ada Storage' &&
+        selectedStorage.value != 'Pilih Lokasi Storage') {
       final storageCode = _getStorageCode(selectedStorage.value);
 
-      await Future.wait([
-        _homeService.initDataFlow(selectedUnitCode.value, storageCode),
-        _fetchManualTanksApi(selectedUnitCode.value, storageCode),
-      ]).timeout(const Duration(seconds: 15));
+      try {
+        await Future.wait([
+          _homeService.initDataFlow(selectedUnitCode.value, storageCode),
+          _fetchManualTanksApi(selectedUnitCode.value, storageCode),
+        ]);
+      } catch (e) {
+        debugPrint("⚠️ [HomeController] Sinkronisasi tangki gagal/timeout: $e");
+      }
     }
   }
 
@@ -496,7 +678,15 @@ class HomeController extends GetxController {
       final authData = _loginService.getCurrentAuth();
       if (authData == null) return;
 
-      final kodeUnit = selectedUnitCode.value;
+      final kodeUnit = selectedUnitCode.value.isNotEmpty
+          ? selectedUnitCode.value
+          : (authData.currentKodeUnit ?? '');
+
+      if (kodeUnit.isEmpty) {
+        debugPrint("⚠️ [HomeController] kodeUnit kosong, melewati _loadServerOpenTransactions");
+        return;
+      }
+
       final List<Map<String, dynamic>> tempOutstanding = [];
 
       // 1. Fetch Drafts from API Server (status_inbound == 'O')
@@ -512,11 +702,14 @@ class HomeController extends GetxController {
               (item.approvals == null || item.approvals!.isEmpty);
 
           if (isDraft) {
+            DateTime? parsedDate = DateTime.tryParse(item.dateInbound ?? '');
             tempOutstanding.add({
               'noBast': item.noDoc ?? '-',
+              'noPo': item.noPo ?? '-',
               'title': 'Draft Penerimaan',
               'type': 'FIN',
               'date': TextConvertHelper().formatDate(item.dateInbound),
+              'rawDate': parsedDate ?? DateTime.now(),
               'amount': "${(item.volumeVendor ?? 0).toInt()} L",
               'status': 'Draft',
               'unit': item.kodeUnit,
@@ -537,11 +730,15 @@ class HomeController extends GetxController {
           if (item is TransactionModel && item.status != 'selesai') {
             bool exists = tempOutstanding.any((tx) => tx['noBast'] == item.noBast);
             if (!exists) {
+              final rawDateStr = item.dataSebelum?.dateInbound ?? item.dateCreated;
+              DateTime? parsedDate = DateTime.tryParse(rawDateStr);
               tempOutstanding.add({
                 'noBast': item.noBast,
+                'noPo': item.dataSebelum?.purchNo ?? '-',
                 'title': 'Draft Penerimaan',
                 'type': 'FIN',
-                'date': TextConvertHelper().formatDate(item.dataSebelum?.dateInbound ?? item.dateCreated),
+                'date': TextConvertHelper().formatDate(rawDateStr),
+                'rawDate': parsedDate ?? DateTime.now(),
                 'amount': "${(item.dataSebelum?.volumeVendor ?? 0).toInt()} L",
                 'status': 'Draft',
                 'unit': item.dataSebelum?.kodeUnit ?? kodeUnit,
@@ -701,7 +898,7 @@ class HomeController extends GetxController {
     }
   }
 
-  void loadUserData({AuthResponseModel? authData}) async {
+  Future<void> loadUserData({AuthResponseModel? authData}) async {
     if (authData != null) {
       final user = authData.user;
       final unitCode = authData.currentKodeUnit ?? 'E000';
@@ -748,7 +945,7 @@ class HomeController extends GetxController {
 
     await _fetchAndSetUnitTitle(unit['kode_unit']);
     await _syncMasterDataFromServer();
-    _initialDataSync();
+    await _initialDataSync();
   }
 
   void _generateUserMenu(UserModel user) {
@@ -923,6 +1120,7 @@ class HomeController extends GetxController {
   @override
   void onClose() {
     _connectivitySubscription?.cancel();
+    draftSearchController.dispose();
     super.onClose();
   }
 }

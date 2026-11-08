@@ -4,6 +4,7 @@ import 'package:get/get.dart' hide FormData, MultipartFile;
 import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/network/api_client_network.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../../auth/services/login_service.dart';
 import 'package:intl/intl.dart';
 
@@ -37,7 +38,7 @@ class PengembalianService {
       return [];
     } catch (e) {
       print("Error getListPengembalian: $e");
-      return [];
+      throw Exception(NetworkErrorHelper.getFriendlyErrorMessage(e));
     }
   }
 
@@ -93,27 +94,26 @@ class PengembalianService {
       
       throw Exception('Server mengembalikan status: ${response.statusCode}');
     } on DioException catch (e) {
-      String errMsg = 'Gagal mengupload data. Silakan coba lagi.';
-      if (e.response != null) {
-        switch (e.response!.statusCode) {
-          case 400: errMsg = 'Permintaan tidak valid, bisa hubungi admin E-Fuel.'; break;
-          case 401: errMsg = 'Sesi Anda telah habis, silakan login kembali.'; break;
-          case 403: errMsg = 'Anda tidak memiliki akses untuk melakukan tindakan ini.'; break;
-          case 404: errMsg = 'Layanan tidak ditemukan.'; break;
-          case 422: errMsg = 'Data yang dikirimkan tidak lengkap atau tidak sesuai.'; break;
-          case 500:
-          case 502:
-          case 503: errMsg = 'Terjadi kesalahan pada server, mohon coba beberapa saat lagi.'; break;
-          default: errMsg = 'Terjadi kesalahan sistem (Kode: ${e.response!.statusCode}).';
+      print("DioException submitPengembalian: ${e.response?.statusCode} - ${e.response?.data}");
+
+      // Deteksi jika server sebenarnya sudah menerima data sebelumnya (Duplicate / Already Exists)
+      final responseBody = e.response?.data?.toString().toLowerCase() ?? '';
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 400 || statusCode == 409 || statusCode == 422) {
+        if (responseBody.contains('sudah') ||
+            responseBody.contains('already') ||
+            responseBody.contains('exist') ||
+            responseBody.contains('terdaftar') ||
+            responseBody.contains('duplicate')) {
+          print("ℹ️ [PengembalianService] Data pengembalian sudah tercatat di server sebelumnya.");
+          return true;
         }
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-        errMsg = 'Koneksi terputus (Timeout). Periksa sinyal internet Anda.';
-      } else {
-        errMsg = 'Tidak dapat terhubung ke server. Pastikan internet Anda stabil.';
       }
-      throw Exception(errMsg);
+
+      throw Exception(NetworkErrorHelper.getFriendlyErrorMessage(e));
     } catch (e) {
-      throw Exception('Terjadi kesalahan yang tidak terduga pada aplikasi.');
+      print("Error submitPengembalian: $e");
+      throw Exception(NetworkErrorHelper.getFriendlyErrorMessage(e));
     }
   }
 }

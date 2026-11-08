@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../datas/constant/url_api_static.dart';
 import '../../../../datas/network/api_client_network.dart';
 import '../../../../datas/models/transfer/transfer_solar_model.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../../auth/services/login_service.dart';
 
 class TransferOfflineService {
@@ -213,44 +214,27 @@ class TransferOfflineService {
       }
       throw Exception('Server mengembalikan status: ${response.statusCode}');
     } on DioException catch (e) {
-      String errMsg = 'Gagal mengupload data. Silakan coba lagi.';
-      
-      if (e.response != null) {
-        switch (e.response!.statusCode) {
-          case 400:
-            errMsg = 'Permintaan tidak valid, mohon periksa kembali input Anda.';
-            break;
-          case 401:
-            errMsg = 'Sesi Anda telah habis, silakan login kembali.';
-            break;
-          case 403:
-            errMsg = 'Anda tidak memiliki akses untuk melakukan tindakan ini.';
-            break;
-          case 404:
-            errMsg = 'Layanan tidak ditemukan (404).';
-            break;
-          case 422:
-            errMsg = 'Data yang dikirimkan tidak lengkap atau tidak sesuai (422).';
-            break;
-          case 500:
-          case 502:
-          case 503:
-            errMsg = 'Terjadi kesalahan pada server, mohon coba beberapa saat lagi.';
-            break;
-          default:
-            errMsg = 'Terjadi kesalahan sistem (Kode: ${e.response!.statusCode}).';
+      print("DioException uploadTransfer: ${e.response?.statusCode} - ${e.response?.data}");
+
+      // Deteksi jika server sebenarnya sudah menerima data sebelumnya (Duplicate / Already Exists)
+      final responseBody = e.response?.data?.toString().toLowerCase() ?? '';
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 400 || statusCode == 409 || statusCode == 422) {
+        if (responseBody.contains('sudah') ||
+            responseBody.contains('already') ||
+            responseBody.contains('exist') ||
+            responseBody.contains('terdaftar') ||
+            responseBody.contains('duplicate')) {
+          print("ℹ️ [TransferOfflineService] Data transfer sudah tercatat di server sebelumnya. Menghapus draft lokal.");
+          await data.delete();
+          return true;
         }
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-        errMsg = 'Koneksi terputus (Timeout). Periksa sinyal internet Anda.';
-      } else {
-        errMsg = 'Tidak dapat terhubung ke server. Pastikan internet Anda stabil.';
       }
 
-      print("DioException uploadTransfer: ${e.response?.statusCode} - ${e.response?.data}");
-      throw Exception(errMsg);
+      throw Exception(NetworkErrorHelper.getFriendlyErrorMessage(e));
     } catch (e) {
       print("Error uploadTransfer: $e");
-      throw Exception('Terjadi kesalahan yang tidak terduga pada aplikasi.');
+      throw Exception(NetworkErrorHelper.getFriendlyErrorMessage(e));
     }
   }
 }

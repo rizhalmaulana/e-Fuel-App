@@ -1,9 +1,13 @@
+import '../../configs/app_config.dart';
+
 class UrlApiStatic {
-  // static const String API_END_POINT = 'https://digilink.teladanprima.com/api';
-  static const String API_END_POINT = 'http://192.168.1.39:8000/api';
+  /// Base API Endpoint disinkronkan otomatis dari AppConfig (Single Source of Truth).
+  /// Cukup ubah `AppConfig.currentEnv` untuk beralih antara PROD, DEV, atau LOKAL.
+
+  static String get API_END_POINT => AppConfig.baseUrl;
   static String TOKEN_API_KEY = r"Xy9$2fG7!LpQz#8VmRt6&NsWb@3KdEj4UhPoYxCq";
 
-  static bool get isProd => API_END_POINT.contains('digilink.teladanprima.com');
+  static bool get isProd => AppConfig.isProd;
 
   static String buildDynamicUrl(String basePath, {String? noDoc}) {
     String fullUrl = API_END_POINT + basePath;

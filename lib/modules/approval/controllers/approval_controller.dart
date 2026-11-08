@@ -9,6 +9,7 @@ import 'package:signature/signature.dart';
 import '../../../configs/app_colors.dart';
 import '../../auth/services/login_service.dart';
 import '../services/approval_service.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
 
 class ApprovalController extends GetxController {
@@ -94,75 +95,86 @@ class ApprovalController extends GetxController {
 
     Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primary)), barrierDismissible: false);
 
-    File? signFile;
-    if (status == 'APPROVED') {
-      final Uint8List? data = await signatureController.toPngBytes();
-      final tempDir = await getTemporaryDirectory();
-      signFile = await File('${tempDir.path}/sign_approval_${DateTime.now().millisecondsSinceEpoch}.png').create();
-      await signFile.writeAsBytes(data!);
-    }
-
-    final auth = _loginService.getCurrentAuth();
-    final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
-    final kodeUnit = auth?.currentKodeUnit ?? ''; // Ambil kode unit untuk parameter getApprovalList
-
-    final success = await _approvalService.submitPenerimaanApprovalDecision(
-      noDoc: noBast,
-      levelApproval: userLevel,
-      status: status,
-      note: noteController.text,
-      signature: signFile,
-    );
-
-    if (success) {
-      // PENGECEKAN FULL APPROVED
+    try {
+      File? signFile;
       if (status == 'APPROVED') {
-        final approvalList = await _approvalService.getApprovalList(
-          kodeUnit: kodeUnit,
-          noBast: noBast,
-          transactionType: transactionType,
-        );
-
-        // Jika data ada, dan SEMUA status_approve-nya adalah 'APPROVED' (tidak ada yang PENDING/REJECTED)
-        bool isFullApproved = approvalList.isNotEmpty &&
-            approvalList.every((appv) => appv.statusApprove?.toUpperCase() == 'APPROVED');
-
-        if (isFullApproved) {
-          String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
-
-          Get.back(); // Tutup loading progress dialog
-          Get.offAllNamed(Routes.HOME); // Arahkan ke Home
-
-          if (downloadedFilePath != null) {
-            Get.snackbar(
-              "Full Approved!",
-              "Dokumen berhasil diunduh.",
-              backgroundColor: Colors.green,
-              colorText: Colors.white,
-            );
-
-            await Future.delayed(const Duration(milliseconds: 500));
-            await OpenFilex.open(downloadedFilePath);
-
-          } else {
-            Get.snackbar(
-              "Full Approved!",
-              "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
-              backgroundColor: Colors.orange,
-              colorText: Colors.white,
-            );
-          }
-          return;
-        }
+        final Uint8List? data = await signatureController.toPngBytes();
+        final tempDir = await getTemporaryDirectory();
+        signFile = await File('${tempDir.path}/sign_approval_${DateTime.now().millisecondsSinceEpoch}.png').create();
+        await signFile.writeAsBytes(data!);
       }
 
-      // (Belum Full Approved atau REJECTED)
-      Get.back();
-      Get.offAllNamed(Routes.HOME);
-      Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
-    } else {
-      Get.back();
-      Get.snackbar("Gagal", "Terjadi kesalahan saat memproses data", backgroundColor: Colors.red, colorText: Colors.white);
+      final auth = _loginService.getCurrentAuth();
+      final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
+      final kodeUnit = auth?.currentKodeUnit ?? ''; // Ambil kode unit untuk parameter getApprovalList
+
+      final success = await _approvalService.submitPenerimaanApprovalDecision(
+        noDoc: noBast,
+        levelApproval: userLevel,
+        status: status,
+        note: noteController.text,
+        signature: signFile,
+      );
+
+      if (success) {
+        // PENGECEKAN FULL APPROVED
+        if (status == 'APPROVED') {
+          final approvalList = await _approvalService.getApprovalList(
+            kodeUnit: kodeUnit,
+            noBast: noBast,
+            transactionType: transactionType,
+          );
+
+          // Jika data ada, dan SEMUA status_approve-nya adalah 'APPROVED' (tidak ada yang PENDING/REJECTED)
+          bool isFullApproved = approvalList.isNotEmpty &&
+              approvalList.every((appv) => appv.statusApprove?.toUpperCase() == 'APPROVED');
+
+          if (isFullApproved) {
+            String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
+
+            Get.back(); // Tutup loading progress dialog
+            Get.offAllNamed(Routes.HOME); // Arahkan ke Home
+
+            if (downloadedFilePath != null) {
+              Get.snackbar(
+                "Full Approved!",
+                "Dokumen berhasil diunduh.",
+                backgroundColor: Colors.green,
+                colorText: Colors.white,
+              );
+
+              await Future.delayed(const Duration(milliseconds: 500));
+              await OpenFilex.open(downloadedFilePath);
+
+            } else {
+              Get.snackbar(
+                "Full Approved!",
+                "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+              );
+            }
+            return;
+          }
+        }
+
+        // (Belum Full Approved atau REJECTED)
+        Get.back();
+        Get.offAllNamed(Routes.HOME);
+        Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
+      } else {
+        Get.back();
+        NetworkErrorHelper.showErrorSnackbar(
+          title: "Gagal Proses Dokumen",
+          error: "Terjadi kesalahan saat memproses keputusan approval. Silakan coba lagi.",
+        );
+      }
+    } catch (e) {
+      if (Get.isDialogOpen ?? false) Get.back();
+      NetworkErrorHelper.showErrorSnackbar(
+        title: "Gagal Proses Dokumen",
+        error: e,
+      );
     }
   }
 

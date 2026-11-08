@@ -11,6 +11,7 @@ import '../../../configs/app_colors.dart';
 import '../../auth/services/login_service.dart';
 import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import '../services/approval_service.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
 
 class ApprovalEbpbController extends GetxController {
@@ -210,8 +211,10 @@ class ApprovalEbpbController extends GetxController {
           
     } catch (e) {
       Get.back(); // Tutup loading progress dialog
-      Get.snackbar("Gagal", "Terjadi kesalahan saat memproses data",
-          backgroundColor: Colors.red, colorText: Colors.white);
+      NetworkErrorHelper.showErrorSnackbar(
+        title: "Gagal Proses E-BPB",
+        error: e,
+      );
       print("Error submit EBPB: $e");
     }
   }

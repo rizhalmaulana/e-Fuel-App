@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../services/pengembalian_service.dart';
 
 class PengembalianController extends GetxController {
@@ -38,7 +39,10 @@ class PengembalianController extends GetxController {
       });
       transaksiList.assignAll(data);
     } catch (e) {
-      Get.snackbar('Error', 'Gagal memuat data pengembalian');
+      NetworkErrorHelper.showErrorSnackbar(
+        title: 'Gagal Memuat Data',
+        error: e,
+      );
     } finally {
       isLoading.value = false;
     }

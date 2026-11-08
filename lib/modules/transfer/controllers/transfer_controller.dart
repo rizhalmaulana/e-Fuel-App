@@ -6,6 +6,7 @@ import '../../../../datas/models/transfer/transfer_solar_model.dart';
 import '../../../../configs/app_colors.dart';
 import '../../../../configs/app_fonts.dart';
 import '../../../../helpers/connectivity_helper.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
 
@@ -225,11 +226,9 @@ class TransferController extends GetxController {
       bool isOnline = await ConnectivityHelper.isConnected();
       if (!isOnline) {
         _isProcessRunning = false;
-        Get.snackbar(
-          'Offline',
-          'Koneksi internet diperlukan untuk mengunggah data.',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
+        NetworkErrorHelper.showErrorSnackbar(
+          title: 'Tidak Ada Koneksi',
+          error: 'Koneksi internet diperlukan untuk mengunggah data ke server.',
         );
         return;
       }
@@ -239,8 +238,8 @@ class TransferController extends GetxController {
         return;
       }
 
-      // Tampilkan Dialog Konfirmasi
-      Get.dialog(
+      // Tampilkan Dialog Konfirmasi dan tunggu hasilnya sampai dialog benar-benar tertutup
+      final bool? confirm = await Get.dialog<bool>(
         DialogFlexible(
           logo: LottiesHelper().getLottieQuestion(),
           title: 'Konfirmasi Upload',
@@ -248,18 +247,20 @@ class TransferController extends GetxController {
           primaryColor: AppColors.primaryOrange,
           secondaryColor: AppColors.secondaryOrange,
           primaryButtonText: 'Ya, Upload',
-          onPrimaryPressed: () {
-            Get.back(); // close dialog
-            _processUpload(data);
-          },
+          onPrimaryPressed: () => Get.back(result: true),
           secondaryButtonText: 'Batal',
-          onSecondaryPressed: () {
-            Get.back();
-            _isProcessRunning = false;
-          },
+          onSecondaryPressed: () => Get.back(result: false),
         ),
         barrierDismissible: false,
       );
+
+      if (confirm == true) {
+        // Beri jeda agar transisi penutupan dialog konfirmasi selesai sempurna
+        await Future.delayed(const Duration(milliseconds: 150));
+        await _processUpload(data);
+      } else {
+        _isProcessRunning = false;
+      }
     } catch (e) {
       _isProcessRunning = false;
     }
@@ -277,11 +278,9 @@ class TransferController extends GetxController {
       bool isOnline = await ConnectivityHelper.isConnected();
       if (!isOnline) {
         _isProcessRunning = false;
-        Get.snackbar(
-          'Offline',
-          'Koneksi internet diperlukan untuk mengunggah data.',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
+        NetworkErrorHelper.showErrorSnackbar(
+          title: 'Tidak Ada Koneksi',
+          error: 'Koneksi internet diperlukan untuk mengunggah data ke server.',
         );
         return;
       }
@@ -291,7 +290,7 @@ class TransferController extends GetxController {
         return;
       }
 
-      Get.dialog(
+      final bool? confirm = await Get.dialog<bool>(
         DialogFlexible(
           logo: LottiesHelper().getLottieQuestion(),
           title: 'Konfirmasi Upload Semua',
@@ -299,18 +298,19 @@ class TransferController extends GetxController {
           primaryColor: AppColors.primaryOrange,
           secondaryColor: AppColors.secondaryOrange,
           primaryButtonText: 'Upload Semua',
-          onPrimaryPressed: () {
-            Get.back(); // close dialog
-            _processUploadAll(dataToUpload);
-          },
+          onPrimaryPressed: () => Get.back(result: true),
           secondaryButtonText: 'Batal',
-          onSecondaryPressed: () {
-            Get.back();
-            _isProcessRunning = false;
-          },
+          onSecondaryPressed: () => Get.back(result: false),
         ),
         barrierDismissible: false,
       );
+
+      if (confirm == true) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        await _processUploadAll(dataToUpload);
+      } else {
+        _isProcessRunning = false;
+      }
     } catch (e) {
       _isProcessRunning = false;
     }
@@ -348,10 +348,12 @@ class TransferController extends GetxController {
       }
     } catch (e) {
       if (Get.isDialogOpen ?? false) Get.back(); // close dialog
-      String displayError = e.toString().replaceAll('Exception: ', '');
-      Get.snackbar('Gagal', displayError,
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, duration: const Duration(seconds: 5));
+      NetworkErrorHelper.showErrorSnackbar(
+        title: 'Gagal Upload',
+        error: e,
+      );
     } finally {
+      if (Get.isDialogOpen ?? false) Get.back();
       _isProcessRunning = false;
     }
   }
@@ -401,10 +403,11 @@ class TransferController extends GetxController {
         Get.snackbar('Sukses', '$successCount data berhasil diupload ke server',
             backgroundColor: Colors.green, colorText: Colors.white);
       } else {
-        Get.snackbar('Selesai dengan Error', '$successCount berhasil, $failCount gagal diupload',
+        Get.snackbar('Selesai', '$successCount berhasil, $failCount gagal diupload. Silakan coba kembali untuk data yang gagal.',
             backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, duration: const Duration(seconds: 5));
       }
     } finally {
+      if (Get.isDialogOpen ?? false) Get.back();
       _isProcessRunning = false;
     }
   }

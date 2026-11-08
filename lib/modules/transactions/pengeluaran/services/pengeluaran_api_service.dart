@@ -13,6 +13,7 @@ import '../../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
 import '../../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
 import '../../../../datas/models/volume_storage/volume_storage.dart';
 import '../../../../datas/network/api_client_network.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../../../auth/services/login_service.dart';
 
 class PengeluaranApiService {
@@ -955,38 +956,7 @@ class PengeluaranApiService {
   }
 
   String _handleDioError(DioException e) {
-    if (e.response != null) {
-      String serverMsg = "";
-      try {
-        if (e.response?.data != null && e.response?.data is Map) {
-          serverMsg = (e.response?.data['message'] ?? e.response?.data['error'] ?? e.response?.data.toString());
-        }
-      } catch (_) {}
-
-      if (serverMsg.isNotEmpty && 
-          !serverMsg.toLowerCase().contains("html") && 
-          !serverMsg.toLowerCase().contains("exception")) {
-        return serverMsg;
-      }
-
-      switch (e.response!.statusCode) {
-        case 400: return 'Permintaan tidak valid, periksa kembali input Anda.';
-        case 401: return 'Sesi habis, silakan login kembali.';
-        case 403: return 'Akses ditolak oleh server.';
-        case 404: return 'Data atau layanan tidak ditemukan.';
-        case 422: return 'Data yang diinputkan tidak lengkap atau tidak sesuai.';
-        case 500:
-        case 502:
-        case 503: return 'Server sedang bermasalah atau sibuk. Coba beberapa saat lagi.';
-        default: return 'Terjadi kesalahan pada server (Kode: ${e.response!.statusCode}).';
-      }
-    } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-      return 'Waktu koneksi habis. Pastikan sinyal internet stabil dan coba lagi.';
-    } else if (e.type == DioExceptionType.connectionError) {
-      return 'Tidak ada koneksi internet. Periksa jaringan Anda.';
-    } else {
-      return 'Gagal terhubung ke server. Silakan coba lagi.';
-    }
+    return NetworkErrorHelper.getFriendlyErrorMessage(e);
   }
 
   void _logError(String context, dynamic e) {

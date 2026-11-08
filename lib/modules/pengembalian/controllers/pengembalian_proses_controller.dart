@@ -6,6 +6,7 @@ import '../../../../configs/app_colors.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
 import '../../../../widgets/dialog/dialog_flexible.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../services/pengembalian_service.dart';
 import 'pengembalian_controller.dart';
@@ -92,7 +93,7 @@ class PengembalianProsesController extends GetxController {
     if (index == 3) foto3Path.value = null;
   }
 
-  void submit() {
+  Future<void> submit() async {
     // Validate inputs
     int varianInput = int.tryParse(varianLiterController.text.toString()) ?? 0;
 
@@ -116,21 +117,23 @@ class PengembalianProsesController extends GetxController {
     //   return;
     // }
 
-    Get.dialog(
+    final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         title: 'Konfirmasi Submit',
         message: 'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
         primaryButtonText: 'Ya, Submit',
-        onPrimaryPressed: () {
-          Get.back();
-          _doSubmit(varianInput);
-        },
+        onPrimaryPressed: () => Get.back(result: true),
         secondaryButtonText: 'Batal',
-        onSecondaryPressed: () => Get.back(),
+        onSecondaryPressed: () => Get.back(result: false),
         logo: LottiesHelper().getLottieConfirmation(),
       ),
       barrierDismissible: false,
     );
+
+    if (confirm == true) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      _doSubmit(varianInput);
+    }
   }
 
   Future<void> _doSubmit(int varianInput) async {
@@ -169,7 +172,7 @@ class PengembalianProsesController extends GetxController {
         foto1Path: foto1Path.value,
       );
 
-      Get.back(); // close loading dialog
+      if (Get.isDialogOpen ?? false) Get.back(); // close loading dialog
 
       if (success) {
         Get.snackbar(
@@ -187,11 +190,19 @@ class PengembalianProsesController extends GetxController {
            listController.fetchData();
         } catch(e) {}
       } else {
-        Get.snackbar('Gagal', 'Gagal submit pengembalian.', backgroundColor: Colors.red, colorText: Colors.white);
+        NetworkErrorHelper.showErrorSnackbar(
+          title: 'Gagal Submit',
+          error: 'Gagal submit pengembalian. Silakan periksa koneksi dan coba lagi.',
+        );
       }
     } catch (e) {
-      Get.back(); // close dialog
-      Get.snackbar('Gagal', 'Terjadi kesalahan: $e', backgroundColor: Colors.red, colorText: Colors.white);
+      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
+      NetworkErrorHelper.showErrorSnackbar(
+        title: 'Gagal Submit',
+        error: e,
+      );
+    } finally {
+      if (Get.isDialogOpen ?? false) Get.back();
     }
   }
 

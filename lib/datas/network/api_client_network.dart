@@ -43,18 +43,19 @@ class ApiClientNetwork {
     dio = Dio(
       BaseOptions(
         baseUrl: UrlApiStatic.API_END_POINT,
-        connectTimeout: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 20),
-        sendTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(seconds: 25),
         headers: {
           'Content-Type': 'application/json',
         },
       ),
     );
-    // (Opsional) Interceptor error
+    // Interceptor error
     dio.interceptors.add(InterceptorsWrapper(
       onError: (DioException e, handler) {
         if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.receiveTimeout ||
             e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.unknown) {

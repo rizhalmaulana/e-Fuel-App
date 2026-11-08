@@ -20,6 +20,7 @@ import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import '../../../datas/models/widgets/penerimaan_step.dart';
 import '../../../helpers/calibration_helper.dart';
 import '../../../helpers/lotties_helper.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
@@ -499,23 +500,23 @@ class PenerimaanController extends GetxController {
   Future<void> validateAndProceed() async {
     if (!_validateInputs()) return;
 
-    Get.dialog(
+    final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieConfirmation(),
         title: "Konfirmasi Sounding Stok",
         message: "Apakah Sounding Stok Solar (Manual) sudah sesuai?",
         secondaryButtonText: "Batal",
-        onSecondaryPressed: () => Get.back(),
+        onSecondaryPressed: () => Get.back(result: false),
         primaryButtonText: "Submit",
-        onPrimaryPressed: () {
-          Get.back();
-          Future.delayed(const Duration(milliseconds: 300), () {
-            submitFinalTransaction();
-          });
-        },
+        onPrimaryPressed: () => Get.back(result: true),
       ),
       barrierDismissible: false,
     );
+
+    if (confirm == true) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      submitFinalTransaction();
+    }
   }
 
   void _updateManualTotalVolume() {
@@ -766,18 +767,9 @@ class PenerimaanController extends GetxController {
   }
 
   void _handleError(Object e) {
-    String msg =
-        e.toString().replaceAll(RegExp(r'(Exception:|Error:)'), '').trim();
-    if (msg.contains("Timeout") || msg.contains("time out"))
-      msg = "RTO: Server tidak merespon.";
-    else if (msg.contains("SocketException"))
-      msg = "Koneksi internet bermasalah.";
-    else if (msg.length > 100) msg = "${msg.substring(0, 100)}...";
-    CustomSnackbar.show(
+    NetworkErrorHelper.showErrorSnackbar(
       title: "Gagal Submit",
-      message: msg,
-      backgroundColor: AppColors.alertSoftRed,
-      textColor: Colors.white,
+      error: e,
     );
   }
 

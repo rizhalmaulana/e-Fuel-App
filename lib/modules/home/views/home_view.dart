@@ -1,6 +1,7 @@
 import 'package:e_fuel/modules/home/views/home_skeleton_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 
@@ -557,29 +558,42 @@ class HomeView extends GetView<HomeController> {
                       ),
                     );
                   } else {
-                    return Container(
-                      height: 30,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.fieldBackground),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: controller.selectedDraftFilter.value,
-                          isDense: true,
-                          icon: const Icon(Icons.filter_list, size: 14, color: AppColors.secondaryText),
-                          style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.primaryText),
-                          onChanged: (val) {
-                            if (val != null) controller.selectedDraftFilter.value = val;
-                          },
-                          items: ['Semua', 'Penerimaan'].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value, style: AppFonts.fUrbanistMedium10),
-                            );
-                          }).toList(),
+                    return GestureDetector(
+                      onTap: () => _showDraftFilterBottomSheet(context),
+                      child: Container(
+                        height: 30,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: controller.isDraftFiltered ? AppColors.primary.withOpacity(0.08) : AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: controller.isDraftFiltered ? AppColors.primary : AppColors.fieldBackgroundDark,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              controller.isDraftFiltered ? Icons.filter_alt : Icons.filter_alt_outlined,
+                              size: 14,
+                              color: controller.isDraftFiltered ? AppColors.primary : AppColors.secondaryText,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              controller.draftFilterLabel,
+                              style: AppFonts.fUrbanistMedium10.copyWith(
+                                color: controller.isDraftFiltered ? AppColors.primary : AppColors.primaryText,
+                                fontWeight: controller.isDraftFiltered ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            if (controller.isDraftFiltered) ...[
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => controller.resetDraftFilters(),
+                                child: const Icon(Icons.close, size: 12, color: AppColors.primary),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     );
@@ -609,9 +623,19 @@ class HomeView extends GetView<HomeController> {
                         Text(
                             controller.isApprover.value
                                 ? (controller.selectedApprovalFilter.value != 'Semua' ? "Tidak ada approval ${controller.selectedApprovalFilter.value}" : "Tidak ada transaksi berjalan")
-                                : (controller.selectedDraftFilter.value != 'Semua' ? "Tidak ada draft ${controller.selectedDraftFilter.value}" : "Tidak ada transaksi berjalan"),
+                                : (controller.isDraftFiltered ? "Tidak ada draft yang cocok dengan filter" : "Tidak ada transaksi berjalan"),
                             style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText)
                         ),
+                        if (!controller.isApprover.value && controller.isDraftFiltered) ...[
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () => controller.resetDraftFilters(),
+                            child: Text(
+                              "Reset Filter",
+                              style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primary),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -619,7 +643,7 @@ class HomeView extends GetView<HomeController> {
               );
             }
             return SizedBox(
-              height: 155,
+              height: 165,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -643,8 +667,236 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
+  void _showDraftFilterBottomSheet(BuildContext context) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // Header Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Filter & Cari Draft',
+                    style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+                  ),
+                  Obx(() {
+                    if (controller.isDraftFiltered) {
+                      return GestureDetector(
+                        onTap: () => controller.resetDraftFilters(),
+                        child: Text(
+                          'Reset Filter',
+                          style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Search Input (No BAST / No PO)
+              Text(
+                'Cari No BAST / No PO',
+                style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller.draftSearchController,
+                onChanged: (val) => controller.draftSearchQuery.value = val,
+                style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.primaryText),
+                decoration: InputDecoration(
+                  hintText: 'Ketik No BAST atau No PO...',
+                  hintStyle: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.secondaryText),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 20),
+                  suffixIcon: Obx(() {
+                    if (controller.draftSearchQuery.value.isNotEmpty) {
+                      return IconButton(
+                        icon: const Icon(Icons.clear, size: 18, color: AppColors.secondaryText),
+                        onPressed: () {
+                          controller.draftSearchController.clear();
+                          controller.draftSearchQuery.value = '';
+                        },
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                  filled: true,
+                  fillColor: AppColors.backgroundGrey,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Date Range Filter Section
+              Text(
+                'Filter Rentang Tanggal',
+                style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText),
+              ),
+              const SizedBox(height: 8),
+
+              // Preset chips: Semua, Hari Ini, 7 Hari, 30 Hari
+              Obx(() {
+                final start = controller.draftStartDate.value;
+                final end = controller.draftEndDate.value;
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+
+                bool isAll = start == null && end == null;
+                bool isToday = start != null && end != null &&
+                    start.year == today.year && start.month == today.month && start.day == today.day &&
+                    end.day == today.day;
+                bool is7Days = start != null && end != null &&
+                    today.difference(start).inDays >= 6 && today.difference(start).inDays <= 8;
+                bool is30Days = start != null && end != null &&
+                    today.difference(start).inDays >= 29 && today.difference(start).inDays <= 31;
+
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildFilterChip('Semua', isAll, () => controller.setDraftDatePreset('all')),
+                    _buildFilterChip('Hari Ini', isToday, () => controller.setDraftDatePreset('today')),
+                    _buildFilterChip('7 Hari', is7Days, () => controller.setDraftDatePreset('7days')),
+                    _buildFilterChip('30 Hari', is30Days, () => controller.setDraftDatePreset('30days')),
+                  ],
+                );
+              }),
+              const SizedBox(height: 10),
+
+              // Custom Date Picker container
+              GestureDetector(
+                onTap: () => controller.pickDraftDateRange(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundGrey,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: controller.draftStartDate.value != null ? AppColors.primary : Colors.transparent,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Obx(() {
+                          final start = controller.draftStartDate.value;
+                          final end = controller.draftEndDate.value;
+                          if (start != null && end != null) {
+                            final startStr = DateFormat('dd MMM yyyy', 'id_ID').format(start);
+                            final endStr = DateFormat('dd MMM yyyy', 'id_ID').format(end);
+                            return Text(
+                              startStr == endStr ? startStr : '$startStr - $endStr',
+                              style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.primaryText),
+                            );
+                          } else if (start != null) {
+                            return Text(
+                              DateFormat('dd MMM yyyy', 'id_ID').format(start),
+                              style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.primaryText),
+                            );
+                          }
+                          return Text(
+                            'Pilih Tanggal / Rentang Custom...',
+                            style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.secondaryText),
+                          );
+                        }),
+                      ),
+                      Obx(() {
+                        if (controller.draftStartDate.value != null) {
+                          return GestureDetector(
+                            onTap: () {
+                              controller.draftStartDate.value = null;
+                              controller.draftEndDate.value = null;
+                            },
+                            child: const Icon(Icons.close, size: 18, color: AppColors.secondaryText),
+                          );
+                        }
+                        return const Icon(Icons.chevron_right, size: 20, color: AppColors.secondaryText);
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Button Terapkan
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Terapkan Filter',
+                    style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.backgroundGrey,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: AppFonts.fUrbanistSemiBold12.copyWith(
+            color: isSelected ? AppColors.white : AppColors.primaryText,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSimpleTransactionCard(Map<String, dynamic> tx, double screenWidth, VoidCallback onTap) {
     String noDoc = (tx['noBast'] ?? tx['no_doc'] ?? '-').toString();
+    String noPo = (tx['noPo'] ?? '-').toString();
     String tanggal = (tx['date'] ?? tx['tanggal'] ?? '-').toString();
     String rawStatus = (tx['status'] ?? 'Draft').toString();
     bool isDraft = rawStatus.toLowerCase() == 'draft';
@@ -665,8 +917,8 @@ class HomeView extends GetView<HomeController> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: (screenWidth * 0.48).clamp(150.0, 200.0),
-        padding: const EdgeInsets.all(14),
+        width: (screenWidth * 0.48).clamp(160.0, 210.0),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
@@ -689,11 +941,15 @@ class HomeView extends GetView<HomeController> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(noDoc, style: AppFonts.fUrbanistBold12.copyWith(color: AppColors.primaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 6),
+                if (noPo != '-' && noPo.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text("PO: $noPo", style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.secondaryText),
+                    const SizedBox(width: 4),
                     Expanded(child: Text(tanggal, style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ],
                 ),

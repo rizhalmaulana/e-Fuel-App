@@ -217,7 +217,7 @@ class TransferKonfirmasiController extends GetxController {
       return;
     }
 
-    Get.dialog(
+    final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieQuestion(),
         title: 'Konfirmasi',
@@ -225,14 +225,17 @@ class TransferKonfirmasiController extends GetxController {
         primaryColor: AppColors.primaryOrange,
         secondaryColor: AppColors.secondaryOrange,
         primaryButtonText: 'Ya, Simpan',
-        onPrimaryPressed: () {
-          Get.back(); // close dialog
-          _processSubmit(aktual);
-        },
+        onPrimaryPressed: () => Get.back(result: true),
         secondaryButtonText: 'Batal',
-        onSecondaryPressed: () => Get.back(),
+        onSecondaryPressed: () => Get.back(result: false),
       ),
+      barrierDismissible: false,
     );
+
+    if (confirm == true) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      _processSubmit(aktual);
+    }
   }
 
   void _processSubmit(int aktual) async {
@@ -259,7 +262,7 @@ class TransferKonfirmasiController extends GetxController {
         estimasi: double.tryParse(estimasiController.text.replaceAll(',', '.')) ?? 0,
       );
 
-      Get.back(); // close dialog
+      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
       
       Get.snackbar(
         'Sukses',
@@ -277,8 +280,8 @@ class TransferKonfirmasiController extends GetxController {
       Get.until((route) => Get.currentRoute == '/transfer' || route.isFirst);
       
     } catch (e) {
-      Get.back();
-      _showError('Gagal menyimpan data secara lokal.');
+      if (Get.isDialogOpen ?? false) Get.back();
+      _showError('Gagal menyimpan data secara lokal: $e');
     }
   }
 
