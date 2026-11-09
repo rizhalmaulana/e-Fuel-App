@@ -13,7 +13,7 @@ class AppConfig {
   /// - EnvironmentType.prod  : Server Production Teladan Prima
   /// - EnvironmentType.dev   : Server Development (192.168.1.39)
   /// - EnvironmentType.lokal : Server Lokal PC Pengembang (192.168.137.1)
-  static const EnvironmentType currentEnv = EnvironmentType.lokal;
+  static const EnvironmentType currentEnv = EnvironmentType.dev;
 
   static const String appName = 'E-Fuel Mobile';
   static String _version = '1.1.0+3'; // Fallback default jika PackageInfo belum selesai/gagal dimuat

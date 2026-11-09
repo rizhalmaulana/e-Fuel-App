@@ -85,5 +85,7 @@ jobs:
         if: always()
         with:
           name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: ignore
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/release/*.apk
+          if-no-files-found: warn
