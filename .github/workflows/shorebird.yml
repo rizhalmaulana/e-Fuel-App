@@ -75,9 +75,9 @@ jobs:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
           echo "Mencoba membuat update OTA (Patch)..."
-          if ! shorebird patch android --force; then
-            echo "Patch gagal atau versi berubah. Membuat Release baru..."
-            shorebird release android --artifact=apk --force
+          if ! shorebird patch android --track=stable; then
+            echo "Patch tidak dapat dibuat (versi baru atau belum ada release). Membuat Release APK baru..."
+            shorebird release android --artifact=apk
           fi
 
       - name: 📤 Upload APK Artifact
