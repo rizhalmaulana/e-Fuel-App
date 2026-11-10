@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../configs/app_colors.dart';
 import '../../configs/app_fonts.dart';
 
@@ -26,57 +27,101 @@ class DialogFlexible extends StatelessWidget {
     this.secondaryColor,
   });
 
+  void _handlePrimary(BuildContext context) {
+    if (Get.isSnackbarOpen) {
+      Get.closeCurrentSnackbar();
+    }
+    if (onPrimaryPressed != null) {
+      onPrimaryPressed!();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted && ModalRoute.of(context)?.isCurrent == true) {
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop(true);
+          }
+        }
+      });
+    } else {
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop(true);
+      }
+    }
+  }
+
+  void _handleSecondary(BuildContext context) {
+    if (Get.isSnackbarOpen) {
+      Get.closeCurrentSnackbar();
+    }
+    if (onSecondaryPressed != null) {
+      onSecondaryPressed!();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted && ModalRoute.of(context)?.isCurrent == true) {
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop(false);
+          }
+        }
+      });
+    } else {
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop(false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-            if (logo != null) ...[
-              logo!,
-              const SizedBox(height: 16),
-            ],
+      child: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (logo != null) ...[
+                  logo!,
+                  const SizedBox(height: 16),
+                ],
 
-            if (title != null) ...[
-              Text(
-                title!,
-                style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-            ],
+                if (title != null) ...[
+                  Text(
+                    title!,
+                    style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
-            // 3. Pesan (Jika ada)
-            if (message != null) ...[
-              Text(
-                message!,
-                style: AppFonts.fUrbanistRegular10.copyWith(
-                  color: AppColors.secondaryText,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                // 3. Pesan (Jika ada)
+                if (message != null) ...[
+                  Text(
+                    message!,
+                    style: AppFonts.fUrbanistRegular10.copyWith(
+                      color: AppColors.secondaryText,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
 
-            _buildButtonArea(context),
-          ],
-        ),
+                _buildButtonArea(context),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildButtonArea(BuildContext context) {
-    final bool hasPrimary = primaryButtonText != null && onPrimaryPressed != null;
-    final bool hasSecondary = secondaryButtonText != null && onSecondaryPressed != null;
+    final bool hasPrimary = primaryButtonText != null;
+    final bool hasSecondary = secondaryButtonText != null;
 
     if (!hasPrimary && !hasSecondary) {
       return const SizedBox.shrink();
@@ -89,7 +134,7 @@ class DialogFlexible extends StatelessWidget {
       buttonWidgets = SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: onPrimaryPressed,
+          onPressed: () => _handlePrimary(context),
           style: ElevatedButton.styleFrom(
             backgroundColor: themeColor,
             foregroundColor: AppColors.white,
@@ -103,7 +148,7 @@ class DialogFlexible extends StatelessWidget {
       buttonWidgets = SizedBox(
         width: double.infinity,
         child: TextButton(
-          onPressed: onSecondaryPressed,
+          onPressed: () => _handleSecondary(context),
           style: TextButton.styleFrom(
             backgroundColor: themeColor.withOpacity(0.1),
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -117,7 +162,7 @@ class DialogFlexible extends StatelessWidget {
         children: [
           Expanded(
             child: TextButton(
-              onPressed: onSecondaryPressed,
+              onPressed: () => _handleSecondary(context),
               style: TextButton.styleFrom(
                 backgroundColor: themeColor.withOpacity(0.1),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -129,7 +174,7 @@ class DialogFlexible extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: ElevatedButton(
-              onPressed: onPrimaryPressed,
+              onPressed: () => _handlePrimary(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeColor,
                 foregroundColor: AppColors.white,

@@ -22,7 +22,13 @@ class TransferView extends GetView<TransferController> {
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios, color: AppColors.primaryOrange, size: 20),
-            onPressed: () => Get.back(),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                Get.back();
+              }
+            },
           ),
           title: Text(
             'Transfer Solar',

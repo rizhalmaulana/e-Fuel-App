@@ -1328,6 +1328,9 @@ class PengeluaranController extends GetxController {
   }
 
   Future<void> _processSubmitToApi() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieConfirmation(),

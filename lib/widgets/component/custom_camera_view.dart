@@ -262,41 +262,49 @@ class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBinding
           ),
 
           Positioned(
-            bottom: 30,
+            bottom: MediaQuery.of(context).padding.bottom + 24,
             left: 0,
             right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                  ),
 
-                GestureDetector(
-                  onTap: _takePicture,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade400, width: 4),
-                    ),
-                    child: Center(
-                      child: isTakingPicture
-                          ? const SizedBox(
-                        width: 30,
-                        height: 30,
-                        child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
-                      )
-                          : const Icon(Icons.camera_alt, size: 30, color: AppColors.primary),
+                  GestureDetector(
+                    onTap: _takePicture,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade400, width: 4),
+                      ),
+                      child: Center(
+                        child: isTakingPicture
+                            ? const SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
+                        )
+                            : const Icon(Icons.camera_alt, size: 30, color: AppColors.primary),
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(width: 30),
-              ],
+                  const SizedBox(width: 48),
+                ],
+              ),
             ),
           ),
         ],

@@ -322,6 +322,9 @@ class PenerimaanVerifikasiBastController extends GetxController {
   Future<void> submitBast() async {
     if (!await ConnectivityHelper.validateNetwork()) return;
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),

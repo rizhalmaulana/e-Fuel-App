@@ -238,6 +238,9 @@ class TransferController extends GetxController {
         return;
       }
 
+      FocusManager.instance.primaryFocus?.unfocus();
+      if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
       // Tampilkan Dialog Konfirmasi dan tunggu hasilnya sampai dialog benar-benar tertutup
       final bool? confirm = await Get.dialog<bool>(
         DialogFlexible(
@@ -289,6 +292,9 @@ class TransferController extends GetxController {
         _isProcessRunning = false;
         return;
       }
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      if (Get.isSnackbarOpen) Get.closeAllSnackbars();
 
       final bool? confirm = await Get.dialog<bool>(
         DialogFlexible(

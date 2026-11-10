@@ -94,37 +94,26 @@ class PengembalianProsesController extends GetxController {
   }
 
   Future<void> submit() async {
+    // Dismiss keyboard and lingering snackbars
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) {
+      Get.closeAllSnackbars();
+    }
+
     // Validate inputs
     int varianInput = int.tryParse(varianLiterController.text.toString()) ?? 0;
-
-    // if (varianInput <= 0) {
-    //   _showError('Varian Liter harus lebih dari 0.');
-    //   return;
-    // }
-
-    // if (varianInput > data.varianLiter) {
-    //   _showError('Varian Liter tidak boleh melebihi sisa liter (${data.varianLiter}).');
-    //   return;
-    // }
 
     if (foto1Path.value == null) {
       _showError('Wajib melampirkan Foto Pengambilan Solar.');
       return;
     }
 
-    // if (keteranganController.text.isEmpty) {
-    //   _showError('Keterangan wajib diisi.');
-    //   return;
-    // }
-
     final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         title: 'Konfirmasi Submit',
         message: 'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
         primaryButtonText: 'Ya, Submit',
-        onPrimaryPressed: () => Get.back(result: true),
         secondaryButtonText: 'Batal',
-        onSecondaryPressed: () => Get.back(result: false),
         logo: LottiesHelper().getLottieConfirmation(),
       ),
       barrierDismissible: false,

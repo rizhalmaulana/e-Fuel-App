@@ -279,6 +279,9 @@ class PengeluaranVerifikasiDocController extends GetxController {
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     Get.dialog(
         DialogFlexible(
           logo: LottiesHelper().getLottieQuestion(),

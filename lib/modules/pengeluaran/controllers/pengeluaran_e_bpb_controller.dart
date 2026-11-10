@@ -358,6 +358,9 @@ class PengeluaranEBpbController extends GetxController {
       });
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     Get.dialog(
       DialogFlexible(
         logo: LottiesHelper().getLottieQuestion(),

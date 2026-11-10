@@ -217,6 +217,9 @@ class TransferKonfirmasiController extends GetxController {
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieQuestion(),

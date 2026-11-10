@@ -24,13 +24,26 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
         leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios,
                 color: AppColors.primary, size: 20),
-            onPressed: () => Get.back()),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                Get.back();
+              }
+            }),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SafeArea(
+        bottom: true,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 24 + MediaQuery.of(context).padding.bottom,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             _buildCardWrapper(
               title: 'Informasi Transaksi & Unit',
               child: Column(
@@ -121,9 +134,10 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
         ),
+      ),
       ),
     );
   }

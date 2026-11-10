@@ -500,6 +500,9 @@ class PenerimaanController extends GetxController {
   Future<void> validateAndProceed() async {
     if (!_validateInputs()) return;
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     final bool? confirm = await Get.dialog<bool>(
       DialogFlexible(
         logo: LottiesHelper().getLottieConfirmation(),
