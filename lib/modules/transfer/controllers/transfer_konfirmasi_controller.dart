@@ -152,8 +152,12 @@ class TransferKonfirmasiController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: 'Gagal Mengambil Foto',
+        message: 'Kamera tidak merespons. Silakan coba lagi.',
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     } finally {
       isTakingPhotoAlatBerat.value = false;
       isTakingPhotoOperator.value = false;
@@ -203,7 +207,7 @@ class TransferKonfirmasiController extends GetxController {
     }
 
     if (aktual > pengambilan) {
-      _showError('Aktual Pengisian tidak boleh lebih dari Pengambilan (Varian minus).');
+      _showError('Aktual Pengisian tidak boleh melebihi Pengambilan.');
       return;
     }
 
@@ -242,10 +246,10 @@ class TransferKonfirmasiController extends GetxController {
   }
 
   void _processSubmit(int aktual) async {
-    // Tampilkan Loading
-    Get.dialog(
-      const Center(child: CircularProgressIndicator(color: AppColors.primaryOrange)),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: 'Menyimpan Data...',
+      subtitle: 'Mohon tunggu sebentar',
+      color: AppColors.primaryOrange,
     );
 
     // Proses Simpan Offline
@@ -265,11 +269,11 @@ class TransferKonfirmasiController extends GetxController {
         estimasi: double.tryParse(estimasiController.text.replaceAll(',', '.')) ?? 0,
       );
 
-      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
-      
+      closeLoading();
+
       Get.snackbar(
         'Sukses',
-        'Data Aktual Pengisian Solar berhasil disimpan secara offline',
+        'Data berhasil disimpan.',
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
@@ -283,17 +287,24 @@ class TransferKonfirmasiController extends GetxController {
       Get.until((route) => Get.currentRoute == '/transfer' || route.isFirst);
       
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back();
-      _showError('Gagal menyimpan data secara lokal: $e');
+      closeLoading();
+      DialogFlexible.showInfo(
+        title: 'Gagal Menyimpan',
+        message: 'Data gagal disimpan. Silakan coba lagi.',
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      closeLoading();
     }
   }
 
   void _showError(String message) {
-    Get.snackbar(
-      'Peringatan',
-      message,
-      backgroundColor: AppColors.alertSoftRed,
-      colorText: Colors.white,
+    DialogFlexible.showInfo(
+      title: 'Data Belum Lengkap',
+      message: message,
+      color: AppColors.primaryOrange,
+      icon: Icons.warning_amber_rounded,
     );
   }
 }

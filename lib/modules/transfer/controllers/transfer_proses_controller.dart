@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
+import '../../../../widgets/dialog/dialog_flexible.dart';
 import '../../../../configs/app_colors.dart';
 import '../views/transfer_loading_view.dart' as transfer_loading;
 import '../../../../datas/models/transfer/transfer_solar_model.dart';
@@ -63,8 +64,12 @@ class TransferProsesController extends GetxController {
         fotoOdometer.value = compressedFile;
       }
     } catch (e) {
-      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: 'Gagal Mengambil Foto',
+        message: 'Kamera tidak merespons. Silakan coba lagi.',
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     } finally {
       isTakingPhoto.value = false;
     }
@@ -100,11 +105,11 @@ class TransferProsesController extends GetxController {
 
   void submit() {
     if (fotoOdometer.value == null) {
-      Get.snackbar(
-        'Peringatan',
-        'Wajib melampirkan foto Odometer kendaraan sebelum memproses.',
-        backgroundColor: AppColors.alertSoftRed,
-        colorText: Colors.white,
+      DialogFlexible.showInfo(
+        title: 'Foto Belum Dilampirkan',
+        message: 'Foto Odometer kendaraan wajib dilampirkan.',
+        color: AppColors.primaryOrange,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }

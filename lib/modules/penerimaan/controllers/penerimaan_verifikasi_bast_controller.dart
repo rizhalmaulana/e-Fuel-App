@@ -9,7 +9,6 @@ import 'package:lottie/lottie.dart';
 import 'package:signature/signature.dart';
 
 import '../../../configs/app_colors.dart';
-import '../../../configs/app_fonts.dart';
 import '../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../datas/models/filling/filling_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
@@ -259,62 +258,44 @@ class PenerimaanVerifikasiBastController extends GetxController {
     return true;
   }
 
+  bool _failValidation(String title, String message) {
+    DialogFlexible.showInfo(
+      title: title,
+      message: message,
+      color: AppColors.primary,
+      icon: Icons.warning_amber_rounded,
+    );
+    return false;
+  }
+
   bool _validateStepPengukuran() {
     if (volumePengirimController.text.trim().isEmpty) {
-      CustomSnackbar.show(
-        title: "Data Kurang",
-        message: "Volume Pengirim wajib diisi.",
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
-      );
-      return false;
+      return _failValidation("Data Belum Lengkap", "Volume Pengirim wajib diisi.");
     }
 
-    double volDiterima = double.tryParse(volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+    double volDiterima = double.tryParse(
+            volumeKebunController.text.replaceAll('.', '').replaceAll(',', '.')) ??
+        0;
     if (volDiterima <= 0) {
-      CustomSnackbar.show(
-        title: "Data Invalid",
-        message: "Volume Solar Diterima masih 0 atau minus. Pastikan data pengukuran valid.",
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
-      );
-      return false;
+      return _failValidation("Data Tidak Valid", "Volume Solar Diterima harus lebih dari 0.");
     }
     return true;
   }
 
   bool _validateStepGudang() {
     if (signatureGudangController.isEmpty) {
-      CustomSnackbar.show(
-        title: "Tanda Tangan Kosong",
-        message: "Mohon lengkapi Tanda Tangan Bagian Gudang.",
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
-      );
-      return false;
+      return _failValidation("Tanda Tangan Kosong", "Lengkapi tanda tangan Bagian Gudang.");
     }
     return true;
   }
 
   bool _validateStepPartner() {
     if (signaturePartnerController.isEmpty) {
-      CustomSnackbar.show(
-        title: "Tanda Tangan Kosong",
-        message: "Mohon lengkapi Tanda Tangan Supir / Partner Pengirim.",
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
-      );
-      return false;
+      return _failValidation("Tanda Tangan Kosong", "Lengkapi tanda tangan Supir / Partner.");
     }
 
     if (signatureSecurityController.isEmpty) {
-      CustomSnackbar.show(
-        title: "Tanda Tangan Kosong",
-        message: "Mohon lengkapi Tanda Tangan Security.",
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
-      );
-      return false;
+      return _failValidation("Tanda Tangan Kosong", "Lengkapi tanda tangan Security.");
     }
     return true;
   }
@@ -346,23 +327,10 @@ class PenerimaanVerifikasiBastController extends GetxController {
   }
 
   Future<void> _processSubmit() async {
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primary),
-              const SizedBox(height: 24),
-              Text("Memproses Verifikasi...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText)),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Memproses Verifikasi...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primary,
     );
 
     try {
@@ -459,18 +427,18 @@ class PenerimaanVerifikasiBastController extends GetxController {
         stepApproval: myConfig.stepApproval,
       );
 
-      Get.back();
+      closeLoading();
       _showResultDialog(isSuccess: true, message: "Dokumen berhasil disetujui dan diteruskan.");
 
     } catch (e) {
-      if (Get.isDialogOpen == true) {
-        Get.back();
-      }
+      closeLoading();
 
-      String errorMessage = (e is String) ? e : NetworkErrorHelper.getFriendlyErrorMessage(e);
+      String errorMessage = NetworkErrorHelper.getFriendlyErrorMessage(e);
       print("ERROR SUBMIT BAST: $e");
 
       _showResultDialog(isSuccess: false, message: errorMessage);
+    } finally {
+      closeLoading();
     }
   }
 

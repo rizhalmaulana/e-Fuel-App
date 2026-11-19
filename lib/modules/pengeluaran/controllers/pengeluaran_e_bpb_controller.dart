@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -13,7 +12,7 @@ import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
 import '../../../helpers/lotties_helper.dart';
-import '../../../helpers/lotties_helper.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../../datas/dummy/master_unit_dummy.dart';
 import '../../auth/services/login_service.dart';
@@ -340,9 +339,12 @@ class PengeluaranEBpbController extends GetxController {
 
   Future<void> submitBpb() async {
     if (signatureController.isEmpty) {
-      Get.snackbar("Tanda Tangan Kosong",
-          "Harap tanda tangan terlebih dahulu sebelum submit.",
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: "Tanda Tangan Kosong",
+        message: "Tanda tangan wajib diisi sebelum submit.",
+        color: AppColors.primaryOrange,
+        icon: Icons.warning_amber_rounded,
+      );
       return;
     }
 
@@ -395,10 +397,11 @@ class PengeluaranEBpbController extends GetxController {
   }
 
   void _processSubmitApi(List<Map<String, dynamic>> fotPayload) async {
-    Get.dialog(
-        const Center(
-            child: CircularProgressIndicator(color: AppColors.primaryOrange)),
-        barrierDismissible: false);
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Membuat E-BPB...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primaryOrange,
+    );
 
     try {
       Map<String, dynamic> payload = {
@@ -412,7 +415,7 @@ class PengeluaranEBpbController extends GetxController {
 
       String noDoc = responseBpb['no_doc']?.toString() ?? "";
       if (noDoc.isEmpty) {
-        throw Exception("Gagal mendapatkan Nomor Dokumen dari server.");
+        throw "Gagal memproses dokumen E-BPB. Silakan coba lagi.";
       }
 
       if (userLevelApproval.value == "fuel_level_1") {
@@ -437,7 +440,7 @@ class PengeluaranEBpbController extends GetxController {
         );
       }
 
-      Get.back();
+      closeLoading();
 
       Get.dialog(
         DialogFlexible(
@@ -454,15 +457,15 @@ class PengeluaranEBpbController extends GetxController {
         barrierDismissible: false,
       );
     } catch (e) {
-      Get.back();
-      String errorMessage = "Terjadi kesalahan pada server";
-      if (e is DioException && e.response != null) {
-        errorMessage = e.response?.data['message'] ?? errorMessage;
-      } else {
-        errorMessage = e.toString();
-      }
-      Get.snackbar("Gagal", errorMessage,
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      closeLoading();
+      DialogFlexible.showInfo(
+        title: "Gagal Submit",
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      closeLoading();
     }
   }
 }

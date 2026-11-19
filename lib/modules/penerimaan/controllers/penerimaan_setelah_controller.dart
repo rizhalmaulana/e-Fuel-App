@@ -12,6 +12,7 @@ import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
 import '../../../helpers/calibration_helper.dart';
 import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
 import '../../fuel/services/fuel_data_service.dart';
 import '../repositories/penerimaan_setelah_repository.dart';
@@ -520,11 +521,11 @@ class PenerimaanSetelahController extends GetxController {
       String volTxt = ctrls?['volume']?.text.trim() ?? "";
       String heightTxt = ctrls?['height']?.text.trim() ?? "";
 
-      // if (volTxt.isEmpty || heightTxt.isEmpty) {
-      //   isValid = false;
-      //   errorMessage = "Volume dan Tinggi untuk tangki $displayCode wajib diisi.";
-      //   break;
-      // }
+      if (volTxt.isEmpty || heightTxt.isEmpty) {
+        isValid = false;
+        errorMessage = "Volume dan Tinggi tangki $displayCode wajib diisi.";
+        break;
+      }
 
       double? volVal = double.tryParse(TextConvertHelper().cleanNumber(volTxt));
       double? heightVal =
@@ -538,11 +539,11 @@ class PenerimaanSetelahController extends GetxController {
     }
 
     if (!isValid) {
-      CustomSnackbar.show(
-        title: "Validasi Gagal",
+      DialogFlexible.showInfo(
+        title: "Data Belum Lengkap",
         message: errorMessage,
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
+        color: AppColors.primary,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }

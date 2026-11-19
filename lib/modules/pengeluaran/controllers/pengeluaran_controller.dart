@@ -14,7 +14,6 @@ import 'package:intl/intl.dart';
 import 'package:e_fuel/datas/models/approval/konfigurasi_approval_model.dart';
 import 'package:e_fuel/modules/home/controllers/home_controller.dart';
 
-import '../../../configs/app_fonts.dart';
 import '../../../datas/models/master_io/master_io_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_model.dart';
 import '../../../helpers/connectivity_helper.dart';
@@ -590,14 +589,13 @@ class PengeluaranController extends GetxController {
           margin: const EdgeInsets.all(16),
         );
       } else {
-        // Error API lainnya (Misal 404, 500)
         Get.snackbar('Gagal Memuat Data',
-            'Terjadi kesalahan server (${e.response?.statusCode ?? "Unknown"}).',
+            NetworkErrorHelper.getFriendlyErrorMessage(e),
             backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       }
     } catch (e) {
-      // Handling Error Umum Lainnya
-      Get.snackbar('Error', 'Terjadi kesalahan aplikasi: $e',
+      Get.snackbar('Gagal Memuat Data',
+          NetworkErrorHelper.getFriendlyErrorMessage(e),
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
     } finally {
       isLoadingUnit.value = false;
@@ -1067,8 +1065,12 @@ class PengeluaranController extends GetxController {
       if (_validateForm()) _processSubmitToApi();
     } catch (e, stack) {
       print("Error validateAndProceed: $e\n$stack");
-      Get.snackbar("Terjadi Kesalahan", "Gagal memproses data: $e",
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: "Gagal Memproses",
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
+      );
     }
   }
 
@@ -1095,8 +1097,12 @@ class PengeluaranController extends GetxController {
         fotoOdometer.value = compressedFile;
       }
     } catch (e) {
-      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: 'Gagal Mengambil Foto',
+        message: 'Kamera tidak merespons. Silakan coba lagi.',
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     } finally {
       isTakingPhoto.value = false;
     }
@@ -1160,8 +1166,12 @@ class PengeluaranController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: 'Gagal Mengambil Foto',
+        message: 'Kamera tidak merespons. Silakan coba lagi.',
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     } finally {
       isTakingPhoto.value = false;
     }
@@ -1175,78 +1185,77 @@ class PengeluaranController extends GetxController {
     }
   }
 
+  bool _failValidation(String message, {String title = 'Data Belum Lengkap'}) {
+    DialogFlexible.showInfo(
+      title: title,
+      message: message,
+      color: AppColors.primaryOrange,
+      icon: Icons.warning_amber_rounded,
+    );
+    return false;
+  }
+
   bool _validateForm() {
-    if (selectedJenisBon.value == null ||
-        selectedUnit.value == null ||
-        selectedStatusSupir.value == null ||
-        driverNameC.text.isEmpty ||
-        (!isTamu && !isVendor && pengisianSolarC.text.isEmpty) ||
-        platController.text.isEmpty) {
-      Get.snackbar('Data Belum Lengkap', 'Harap lengkapi semua form inputan!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
-    }
-
-    if (!isManualInput.value && fotoOdometer.value == null) {
-      String msg = isTipeGenset ? 'Foto Jerigen / Genset wajib dilampirkan!' : (tipeUnit.value?.toUpperCase() == 'AB' ? 'Foto Baby Tank wajib dilampirkan!' : 'Foto Odometer wajib dilampirkan!');
-      Get.snackbar('Data Belum Lengkap', msg,
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
-    }
-
-    if (isManualInput.value) {
-      if (aktualSolarC.text.isEmpty || double.tryParse(aktualSolarC.text.replaceAll(',', '.')) == 0) {
-        Get.snackbar(
-          'Data Belum Lengkap', 'Harap isi Aktual Pengeluaran Solar.',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, margin: const EdgeInsets.all(16));
-        return false;
-      }
-      if (tanggalTransaksi.value == null || tanggalTransaksiC.text.isEmpty) {
-        Get.snackbar(
-          'Data Belum Lengkap', 'Harap pilih Tanggal Transaksi.',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, margin: const EdgeInsets.all(16));
-        return false;
-      }
+    if (selectedJenisBon.value == null) {
+      return _failValidation('Pilih Jenis Pengeluaran terlebih dahulu.');
     }
 
     if (selectedKategoriKendaraan.value == null) {
-      Get.snackbar('Data Belum Lengkap', 'Pilih Kategori terlebih dahulu!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
+      return _failValidation('Pilih Kategori Kendaraan terlebih dahulu.');
     }
 
-    if (isInternalNon &&
-        selectedKodeKebunPabrik.value == null) {
-      Get.snackbar(
-          'Data Belum Lengkap', 'Pilih Kode Kebun/Pabrik terlebih dahulu!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
+    if (isInternalNon && selectedKodeKebunPabrik.value == null) {
+      return _failValidation('Pilih Kode Kebun/Pabrik terlebih dahulu.');
+    }
+
+    if (!isTamu && selectedUnit.value == null) {
+      return _failValidation('Pilih Nama Unit terlebih dahulu.');
+    }
+
+    if (isUnitPengganti.value && selectedReplacedUnit.value == null) {
+      return _failValidation('Pilih Unit Utama yang digantikan terlebih dahulu.');
+    }
+
+    if (platController.text.trim().isEmpty) {
+      final tipe = tipeUnit.value?.toUpperCase() ?? '';
+      final platLabel = (tipe == 'AB' || tipe == 'GS') ? 'No. Unit' : 'No. Kendaraan';
+      return _failValidation('$platLabel wajib diisi.');
+    }
+
+    if (selectedJenisBon.value == 'BPB' && noDocInputC.text.trim().isEmpty) {
+      return _failValidation('No. Dokumen BPB wajib diisi.');
+    }
+
+    if (selectedStatusSupir.value == null) {
+      return _failValidation('Pilih Status Supir terlebih dahulu.');
+    }
+
+    if (driverNameC.text.trim().isEmpty) {
+      return _failValidation('Nama Supir/Operator wajib diisi.');
     }
 
     if (driverNameC.text.trim().length < 3) {
-      Get.snackbar('Validasi Supir', 'Nama Supir/Operator minimal 3 karakter!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
+      return _failValidation(
+        'Nama Supir/Operator minimal 3 karakter.',
+        title: 'Data Tidak Valid',
+      );
     }
 
-    double inputSolar = double.tryParse(
-            TextConvertHelper().cleanNumber(pengisianSolarC.text)) ??
-        0;
+    if (isTamu && ioController.text.trim().isEmpty) {
+      return _failValidation('Cost Center wajib diisi.');
+    }
+
+    if (!isTamu && !isVendor && pengisianSolarC.text.trim().isEmpty) {
+      return _failValidation('Jumlah Pengisian Solar wajib diisi.');
+    }
+
+    double inputSolar =
+        double.tryParse(TextConvertHelper().cleanNumber(pengisianSolarC.text)) ?? 0;
     if (inputSolar <= 0 && !isTamu && !isTipeGenset && !isVendor) {
-      Get.snackbar(
-          'Validasi Solar', 'Jumlah pengisian solar harus lebih dari 0',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
-      return false;
+      return _failValidation(
+        'Jumlah Pengisian Solar harus lebih dari 0.',
+        title: 'Data Tidak Valid',
+      );
     }
 
     // Validasi untuk Tipe Kendaraan (KD/AB) - Kecuali Tamu & Vendor
@@ -1254,74 +1263,50 @@ class PengeluaranController extends GetxController {
       double awal =
           double.tryParse(TextConvertHelper().cleanNumber(hmKmAwalC.text)) ?? 0;
       double akhir =
-          double.tryParse(TextConvertHelper().cleanNumber(hmKmAkhirC.text)) ??
-              0;
+          double.tryParse(TextConvertHelper().cleanNumber(hmKmAkhirC.text)) ?? 0;
 
       if (awal > akhir) {
         String satuanLabel = (tipeUnit.value == 'AB') ? 'HM' : 'KM';
-        Get.snackbar(
-          'Validasi Meteran',
-          '$satuanLabel Awal ($awal) tidak boleh lebih besar dari $satuanLabel Akhir ($akhir).',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
+        return _failValidation(
+          '$satuanLabel Akhir tidak boleh lebih kecil dari $satuanLabel Awal.',
+          title: 'Data Tidak Valid',
         );
-        return false;
       }
     }
 
     // Validasi untuk Genset (Menggunakan Tanggal) - Kecuali Tamu & Vendor
     if (!isTipeKendaraan && !isTamu && !isVendor) {
-      // Asumsi GS atau lainnya pakai Tanggal
       if (dateAwalC.text.isNotEmpty && dateAkhirC.text.isNotEmpty) {
         DateTime? start = _parseFlexibleDate(dateAwalC.text);
         DateTime? end = _parseFlexibleDate(dateAkhirC.text);
 
-        if (start != null && end != null) {
-          if (start.isAfter(end)) {
-            Get.snackbar(
-              'Validasi Tanggal',
-              'Tanggal Awal tidak boleh lebih besar dari Tanggal Akhir.',
-              backgroundColor: AppColors.alertSoftRed,
-              colorText: Colors.white,
-              margin: const EdgeInsets.all(16),
-              duration: const Duration(seconds: 4),
-            );
-            return false;
-          }
+        if (start != null && end != null && start.isAfter(end)) {
+          return _failValidation(
+            'Tanggal Akhir tidak boleh sebelum Tanggal Awal.',
+            title: 'Data Tidak Valid',
+          );
         }
       }
     }
 
-    if (isTamu && ioController.text.trim().isEmpty) {
-      Get.snackbar(
-          'Data Belum Lengkap', 'Cost Center wajib diisi untuk kategori Tamu!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
+    if (isManualInput.value) {
+      final aktualVal =
+          double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+      if (aktualSolarC.text.trim().isEmpty || aktualVal <= 0) {
+        return _failValidation('Aktual Pengeluaran Solar wajib diisi lebih dari 0.');
+      }
+      if (tanggalTransaksi.value == null || tanggalTransaksiC.text.isEmpty) {
+        return _failValidation('Pilih Tanggal Transaksi terlebih dahulu.');
+      }
     }
 
-    if (selectedJenisBon.value == 'BPB' && noDocInputC.text.trim().isEmpty) {
-      Get.snackbar('Data Belum Lengkap', 'Harap input No. Doc untuk BPB!',
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16));
-      return false;
-    }
-
-    // Validasi: jika Unit Pengganti, wajib pilih Unit yang Digantikan
-    if (isUnitPengganti.value && selectedReplacedUnit.value == null) {
-      Get.snackbar(
-        'Data Belum Lengkap',
-        'Unit Pengganti dipilih. Harap pilih Unit Utama yang digantikan terlebih dahulu!',
-        backgroundColor: AppColors.alertSoftRed,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
-      );
-      return false;
+    if (!isManualInput.value && fotoOdometer.value == null) {
+      String msg = isTipeGenset
+          ? 'Foto Jerigen / Genset wajib dilampirkan.'
+          : (tipeUnit.value?.toUpperCase() == 'AB'
+              ? 'Foto Baby Tank wajib dilampirkan.'
+              : 'Foto Odometer wajib dilampirkan.');
+      return _failValidation(msg);
     }
 
     return true;
@@ -1355,33 +1340,10 @@ class PengeluaranController extends GetxController {
 
   Future<void> _submitDataToApi() async {
     isSubmitting.value = true;
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primaryOrange),
-              const SizedBox(height: 24),
-              Text(
-                "Sedang Mengirim Data...",
-                style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Mohon jangan tutup aplikasi",
-                style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoadingDialog = DialogFlexible.showLoading(
+      title: "Sedang Mengirim Data...",
+      subtitle: "Mohon jangan tutup aplikasi",
+      color: AppColors.primaryOrange,
     );
 
     try {
@@ -1583,7 +1545,7 @@ class PengeluaranController extends GetxController {
         await outstandingService.saveTransactionPengeluaran(trx);
 
         isSubmitting.value = false;
-        Get.back();
+        closeLoadingDialog();
         Get.dialog(
           DialogFlexible(
             logo: LottiesHelper().getLottieSuccess(),
@@ -1600,7 +1562,7 @@ class PengeluaranController extends GetxController {
           barrierDismissible: false,
         );
       } else {
-        Get.back();
+        closeLoadingDialog();
         Get.offNamed(
           Routes.PENGISIAN_SOLAR_PENGELUARAN,
           arguments: {
@@ -1620,25 +1582,28 @@ class PengeluaranController extends GetxController {
         );
       }
     } on DioException catch (e) {
+      closeLoadingDialog();
       _handleApiError(e);
     } catch (e) {
-      Get.snackbar("Error", "Terjadi kesalahan aplikasi: $e",
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      closeLoadingDialog();
+      DialogFlexible.showInfo(
+        title: "Gagal Submit",
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
+      );
     } finally {
       isSubmitting.value = false;
-
-      if (Get.isDialogOpen == true) {
-        Get.back();
-      }
+      closeLoadingDialog();
     }
   }
 
-
-
   void _handleApiError(DioException e) {
-    NetworkErrorHelper.showErrorSnackbar(
+    DialogFlexible.showInfo(
       title: "Gagal Submit",
-      error: e,
+      message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+      color: AppColors.alertSoftRed,
+      icon: Icons.wifi_off_rounded,
     );
   }
 

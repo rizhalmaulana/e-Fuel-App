@@ -54,8 +54,12 @@ class PengembalianProsesController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar('Error', 'Gagal mengambil gambar: $e',
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: 'Gagal Mengambil Foto',
+        message: 'Kamera tidak merespons. Silakan coba lagi.',
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     }
   }
 
@@ -126,31 +130,10 @@ class PengembalianProsesController extends GetxController {
   }
 
   Future<void> _doSubmit(int varianInput) async {
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              CircularProgressIndicator(color: Color(0xFF003366)),
-              SizedBox(width: 20),
-              Expanded(
-                child: Text(
-                  "Memproses pengembalian...",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Memproses Pengembalian...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primary,
     );
 
     try {
@@ -161,7 +144,7 @@ class PengembalianProsesController extends GetxController {
         foto1Path: foto1Path.value,
       );
 
-      if (Get.isDialogOpen ?? false) Get.back(); // close loading dialog
+      closeLoading();
 
       if (success) {
         Get.snackbar(
@@ -179,28 +162,32 @@ class PengembalianProsesController extends GetxController {
            listController.fetchData();
         } catch(e) {}
       } else {
-        NetworkErrorHelper.showErrorSnackbar(
+        DialogFlexible.showInfo(
           title: 'Gagal Submit',
-          error: 'Gagal submit pengembalian. Silakan periksa koneksi dan coba lagi.',
+          message: 'Gagal mengirim pengembalian. Periksa koneksi internet dan coba lagi.',
+          color: AppColors.alertSoftRed,
+          icon: Icons.error_outline_rounded,
         );
       }
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
-      NetworkErrorHelper.showErrorSnackbar(
+      closeLoading();
+      DialogFlexible.showInfo(
         title: 'Gagal Submit',
-        error: e,
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
       );
     } finally {
-      if (Get.isDialogOpen ?? false) Get.back();
+      closeLoading();
     }
   }
 
   void _showError(String message) {
-    Get.snackbar(
-      'Peringatan',
-      message,
-      backgroundColor: AppColors.alertSoftRed,
-      colorText: Colors.white,
+    DialogFlexible.showInfo(
+      title: 'Data Belum Lengkap',
+      message: message,
+      color: AppColors.primary,
+      icon: Icons.warning_amber_rounded,
     );
   }
 }

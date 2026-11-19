@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../configs/app_fonts.dart';
 import '../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_model.dart';
 import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
@@ -18,6 +17,7 @@ import '../../../routes/app_pages.dart';
 import '../../../widgets/component/custom_camera_view.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../../helpers/lotties_helper.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../auth/services/login_service.dart';
 import '../../transactions/outstanding_service.dart';
 import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
@@ -153,15 +153,22 @@ class PengeluaranVerifikasiDocController extends GetxController {
   void nextPage() {
     if (currentPage.value == 0) {
       if (photoDispenser.value == null) {
-        Get.snackbar("Foto Belum Lengkap",
-            "Harap ambil Foto Dispenser Pom (Jumlah Liter)",
-            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+        DialogFlexible.showInfo(
+          title: "Foto Belum Lengkap",
+          message: "Foto Dispenser Pom wajib dilampirkan.",
+          color: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
+        );
         return;
       }
-      if (aktualSolarC.text.isEmpty) {
-        Get.snackbar("Data Belum Lengkap",
-            "Harap isi Aktual Pengeluaran Solar!",
-            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      final aktualVal = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+      if (aktualSolarC.text.trim().isEmpty || aktualVal <= 0) {
+        DialogFlexible.showInfo(
+          title: "Data Belum Lengkap",
+          message: "Aktual Pengeluaran Solar wajib diisi lebih dari 0.",
+          color: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
+        );
         return;
       }
 
@@ -171,8 +178,12 @@ class PengeluaranVerifikasiDocController extends GetxController {
       );
     } else if (currentPage.value == 1) {
       if (warehouseSignatureController.isEmpty) {
-        Get.snackbar("Informasi", "Tanda tangan bagian gudang wajib diisi",
-            backgroundColor: Colors.orange, colorText: Colors.white);
+        DialogFlexible.showInfo(
+          title: "Tanda Tangan Kosong",
+          message: "Tanda tangan bagian gudang wajib diisi.",
+          color: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
+        );
         return;
       }
       pageController.nextPage(
@@ -230,7 +241,12 @@ class PengeluaranVerifikasiDocController extends GetxController {
       );
     } catch (e) {
       if (kDebugMode) print('Error saat takePhoto: $e');
-      Get.snackbar("Gagal", "Terjadi error: $e");
+      DialogFlexible.showInfo(
+        title: "Gagal Mengambil Foto",
+        message: "Kamera tidak merespons. Silakan coba lagi.",
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     } finally {
       isTakingPhoto.value = false;
     }
@@ -274,8 +290,12 @@ class PengeluaranVerifikasiDocController extends GetxController {
   // --- SUBMIT FUNCTIONS ---
   void _confirmAndSubmit() {
     if (driverSignatureController.isEmpty) {
-      Get.snackbar("Peringatan", "Tanda tangan supir wajib diisi",
-          backgroundColor: Colors.red, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: "Tanda Tangan Kosong",
+        message: "Tanda tangan supir wajib diisi.",
+        color: AppColors.primaryOrange,
+        icon: Icons.warning_amber_rounded,
+      );
       return;
     }
 
@@ -302,23 +322,10 @@ class PengeluaranVerifikasiDocController extends GetxController {
   }
 
   Future<void> submitVerification() async {
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primaryOrange),
-              const SizedBox(height: 24),
-              Text("Memproses Verifikasi...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Memproses Verifikasi...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primaryOrange,
     );
 
     try {
@@ -327,7 +334,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
       File? f3 = hiddenPhotoSupir;
 
       if (f1 == null || f2 == null || f3 == null) {
-        throw "Data foto tidak lengkap (Dispenser/Truk/Supir Missing).";
+        throw "Data foto tidak lengkap. Harap lengkapi foto terlebih dahulu.";
       }
 
       final File? whSignFile = await _exportSignatureToFile(warehouseSignatureController, "sign_gudang");
@@ -417,7 +424,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
       await _updateLocalStatus(finalNoDoc, payload, f1.path, f2.path, f3.path);
 
       // Tutup loading dialog
-      Get.back();
+      closeLoading();
 
       Get.dialog(
         DialogFlexible(
@@ -435,10 +442,16 @@ class PengeluaranVerifikasiDocController extends GetxController {
         barrierDismissible: false,
       );
     } catch (e) {
-      // Tutup loading dialog
-      Get.back();
+      closeLoading();
       print("Error: $e");
-      Get.snackbar("Gagal Verifikasi", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: "Gagal Verifikasi",
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      closeLoading();
     }
   }
 

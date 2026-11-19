@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart' hide MultipartFile, FormData;
-import '../../../widgets/component/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 
@@ -405,30 +404,32 @@ class PenerimaanSebelumController extends GetxController {
   bool _validateCurrentStep() {
     String errorMessage = "";
     if (currentPage.value == 0) {
-      if (noPoController.text.isEmpty) errorMessage = "No. PO harus diisi";
-      else if (noDoController.text.isEmpty) errorMessage = "No. DO harus diisi";
-      else if (jumlahLtrController.text.isEmpty) errorMessage = "Jumlah Liter harus diisi";
-      else if (densityObsController.text.isEmpty) errorMessage = "Density harus diisi";
-      else if (temperatureObsController.text.isEmpty) errorMessage = "Temperatur harus diisi";
-      else if (noPolisiController.text.isEmpty) errorMessage = "No. Polisi harus diisi";
-      else if (namaSopirController.text.isEmpty) errorMessage = "Nama Sopir harus diisi";
-      else if (kapasitasTangkiController.text.isEmpty) errorMessage = "Kapasitas Tangki harus diisi";
+      if (noPoController.text.trim().isEmpty) errorMessage = "No. PO wajib diisi.";
+      else if (noDoController.text.trim().isEmpty) errorMessage = "No. DO wajib diisi.";
+      else if (jumlahLtrController.text.trim().isEmpty) errorMessage = "Jumlah Liter wajib diisi.";
+      else if (densityObsController.text.trim().isEmpty) errorMessage = "Density wajib diisi.";
+      else if (temperatureObsController.text.trim().isEmpty) errorMessage = "Temperatur wajib diisi.";
+      else if (noPolisiController.text.trim().isEmpty) errorMessage = "No. Polisi wajib diisi.";
+      else if (namaSopirController.text.trim().isEmpty) errorMessage = "Nama Sopir wajib diisi.";
+      else if (kapasitasTangkiController.text.trim().isEmpty) errorMessage = "Kapasitas Tangki wajib diisi.";
     } else if (currentPage.value == 1) {
-      if (photoSlots.any((element) => element == null)) errorMessage = "Mohon lengkapi 3 foto (Dokumen, Depan, Samping)";
+      if (photoSlots.any((element) => element == null)) {
+        errorMessage = "Lengkapi 3 foto (Dokumen, Depan, Samping) terlebih dahulu.";
+      }
     } else if (currentPage.value == 2) {
-      if (tinggiTeraSpbController.text.isEmpty) errorMessage = "Tinggi Tera SPB harus diisi";
-      else if (tinggiTeraSoundingController.text.isEmpty) errorMessage = "Tinggi Zounding harus diisi";
-      else if (nilaiKepekaanController.text.isEmpty) errorMessage = "Nilai Kapelkaan harus diisi";
-      else if (segelTangkiAtasController.text.isEmpty) errorMessage = "Segel Atas harus diisi";
-      else if (segelTangkiBawahController.text.isEmpty) errorMessage = "Segel Bawah harus diisi";
+      if (tinggiTeraSpbController.text.trim().isEmpty) errorMessage = "Tinggi Tera SPB wajib diisi.";
+      else if (tinggiTeraSoundingController.text.trim().isEmpty) errorMessage = "Tinggi Sounding wajib diisi.";
+      else if (nilaiKepekaanController.text.trim().isEmpty) errorMessage = "Nilai Kepekaan wajib diisi.";
+      else if (segelTangkiAtasController.text.trim().isEmpty) errorMessage = "Segel Atas wajib diisi.";
+      else if (segelTangkiBawahController.text.trim().isEmpty) errorMessage = "Segel Bawah wajib diisi.";
     }
 
     if (errorMessage.isNotEmpty) {
-      CustomSnackbar.show(
+      DialogFlexible.showInfo(
         title: "Data Belum Lengkap",
         message: errorMessage,
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
+        color: AppColors.primary,
+        icon: Icons.warning_amber_rounded,
       );
       return false;
     }
@@ -467,11 +468,11 @@ class PenerimaanSebelumController extends GetxController {
       );
     } catch (e) {
       if (kDebugMode) print('Error saat takePhoto: $e');
-      CustomSnackbar.show(
+      DialogFlexible.showInfo(
         title: "Gagal Mengambil Foto",
-        message: "Terjadi error: $e",
-        backgroundColor: AppColors.error,
-        textColor: AppColors.white,
+        message: "Kamera tidak merespons. Silakan coba lagi.",
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
       );
     } finally {
       isTakingPhoto.value = false;
@@ -511,11 +512,11 @@ class PenerimaanSebelumController extends GetxController {
     debugPrint("Storage Choose: $currentStorage");
 
     if (currentStorage == 'Pilih Lokasi Storage' || currentStorage.isEmpty) {
-      CustomSnackbar.show(
-        title: 'Mohon Maaf',
-        message: 'Silahkan pilih lokasi storage yang valid di halaman Home terlebih dahulu.',
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: AppColors.white,
+      DialogFlexible.showInfo(
+        title: 'Lokasi Storage Belum Dipilih',
+        message: 'Pilih lokasi Storage di halaman awal terlebih dahulu.',
+        color: AppColors.primary,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }

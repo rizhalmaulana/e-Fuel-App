@@ -4,7 +4,6 @@ import '../../../helpers/lotties_helper.dart';
 import '../services/transfer_offline_service.dart';
 import '../../../../datas/models/transfer/transfer_solar_model.dart';
 import '../../../../configs/app_colors.dart';
-import '../../../../configs/app_fonts.dart';
 import '../../../../helpers/connectivity_helper.dart';
 import '../../../../helpers/network_error_helper.dart';
 import '../../../../widgets/dialog/dialog_flexible.dart';
@@ -323,65 +322,47 @@ class TransferController extends GetxController {
   }
 
   Future<void> _processUpload(TransferSolarModel data) async {
-    // Show loading dialog
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primaryOrange),
-              const SizedBox(height: 24),
-              Text("Proses Upload, Tunggu Sebentar...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Proses Upload...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primaryOrange,
     );
 
     try {
       bool success = await offlineService.uploadTransfer(data);
-      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
+      closeLoading();
 
       if (success) {
         loadLocalData();
-        Get.snackbar('Sukses', 'Data berhasil diupload ke server',
+        Get.snackbar('Sukses', 'Data berhasil diupload.',
             backgroundColor: Colors.green, colorText: Colors.white);
+      } else {
+        DialogFlexible.showInfo(
+          title: 'Gagal Upload',
+          message: 'Data gagal diupload. Silakan coba lagi.',
+          color: AppColors.alertSoftRed,
+          icon: Icons.error_outline_rounded,
+        );
       }
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
-      NetworkErrorHelper.showErrorSnackbar(
+      closeLoading();
+      DialogFlexible.showInfo(
         title: 'Gagal Upload',
-        error: e,
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.wifi_off_rounded,
       );
     } finally {
-      if (Get.isDialogOpen ?? false) Get.back();
+      closeLoading();
       _isProcessRunning = false;
     }
   }
 
   Future<void> _processUploadAll(List<TransferSolarModel> dataList) async {
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primaryOrange),
-              const SizedBox(height: 24),
-              Text("Proses Upload, Tunggu Sebentar...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Proses Upload...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primaryOrange,
     );
 
     int successCount = 0;
@@ -401,19 +382,22 @@ class TransferController extends GetxController {
         }
       }
 
-      if (Get.isDialogOpen ?? false) Get.back(); // close dialog
-      
+      closeLoading();
       loadLocalData();
 
       if (failCount == 0) {
-        Get.snackbar('Sukses', '$successCount data berhasil diupload ke server',
+        Get.snackbar('Sukses', '$successCount data berhasil diupload.',
             backgroundColor: Colors.green, colorText: Colors.white);
       } else {
-        Get.snackbar('Selesai', '$successCount berhasil, $failCount gagal diupload. Silakan coba kembali untuk data yang gagal.',
-            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white, duration: const Duration(seconds: 5));
+        DialogFlexible.showInfo(
+          title: 'Upload Sebagian Gagal',
+          message: '$successCount berhasil, $failCount gagal diupload. Silakan coba lagi.',
+          color: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
+        );
       }
     } finally {
-      if (Get.isDialogOpen ?? false) Get.back();
+      closeLoading();
       _isProcessRunning = false;
     }
   }

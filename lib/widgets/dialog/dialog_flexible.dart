@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../configs/app_colors.dart';
 import '../../configs/app_fonts.dart';
+import '../component/custom_snackbar.dart';
 
 class DialogFlexible extends StatelessWidget {
   final Widget? logo;
@@ -26,6 +27,126 @@ class DialogFlexible extends StatelessWidget {
     this.primaryColor,
     this.secondaryColor,
   });
+
+  /// Menampilkan dialog informasi/validasi yang ringkas dan jelas di tengah layar.
+  static Future<void> showInfo({
+    required String title,
+    required String message,
+    String buttonText = 'Mengerti',
+    Color? color,
+    IconData icon = Icons.info_outline_rounded,
+  }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    CustomSnackbar.dismiss();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
+    final accentColor = color ?? AppColors.primary;
+    await Get.dialog(
+      DialogFlexible(
+        logo: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: accentColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 42, color: accentColor),
+        ),
+        title: title,
+        message: message,
+        primaryColor: accentColor,
+        primaryButtonText: buttonText,
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  /// Menampilkan dialog konfirmasi dengan hasil `true` (konfirmasi) atau `false` (batal).
+  static Future<bool> showConfirm({
+    required String title,
+    required String message,
+    Widget? logo,
+    String confirmText = 'Ya, Submit',
+    String cancelText = 'Batal',
+    Color? primaryColor,
+  }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    CustomSnackbar.dismiss();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
+    final bool? result = await Get.dialog<bool>(
+      DialogFlexible(
+        logo: logo,
+        title: title,
+        message: message,
+        primaryColor: primaryColor,
+        primaryButtonText: confirmText,
+        secondaryButtonText: cancelText,
+      ),
+      barrierDismissible: false,
+    );
+    return result == true;
+  }
+
+  /// Menampilkan dialog tunggu dan mengembalikan fungsi penutup yang aman
+  /// (hanya menutup dialog tunggu ini saja, tidak akan menutup dialog/snackbar lain).
+  static VoidCallback showLoading({
+    String title = 'Sedang Memproses...',
+    String? subtitle = 'Mohon tunggu sebentar',
+    Color? color,
+  }) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    BuildContext? loadingDialogContext;
+    bool isClosed = false;
+
+    void closeLoading() {
+      if (isClosed) return;
+      isClosed = true;
+      final ctx = loadingDialogContext;
+      if (ctx != null && ctx.mounted) {
+        Navigator.of(ctx).pop();
+      } else if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+    }
+
+    Get.dialog(
+      Builder(
+        builder: (dialogCtx) {
+          loadingDialogContext = dialogCtx;
+          return Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: color ?? AppColors.primary),
+                  const SizedBox(height: 20),
+                  Text(
+                    title,
+                    style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      barrierDismissible: false,
+    );
+
+    return closeLoading;
+  }
 
   void _handlePrimary(BuildContext context) {
     if (Get.isSnackbarOpen) {
@@ -92,17 +213,17 @@ class DialogFlexible extends StatelessWidget {
                 if (title != null) ...[
                   Text(
                     title!,
-                    style: AppFonts.fUrbanistSemiBold14.copyWith(color: AppColors.darkText),
+                    style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.darkText),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                 ],
 
                 // 3. Pesan (Jika ada)
                 if (message != null) ...[
                   Text(
                     message!,
-                    style: AppFonts.fUrbanistRegular10.copyWith(
+                    style: AppFonts.fUrbanistRegular12.copyWith(
                       color: AppColors.secondaryText,
                       height: 1.4,
                     ),

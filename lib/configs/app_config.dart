@@ -16,7 +16,7 @@ class AppConfig {
   static const EnvironmentType currentEnv = EnvironmentType.dev;
 
   static const String appName = 'E-Fuel Mobile';
-  static String _version = '1.1.0+3'; // Fallback default jika PackageInfo belum selesai/gagal dimuat
+  static String _version = '1.1.0+3'; // Fallback default jika PackageInfo belum selesai/gagal dimuat 
 
   /// Mengambil versi aplikasi dan build number secara dinamis langsung dari pubspec.yaml
   static Future<void> initVersion() async {

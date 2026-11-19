@@ -74,10 +74,10 @@ class NetworkErrorHelper {
               case 504:
                 return "Layanan server sedang mengalami kendala atau dalam pemeliharaan. Silakan coba kembali nanti.";
               default:
-                return "Gagal memproses data pada server (Status: $statusCode). Silakan coba lagi.";
+                return "Gagal memproses data pada server. Silakan coba lagi nanti.";
             }
           }
-          return "Respon yang diterima dari server tidak sesuai. Silakan coba lagi.";
+          return "Respon server tidak sesuai. Silakan coba lagi.";
         case DioExceptionType.unknown:
           final inner = error.error;
           if (inner is SocketException) {
@@ -124,8 +124,19 @@ class NetworkErrorHelper {
     if (lower.contains("handshakeexception") || lower.contains("certificate")) {
       return "Koneksi keamanan ke server terganggu. Silakan hubungi administrator.";
     }
-    if (lower.contains("null check") || lower.contains("nosuchmethoderror")) {
-      return "Terjadi kendala saat memproses data pada aplikasi. Silakan coba lagi.";
+    if (lower.contains("null check") ||
+        lower.contains("nosuchmethoderror") ||
+        lower.contains("bad state") ||
+        lower.contains("stateerror") ||
+        lower.contains("formatexception") ||
+        lower.contains("rangeerror") ||
+        lower.contains("is not a subtype") ||
+        lower.contains("platformexception") ||
+        lower.contains("hiveerror") ||
+        lower.contains("dioexception") ||
+        lower.contains("os error") ||
+        lower.contains("errno")) {
+      return "Terjadi kendala saat memproses data. Silakan coba lagi.";
     }
 
     // Jika pesan sudah ramah pengguna dan tidak terlalu panjang

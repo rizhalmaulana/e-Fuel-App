@@ -7,11 +7,11 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../configs/app_colors.dart';
-import '../../../../configs/app_fonts.dart';
 import '../../../../datas/models/approval/konfigurasi_approval_model.dart';
 import '../../../../datas/models/pengeluaran/pengeluaran_model.dart';
 import '../../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_model.dart';
 import '../../../../helpers/connectivity_helper.dart';
+import '../../../../helpers/network_error_helper.dart';
 import '../../../../routes/app_pages.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
 import '../../../auth/services/login_service.dart';
@@ -91,17 +91,6 @@ class PengisianSolarPengeluaranController extends GetxController {
     varianSolarC.dispose();
     warehouseNoteController.dispose();
     super.onClose();
-  }
-
-  /// Helper aman untuk menutup dialog/overlay GetX.
-  void _safeCloseDialog() {
-    try {
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-    } catch (e) {
-      print("Gagal menutup dialog (safe-guard): $e");
-    }
   }
 
   void _loadArguments() {
@@ -235,23 +224,33 @@ class PengisianSolarPengeluaranController extends GetxController {
   // --- SUBMIT LOGIC ---
   void showSubmitConfirmation() {
     if (!isManualInput.value) {
-      if (fotoDispenser.value == null || fotoSupir.value == null) {
-        Get.snackbar(
-          "Foto Belum Lengkap",
-          "Harap ambil Foto Dispenser dan Foto Supir terlebih dahulu.",
-          backgroundColor: AppColors.alertSoftRed,
-          colorText: AppColors.white,
+      if (fotoDispenser.value == null) {
+        DialogFlexible.showInfo(
+          title: "Data Belum Lengkap",
+          message: "Foto Dispenser wajib dilampirkan.",
+          color: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
+        );
+        return;
+      }
+      if (fotoSupir.value == null) {
+        DialogFlexible.showInfo(
+          title: "Data Belum Lengkap",
+          message: "Foto Supir wajib dilampirkan.",
+          color: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
         );
         return;
       }
     }
 
-    if (aktualSolarC.text.isEmpty || double.tryParse(aktualSolarC.text.replaceAll(',', '.')) == 0) {
-      Get.snackbar(
-        "Data Belum Lengkap",
-        "Harap isi Aktual Pengeluaran Solar.",
-        backgroundColor: AppColors.alertSoftRed,
-        colorText: AppColors.white,
+    final aktualVal = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+    if (aktualSolarC.text.trim().isEmpty || aktualVal <= 0) {
+      DialogFlexible.showInfo(
+        title: "Data Belum Lengkap",
+        message: "Aktual Pengeluaran Solar wajib diisi lebih dari 0.",
+        color: AppColors.primaryOrange,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }
@@ -306,7 +305,12 @@ class PengisianSolarPengeluaranController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar("Error", "Gagal mengambil gambar: $e");
+      DialogFlexible.showInfo(
+        title: "Gagal Mengambil Foto",
+        message: "Kamera tidak merespons. Silakan coba lagi.",
+        color: AppColors.alertSoftRed,
+        icon: Icons.camera_alt_outlined,
+      );
     } finally {
       isTakingPhoto.value = false;
     }
@@ -341,23 +345,10 @@ class PengisianSolarPengeluaranController extends GetxController {
   Future<void> submitTransaction() async {
     if (!await ConnectivityHelper.validateNetwork()) return;
 
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primaryOrange),
-              const SizedBox(height: 24),
-              Text("Mengirim Data...", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.black), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Mengirim Data...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primaryOrange,
     );
 
     try {
@@ -493,7 +484,7 @@ class PengisianSolarPengeluaranController extends GetxController {
       print("-> Step 7 Selesai");
 
       print("=== SUBMIT PENGELUARAN BERHASIL ===");
-      _safeCloseDialog();
+      closeLoading();
       Get.dialog(
         DialogFlexible(
           logo: LottiesHelper().getLottieSuccess(),
@@ -511,10 +502,17 @@ class PengisianSolarPengeluaranController extends GetxController {
       );
 
     } catch (e, stackTrace) {
-      _safeCloseDialog();
+      closeLoading();
       print("Error Submit Pengeluaran: $e");
       print("Stack Trace: $stackTrace");
-      Get.snackbar("Gagal", "Terjadi kesalahan: ${e.toString()}", backgroundColor: Colors.red, colorText: Colors.white);
+      DialogFlexible.showInfo(
+        title: "Gagal Submit",
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      closeLoading();
     }
   }
 

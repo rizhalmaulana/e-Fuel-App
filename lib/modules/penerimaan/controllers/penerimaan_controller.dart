@@ -9,10 +9,8 @@ import 'package:e_fuel/modules/master_flow_process/services/flow_process_service
 import 'package:e_fuel/modules/penerimaan/repositories/penerimaan_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../widgets/component/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 
-import '../../../configs/app_fonts.dart';
 import '../../../datas/constant/value_key_static.dart';
 import '../../../datas/models/penerimaan/penerimaan_sebelum_pengisian/penerimaan_sebelum_model.dart';
 import '../../../datas/models/transactions/penerimaan/transaction_model.dart';
@@ -468,11 +466,11 @@ class PenerimaanController extends GetxController {
     if (selectedStorage.value.isEmpty ||
         selectedStorage.value == 'Pilih Storage' ||
         selectedStorage.value == 'Pilih Lokasi Storage') {
-      CustomSnackbar.show(
-        title: "Terjadi kesalahan",
-        message: "Silahkan pilih Storage Tank dahulu.",
-        backgroundColor: AppColors.alertSoftRed,
-        textColor: Colors.white,
+      DialogFlexible.showInfo(
+        title: "Data Belum Lengkap",
+        message: "Pilih lokasi Storage terlebih dahulu.",
+        color: AppColors.primary,
+        icon: Icons.warning_amber_rounded,
       );
       return false;
     }
@@ -483,13 +481,13 @@ class PenerimaanController extends GetxController {
       final ctrls = manualInputControllers[tankCode];
       if (ctrls == null) continue;
 
-      final String h = ctrls['height']!.text;
+      final String h = ctrls['height']!.text.trim();
       if (h.isEmpty) {
-        CustomSnackbar.show(
+        DialogFlexible.showInfo(
           title: "Data Belum Lengkap",
           message: "Tinggi tangki $tankCode wajib diisi.",
-          backgroundColor: AppColors.alertSoftRed,
-          textColor: Colors.white,
+          color: AppColors.primary,
+          icon: Icons.warning_amber_rounded,
         );
         return false;
       }
@@ -536,25 +534,10 @@ class PenerimaanController extends GetxController {
     if (isSubmitting.value) return;
     isSubmitting.value = true;
 
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.primary),
-              const SizedBox(height: 24),
-              Text("Mengirim Data", style: AppFonts.fUrbanistBold16),
-              const SizedBox(height: 8),
-              Text("Mohon tunggu...", style: AppFonts.fUrbanistRegular12),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    final closeLoading = DialogFlexible.showLoading(
+      title: "Mengirim Data...",
+      subtitle: "Mohon tunggu sebentar",
+      color: AppColors.primary,
     );
 
     try {
@@ -746,7 +729,7 @@ class PenerimaanController extends GetxController {
           noBast, manualData, iotData);
       await _repository.deleteDraft();
 
-      Get.back();
+      closeLoading();
       Get.offNamed(Routes.PENGISIAN_SOLAR, arguments: {
         'noBast': noBast,
         'noPO': adminData['purch_no'],
@@ -760,19 +743,20 @@ class PenerimaanController extends GetxController {
         'storage_code': finalStorageCode,
       });
     } catch (e) {
-      if (Get.isDialogOpen == true) {
-        Get.back();
-      }
+      closeLoading();
       _handleError(e);
     } finally {
+      closeLoading();
       isSubmitting.value = false;
     }
   }
 
   void _handleError(Object e) {
-    NetworkErrorHelper.showErrorSnackbar(
+    DialogFlexible.showInfo(
       title: "Gagal Submit",
-      error: e,
+      message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+      color: AppColors.alertSoftRed,
+      icon: Icons.error_outline_rounded,
     );
   }
 
