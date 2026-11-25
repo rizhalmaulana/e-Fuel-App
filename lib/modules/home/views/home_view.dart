@@ -1,7 +1,9 @@
 import 'package:e_fuel/modules/home/views/home_skeleton_view.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 
@@ -132,7 +134,10 @@ class HomeView extends GetView<HomeController> {
       child: CircleAvatar(
         backgroundColor: AppColors.white,
         radius: 20,
-        child: Text(controller.profileInitials.value, style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary)),
+        child: Obx(() => Text(
+          controller.profileInitials.value,
+          style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primary),
+        )),
       ),
     );
   }
@@ -145,10 +150,9 @@ class HomeView extends GetView<HomeController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: const Color(0xFFF8F9FA),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.grey.shade300, width: 1),
           boxShadow: [
             BoxShadow(
@@ -158,145 +162,311 @@ class HomeView extends GetView<HomeController> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // (Total Volume)
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Total Volume",
-                        style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
-                      ),
-                      const SizedBox(height: 4),
-                      Obx(() => FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "${TextConvertHelper().formatNumber(controller.totalVolumeDisplay.value)} L",
-                          style: AppFonts.fUrbanistBold24.copyWith(color: AppColors.primary),
-                        ),
-                      )),
-                    ],
-                  ),
-                ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Modern slim animated progress bar saat sedang refresh
+              Obx(() => AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    height: controller.isRefreshing.value ? 3 : 0,
+                    child: controller.isRefreshing.value
+                        ? LinearProgressIndicator(
+                            backgroundColor: AppColors.primary.withOpacity(0.12),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppColors.secondary,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  )),
 
-                const SizedBox(width: 12),
-
-                // (Pilih Storage)
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Pilih Storage",
-                        style: AppFonts.fUrbanistMedium12.copyWith(color: AppColors.secondaryText),
-                      ),
-                      const SizedBox(height: 6),
-                      _buildCompactCapsuleDropdown(context),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            Container(
-              height: 1,
-              width: double.infinity,
-              color: AppColors.fieldBackground,
-            ),
-
-            Obx(() {
-              if (!controller.showOfflineBanner) return const SizedBox.shrink();
-
-              return Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade300),
-                ),
-                child: Row(
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.wifi_off_rounded, size: 14, color: Colors.orange.shade700),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Menampilkan data terakhir tersimpan',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade700,
-                          fontWeight: FontWeight.w500,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // (Total Volume)
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    "Total Volume",
+                                    style: AppFonts.fUrbanistMedium12
+                                        .copyWith(color: AppColors.secondaryText),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Obx(() {
+                                    if (controller.isRefreshing.value) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'Sync...',
+                                          style: AppFonts.fUrbanistSemiBold10
+                                              .copyWith(
+                                            color: AppColors.primary,
+                                            fontSize: 9,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    if (controller.lastSyncLabel.value.isNotEmpty &&
+                                        !controller.showOfflineBanner) {
+                                      return Flexible(
+                                        child: Text(
+                                          '• ${controller.lastSyncLabel.value}',
+                                          style: AppFonts.fUrbanistRegular10
+                                              .copyWith(
+                                            color: AppColors.secondary,
+                                            fontSize: 9,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  }),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Obx(() {
+                                if (controller.isRefreshing.value) {
+                                  return Shimmer.fromColors(
+                                    baseColor: Colors.grey.shade300,
+                                    highlightColor: Colors.grey.shade100,
+                                    child: Container(
+                                      width: 120,
+                                      height: 28,
+                                      margin: const EdgeInsets.only(top: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "${TextConvertHelper().formatNumber(controller.totalVolumeDisplay.value)} L",
+                                    style: AppFonts.fUrbanistBold24
+                                        .copyWith(color: AppColors.primary),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => controller.onRefreshData(),
-                      child: Text(
-                        'Perbarui',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade800,
-                          fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
+
+                        const SizedBox(width: 12),
+
+                        // (Pilih Storage)
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Pilih Storage",
+                                style: AppFonts.fUrbanistMedium12
+                                    .copyWith(color: AppColors.secondaryText),
+                              ),
+                              const SizedBox(height: 6),
+                              _buildCompactCapsuleDropdown(context),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
+
+                    const SizedBox(height: 8),
+
+                    Container(
+                      height: 1,
+                      width: double.infinity,
+                      color: AppColors.fieldBackground,
+                    ),
+
+                    Obx(() {
+                      if (!controller.showOfflineBanner) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final bannerType = controller.networkBannerType.value;
+                      final isError = bannerType == 'error';
+                      final isTimeout = bannerType == 'timeout';
+
+                      final bgColor = isError
+                          ? Colors.red.shade50
+                          : Colors.orange.shade50;
+                      final borderColor = isError
+                          ? Colors.red.shade200
+                          : Colors.orange.shade300;
+                      final accentColor = isError
+                          ? Colors.red.shade700
+                          : Colors.orange.shade800;
+                      final iconData = isError
+                          ? Icons.cloud_off_rounded
+                          : (isTimeout
+                              ? Icons.signal_wifi_bad_rounded
+                              : Icons.wifi_off_rounded);
+                      final message =
+                          controller.networkBannerMessage.value.isNotEmpty
+                              ? controller.networkBannerMessage.value
+                              : 'Menampilkan data terakhir tersimpan';
+
+                      return Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(iconData, size: 16, color: accentColor),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                message,
+                                style: AppFonts.fUrbanistMedium10.copyWith(
+                                  fontSize: 11,
+                                  color: accentColor,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: controller.isRefreshing.value
+                                  ? null
+                                  : () => controller.onRefreshData(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: controller.isRefreshing.value
+                                    ? SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.8,
+                                          color: accentColor,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Coba Lagi',
+                                        style: AppFonts.fUrbanistBold10.copyWith(
+                                          fontSize: 11,
+                                          color: accentColor,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 8),
+
+                    // List Tank menyamping (dengan shimmer modern saat refresh)
+                    Obx(() {
+                      if (controller.isRefreshing.value) {
+                        return Row(
+                          children: [
+                            Expanded(child: _buildMicroTankShimmer()),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildMicroTankShimmer()),
+                          ],
+                        );
+                      }
+
+                      final tanks = controller.tankListDisplay.take(2).toList();
+
+                      if (tanks.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.dns_outlined,
+                                  size: 24,
+                                  color: AppColors.secondaryText.withOpacity(0.5)),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Tidak ada Tank",
+                                style: AppFonts.fUrbanistMedium10
+                                    .copyWith(color: AppColors.secondaryText),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Row(
+                        children: tanks.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          var tank = entry.value;
+
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                  right: index == tanks.length - 1 ? 0 : 8.0),
+                              child: _buildMicroTankItem(tank),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }),
                   ],
                 ),
-              );
-            }),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-            const SizedBox(height: 8),
-
-            // List Tank menyamping
-            Obx(() {
-              final tanks = controller.tankListDisplay.take(2).toList();
-
-              if (tanks.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.dns_outlined, size: 24, color: AppColors.secondaryText.withOpacity(0.5)),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Tidak ada Tank",
-                        style: AppFonts.fUrbanistMedium10.copyWith(color: AppColors.secondaryText),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return Row(
-                children: tanks.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  var tank = entry.value;
-
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: index == tanks.length - 1 ? 0 : 8.0),
-                      child: _buildMicroTankItem(tank),
-                    ),
-                  );
-                }).toList(),
-              );
-            }),
-          ],
+  Widget _buildMicroTankShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -604,6 +774,19 @@ class HomeView extends GetView<HomeController> {
           ),
           const SizedBox(height: 12),
           Obx(() {
+            if (controller.isRefreshing.value) {
+              return SizedBox(
+                height: 165,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  itemCount: 2,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, __) => _buildTransactionCardShimmer(screenWidth),
+                ),
+              );
+            }
+
             final List<Map<String, dynamic>> displayList = controller.isApprover.value
                 ? controller.filteredApprovalTransactions
                 : controller.filteredOutstandingTransactions;
@@ -795,7 +978,7 @@ class HomeView extends GetView<HomeController> {
               // Custom Date Picker container
               GestureDetector(
                 onTap: () => controller.pickDraftDateRange(context),
-                child: Container(
+                child: Obx(() => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundGrey,
@@ -809,7 +992,7 @@ class HomeView extends GetView<HomeController> {
                       const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 20),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Obx(() {
+                        child: () {
                           final start = controller.draftStartDate.value;
                           final end = controller.draftEndDate.value;
                           if (start != null && end != null) {
@@ -829,23 +1012,21 @@ class HomeView extends GetView<HomeController> {
                             'Pilih Tanggal / Rentang Custom...',
                             style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.secondaryText),
                           );
-                        }),
+                        }(),
                       ),
-                      Obx(() {
-                        if (controller.draftStartDate.value != null) {
-                          return GestureDetector(
-                            onTap: () {
-                              controller.draftStartDate.value = null;
-                              controller.draftEndDate.value = null;
-                            },
-                            child: const Icon(Icons.close, size: 18, color: AppColors.secondaryText),
-                          );
-                        }
-                        return const Icon(Icons.chevron_right, size: 20, color: AppColors.secondaryText);
-                      }),
+                      if (controller.draftStartDate.value != null)
+                        GestureDetector(
+                          onTap: () {
+                            controller.draftStartDate.value = null;
+                            controller.draftEndDate.value = null;
+                          },
+                          child: const Icon(Icons.close, size: 18, color: AppColors.secondaryText),
+                        )
+                      else
+                        const Icon(Icons.chevron_right, size: 20, color: AppColors.secondaryText),
                     ],
                   ),
-                ),
+                )),
               ),
 
               const SizedBox(height: 24),
@@ -972,42 +1153,203 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
+  Widget _buildTransactionCardShimmer(double screenWidth) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: (screenWidth * 0.48).clamp(160.0, 210.0),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              height: 24,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 14,
+                  width: 110,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 10,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              height: 30,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernRefreshIndicator(
+    BuildContext context,
+    RefreshIndicatorMode refreshState,
+    double pulledExtent,
+    double refreshTriggerPullDistance,
+    double refreshIndicatorExtent,
+  ) {
+    final double progress =
+        (pulledExtent / refreshTriggerPullDistance).clamp(0.0, 1.0);
+    final bool isArmed = refreshState == RefreshIndicatorMode.armed;
+    final bool isRefreshingNow =
+        refreshState == RefreshIndicatorMode.refresh ||
+            refreshState == RefreshIndicatorMode.done ||
+            controller.isRefreshing.value;
+
+    if (pulledExtent <= 4 && !isRefreshingNow) {
+      return const SizedBox.shrink();
+    }
+
+    return ClipRect(
+      child: Container(
+        color: AppColors.primary,
+        alignment: Alignment.center,
+        child: OverflowBox(
+          minHeight: 0,
+          maxHeight: 68,
+          alignment: Alignment.center,
+          child: Opacity(
+            opacity: isRefreshingNow ? 1.0 : progress.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: isRefreshingNow ? 1.0 : (0.85 + 0.15 * progress),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.28),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isRefreshingNow)
+                      const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    else
+                      AnimatedRotation(
+                        turns: isArmed ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 180),
+                        child: const Icon(
+                          Icons.arrow_downward_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: isRefreshingNow
+                          ? Obx(() => Text(
+                                controller.refreshStatusText.value,
+                                style: AppFonts.fUrbanistSemiBold12
+                                    .copyWith(color: Colors.white),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ))
+                          : Text(
+                              isArmed
+                                  ? 'Lepaskan untuk memperbarui'
+                                  : 'Tarik ke bawah untuk memperbarui',
+                              style: AppFonts.fUrbanistSemiBold12
+                                  .copyWith(color: Colors.white),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: controller.onRefreshData,
-          color: AppColors.primary,
-          child: Obx(() {
-            if (controller.isLoading.value) {
-              return const HomeSkeletonView();
-            }
+        child: Obx(() {
+          if (controller.isLoading.value) {
+            return const HomeSkeletonView();
+          }
 
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  _buildHeader(context),
-
-                  Transform.translate(
-                    offset: const Offset(0, -35),
-                    child: Column(
-                      children: [
-                        _buildTotalVolumeCardSection(context),
-                        const SizedBox(height: 16),
-                        _buildMenuSection(context),
-                        _buildOutstandingTransaction(context),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-                ],
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
+              CupertinoSliverRefreshControl(
+                refreshTriggerPullDistance: 90,
+                refreshIndicatorExtent: 58,
+                builder: _buildModernRefreshIndicator,
+                onRefresh: controller.onRefreshData,
               ),
-            );
-          }),
-        ),
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    Transform.translate(
+                      offset: const Offset(0, -35),
+                      child: Column(
+                        children: [
+                          _buildTotalVolumeCardSection(context),
+                          const SizedBox(height: 16),
+                          _buildMenuSection(context),
+                          _buildOutstandingTransaction(context),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }

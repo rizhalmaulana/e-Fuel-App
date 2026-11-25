@@ -5,12 +5,24 @@ import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import '../../fuel/services/fuel_data_service.dart';
 import '../../fuel/services/master_data_service.dart';
 
+class TankSyncResult {
+  final List<VolumeTankDetailModel> tanks;
+  final bool isFromServer;
+  final Object? error;
+
+  const TankSyncResult({
+    required this.tanks,
+    required this.isFromServer,
+    this.error,
+  });
+}
+
 class HomeRepository {
   HomeService get _homeService => Get.find<HomeService>();
   final FuelDataService _fuelDataService = Get.find<FuelDataService>();
   final MasterDataService _masterDataService = MasterDataService();
 
-  Future<List<VolumeTankDetailModel>> syncSensorStockWithLocal({
+  Future<TankSyncResult> syncSensorStockWithStatus({
     required String unitId,
     required String storageCode,
   }) async {
@@ -20,31 +32,34 @@ class HomeRepository {
         .toList();
 
     List<VolumeTankDetailModel> masterTanks = [];
+    Object? fetchError;
     try {
       masterTanks = await _masterDataService.getTankDetailFromStorage(
         unitId: unitId,
         storageId: storageCode,
       );
     } catch (e) {
+      fetchError = e;
       print("⚠️ [HomeRepo] Gagal fetch master tangki (offline?): $e");
     }
 
-    if (masterTanks.isEmpty) {
-      if (offlineData.isNotEmpty) {
-        print("📦 [HomeRepo] Menggunakan data offline untuk storage: $storageCode");
-        return offlineData;
-      }
-      return [];
+    if (fetchError != null) {
+      return TankSyncResult(
+        tanks: offlineData,
+        isFromServer: false,
+        error: fetchError,
+      );
     }
 
-    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    List<VolumeTankDetailModel> syncedList = [];
-    bool anyStockApiSuccess = false;
+    if (masterTanks.isEmpty) {
+      return TankSyncResult(
+        tanks: offlineData,
+        isFromServer: false,
+      );
+    }
 
-    // API_GET_CHILD_DETAIL_STORAGE_TANK already returns the latest volume and height, 
-    // so we can just use the data from masterTanks directly.
+    List<VolumeTankDetailModel> syncedList = [];
     for (var tank in masterTanks) {
-      anyStockApiSuccess = true;
       syncedList.add(VolumeTankDetailModel(
         id: tank.id,
         unit: tank.unit,
@@ -68,9 +83,23 @@ class HomeRepository {
       await _fuelDataService.saveApiManualTanks(mergedCache);
 
       print("✅ [HomeRepo] Cache offline diperbarui: ${syncedList.length} tangki "
-          "untuk storage $storageCode (stockApiOk: $anyStockApiSuccess)");
+          "untuk storage $storageCode");
     }
 
-    return syncedList;
+    return TankSyncResult(
+      tanks: syncedList,
+      isFromServer: true,
+    );
+  }
+
+  Future<List<VolumeTankDetailModel>> syncSensorStockWithLocal({
+    required String unitId,
+    required String storageCode,
+  }) async {
+    final result = await syncSensorStockWithStatus(
+      unitId: unitId,
+      storageCode: storageCode,
+    );
+    return result.tanks;
   }
 }

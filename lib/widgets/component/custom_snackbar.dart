@@ -12,6 +12,7 @@ class CustomSnackbar {
     required String message,
     Color? backgroundColor,
     Color? textColor,
+    IconData? icon,
     Duration duration = const Duration(seconds: 3),
   }) {
     // Gunakan overlayContext terlebih dahulu jika tersedia untuk menghindari context Navigator root
@@ -62,6 +63,7 @@ class CustomSnackbar {
           message: message,
           backgroundColor: backgroundColor ?? AppColors.primary,
           textColor: textColor ?? Colors.white,
+          icon: icon,
           duration: duration,
           onDismiss: () {
             if (_currentOverlay == newOverlay) {
@@ -104,6 +106,7 @@ class _TopSnackbarWidget extends StatefulWidget {
   final String message;
   final Color backgroundColor;
   final Color textColor;
+  final IconData? icon;
   final Duration duration;
   final VoidCallback onDismiss;
 
@@ -112,6 +115,7 @@ class _TopSnackbarWidget extends StatefulWidget {
     required this.message,
     required this.backgroundColor,
     required this.textColor,
+    this.icon,
     required this.duration,
     required this.onDismiss,
   });
@@ -168,34 +172,57 @@ class _TopSnackbarWidgetState extends State<_TopSnackbarWidget> with SingleTicke
           child: Material(
             color: Colors.transparent,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: widget.backgroundColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    color: Colors.black.withOpacity(0.18),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.title.isNotEmpty)
-                    Text(
-                      widget.title,
-                      style: AppFonts.fUrbanistBold14.copyWith(
+                  if (widget.icon != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: widget.textColor.withOpacity(0.16),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        widget.icon,
                         color: widget.textColor,
+                        size: 20,
                       ),
                     ),
-                  if (widget.title.isNotEmpty) const SizedBox(height: 4),
-                  Text(
-                    widget.message,
-                    style: AppFonts.fUrbanistRegular12.copyWith(
-                      color: widget.textColor,
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.title.isNotEmpty)
+                          Text(
+                            widget.title,
+                            style: AppFonts.fUrbanistBold14.copyWith(
+                              color: widget.textColor,
+                            ),
+                          ),
+                        if (widget.title.isNotEmpty) const SizedBox(height: 3),
+                        Text(
+                          widget.message,
+                          style: AppFonts.fUrbanistRegular12.copyWith(
+                            color: widget.textColor.withOpacity(0.95),
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

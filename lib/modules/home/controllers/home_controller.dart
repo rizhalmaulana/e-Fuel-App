@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:e_fuel/helpers/lotties_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,12 +17,14 @@ import '../../../datas/models/master_storage/master_storage_model.dart';
 import '../../../datas/models/user/user_model.dart';
 import '../../../datas/models/volume_tank_detail/volume_tank_detail_model.dart';
 import '../../../helpers/connectivity_helper.dart';
+import '../../../helpers/network_error_helper.dart';
 import '../../../helpers/text_convert_helper.dart';
 import '../../../routes/app_pages.dart';
 
 // Services
 import 'package:e_fuel/modules/auth/services/login_service.dart';
 import 'package:e_fuel/modules/fuel/services/fuel_data_service.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../../widgets/dialog/dialog_on_development.dart';
 import '../../approval/services/approval_service.dart';
@@ -57,6 +60,8 @@ class HomeController extends GetxController {
 
   final isApprover = false.obs;
   final isLoading = false.obs;
+  final isRefreshing = false.obs;
+  final refreshStatusText = 'Memperbarui data...'.obs;
   final isTankDetailExpanded = false.obs;
 
   // Menu List dan Unit List (Reactive)
@@ -80,13 +85,18 @@ class HomeController extends GetxController {
 
   // Status offline/online pada tampilan tangki
   final isUsingOfflineData = false.obs;
+  final networkBannerType = RxnString(); // 'offline' | 'timeout' | 'error' | null
+  final networkBannerMessage = ''.obs;
+  final lastSyncLabel = ''.obs;
 
   // True selama API pertama kali dipanggil — banner offline tidak ditampilkan dulu
   // agar tidak muncul sesaat saat app buka padahal HP online
   final _isInitialLoad = true.obs;
 
-  /// Gabungan: benar-benar offline (bukan sekadar loading pertama)
-  bool get showOfflineBanner => isUsingOfflineData.value && !_isInitialLoad.value;
+  /// Gabungan: benar-benar offline/gangguan jaringan (bukan sekadar loading pertama)
+  bool get showOfflineBanner =>
+      (isUsingOfflineData.value || networkBannerType.value != null) &&
+      !_isInitialLoad.value;
 
   // Transaksi
   final selectedTransactionTab = 0.obs;
@@ -274,16 +284,21 @@ class HomeController extends GetxController {
       if (isOnline) {
         if (isUsingOfflineData.value) {
           isUsingOfflineData.value = false;
+          networkBannerType.value = null;
+          networkBannerMessage.value = '';
           final storageCode = _getStorageCode(selectedStorage.value);
           _fetchManualTanksApi(selectedUnitCode.value, storageCode);
         }
       } else {
         isUsingOfflineData.value = true;
+        networkBannerType.value = 'offline';
+        networkBannerMessage.value =
+            'Tidak ada koneksi internet. Menampilkan data terakhir tersimpan.';
       }
     });
   }
 
-  Future<void> _syncMasterDataFromServer() async {
+  Future<void> _syncMasterDataFromServer({bool throwOnError = false}) async {
     try {
       final authData = _loginService.getCurrentAuth();
       if (authData == null) return;
@@ -299,19 +314,27 @@ class HomeController extends GetxController {
           // Update cache storage (offline-first: selalu simpan jika berhasil)
           await _fuelDataService.saveLocalStorages(apiStorages);
           _cachedStorages = apiStorages;
-          loadStorageLocations(unitCode);
+          loadStorageLocations(unitCode, skipTankFetch: true);
         }
       }
     } catch (e) {
       print("⚠️ [HomeController] Sync Error: $e");
+      if (throwOnError) rethrow;
       // Tidak crash — data storage tetap terbaca dari Hive
     }
   }
 
   Future<void> _initialDataSync() async {
-    final online = await ConnectivityHelper.isConnected();
-    if (!online) {
+    final netStatus = await ConnectivityHelper.checkNetworkStatus(
+      timeout: const Duration(seconds: 4),
+    );
+    if (netStatus != NetworkCheckStatus.connected) {
       isUsingOfflineData.value = true;
+      networkBannerType.value =
+          netStatus == NetworkCheckStatus.noNetwork ? 'offline' : 'timeout';
+      networkBannerMessage.value = netStatus == NetworkCheckStatus.noNetwork
+          ? 'Tidak ada koneksi internet. Menampilkan data terakhir tersimpan.'
+          : 'Jaringan lemah. Menampilkan data terakhir tersimpan.';
       _isInitialLoad.value = false;
       return;
     }
@@ -319,17 +342,27 @@ class HomeController extends GetxController {
     final auth = _loginService.getCurrentAuth();
     if (auth == null) return;
 
-    // Tidak melakukan clear() agar data lokal yang sudah tampil tidak berkedip/hilang
-    // assignAll() akan menimpa data secara mulus begitu respon server diterima
+    try {
+      // 1. Pastikan master data & storage tersinkronisasi dari server terlebih dahulu
+      await _syncMasterDataFromServer().timeout(const Duration(seconds: 10));
 
-    // 1. Pastikan master data & storage tersinkronisasi dari server terlebih dahulu
-    await _syncMasterDataFromServer();
-
-    // 2. Muat transaksi (Draft / Approval) dan refresh data tangki secara bersamaan
-    await Future.wait([
-      auth.user.isApprover ? _loadApproverTransactions() : _loadServerOpenTransactions(),
-      _refreshTankData(),
-    ]);
+      // 2. Muat transaksi (Draft / Approval) dan refresh data tangki secara bersamaan
+      await Future.wait([
+        auth.user.isApprover
+            ? _loadApproverTransactions()
+            : _loadServerOpenTransactions(),
+        _refreshTankData(),
+      ]).timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      isUsingOfflineData.value = true;
+      networkBannerType.value = 'timeout';
+      networkBannerMessage.value =
+          'Jaringan lemah. Menampilkan data terakhir tersimpan.';
+      _isInitialLoad.value = false;
+    } catch (e) {
+      debugPrint("⚠️ [HomeController] _initialDataSync error: $e");
+      _isInitialLoad.value = false;
+    }
   }
 
   Future<bool> _loadDataForActiveUser() async {
@@ -494,16 +527,246 @@ class HomeController extends GetxController {
   }
 
   Future<void> onRefreshData() async {
-    if (!await ConnectivityHelper.validateNetwork()) return;
+    if (isRefreshing.value) return;
+
+    isRefreshing.value = true;
+    refreshStatusText.value = 'Memeriksa koneksi internet...';
 
     try {
-      await _initialDataSync();
+      final netStatus = await ConnectivityHelper.checkNetworkStatus(
+        timeout: const Duration(seconds: 4),
+      );
+
+      if (netStatus == NetworkCheckStatus.noNetwork) {
+        isUsingOfflineData.value = true;
+        _isInitialLoad.value = false;
+        networkBannerType.value = 'offline';
+        networkBannerMessage.value =
+            'Tidak ada koneksi internet. Menampilkan data terakhir tersimpan.';
+        CustomSnackbar.show(
+          title: 'Tidak Ada Koneksi Internet',
+          message:
+              'Perangkat Anda tidak terhubung ke internet. Pastikan Wi-Fi atau data seluler aktif, lalu tarik ke bawah untuk mencoba lagi.',
+          backgroundColor: AppColors.alertSoftRed,
+          icon: Icons.wifi_off_rounded,
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
+
+      if (netStatus == NetworkCheckStatus.slowOrUnreachable) {
+        isUsingOfflineData.value = true;
+        _isInitialLoad.value = false;
+        networkBannerType.value = 'timeout';
+        networkBannerMessage.value =
+            'Jaringan terlalu lemah. Menampilkan data terakhir tersimpan.';
+        CustomSnackbar.show(
+          title: 'Jaringan Terlalu Lemah',
+          message:
+              'Sinyal internet saat ini terlalu lambat untuk menghubungi server. Data terakhir tetap ditampilkan, silakan coba lagi saat sinyal stabil.',
+          backgroundColor: AppColors.primaryOrange,
+          icon: Icons.signal_wifi_bad_rounded,
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
+
+      refreshStatusText.value = 'Menyinkronkan data tangki & transaksi...';
+
+      final auth = _loginService.getCurrentAuth();
+      if (auth == null) return;
+
+      // Hard timeout 12 detik agar indikator refresh tidak pernah berputar terus-menerus
+      final syncOutcome = await _performTrackedRefresh(auth).timeout(
+        const Duration(seconds: 12),
+      );
+
+      if (syncOutcome.allSucceeded) {
+        isUsingOfflineData.value = false;
+        _isInitialLoad.value = false;
+        networkBannerType.value = null;
+        networkBannerMessage.value = '';
+        lastSyncLabel.value =
+            'Diperbarui ${DateFormat('HH:mm').format(DateTime.now())}';
+
+        CustomSnackbar.show(
+          title: 'Data Diperbarui',
+          message: 'Informasi tangki dan daftar transaksi berhasil disinkronkan.',
+          backgroundColor: AppColors.primary,
+          icon: Icons.check_circle_outline_rounded,
+          duration: const Duration(seconds: 2),
+        );
+      } else if (syncOutcome.anySucceeded) {
+        _isInitialLoad.value = false;
+        networkBannerType.value = 'timeout';
+        networkBannerMessage.value =
+            'Sebagian data gagal dimuat karena koneksi kurang stabil.';
+        CustomSnackbar.show(
+          title: 'Pembaruan Belum Lengkap',
+          message:
+              'Sebagian data belum berhasil diperbarui karena jaringan kurang stabil. Silakan tarik ke bawah untuk mencoba lagi.',
+          backgroundColor: AppColors.primaryOrange,
+          icon: Icons.warning_amber_rounded,
+          duration: const Duration(seconds: 4),
+        );
+      } else if (syncOutcome.primaryError != null) {
+        _handleRefreshFailure(syncOutcome.primaryError!);
+      }
+    } on TimeoutException {
+      _handleRefreshFailure(TimeoutException('Refresh timeout'));
     } catch (e) {
       debugPrint("Error saat refresh: $e");
+      _handleRefreshFailure(e);
+    } finally {
+      isRefreshing.value = false;
+      refreshStatusText.value = 'Memperbarui data...';
     }
   }
 
-  Future<void> _refreshTankData() async {
+  Future<_RefreshSyncOutcome> _performTrackedRefresh(
+    AuthResponseModel auth,
+  ) async {
+    Object? masterError;
+    Object? txError;
+    Object? tankError;
+    int successCount = 0;
+
+    try {
+      await _syncMasterDataFromServer(throwOnError: true);
+      successCount++;
+    } catch (e) {
+      masterError = e;
+    }
+
+    // Jika master data sudah timeout total / jaringan putus, jangan tunggu timeout berlapis
+    if (masterError != null && _isTimeoutOrConnectionError(masterError)) {
+      return _RefreshSyncOutcome(
+        allSucceeded: false,
+        anySucceeded: false,
+        primaryError: masterError,
+      );
+    }
+
+    await Future.wait([
+      () async {
+        try {
+          if (auth.user.isApprover) {
+            await _loadApproverTransactions(throwOnError: true);
+          } else {
+            await _loadServerOpenTransactions(throwOnError: true);
+          }
+          successCount++;
+        } catch (e) {
+          txError = e;
+        }
+      }(),
+      () async {
+        try {
+          await _refreshTankData(throwOnError: true);
+          successCount++;
+        } catch (e) {
+          tankError = e;
+        }
+      }(),
+    ]);
+
+    final firstError = tankError ?? txError ?? masterError;
+    return _RefreshSyncOutcome(
+      allSucceeded: firstError == null,
+      anySucceeded: successCount > 0,
+      primaryError: firstError,
+    );
+  }
+
+  bool _isTimeoutOrConnectionError(Object error) {
+    if (error is TimeoutException || error is SocketException) return true;
+    if (error is DioException) {
+      return error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.connectionError ||
+          error.error is SocketException ||
+          error.error is TimeoutException;
+    }
+    final text = error.toString().toLowerCase();
+    return text.contains('network_timeout') ||
+        text.contains('timeout') ||
+        text.contains('socketexception') ||
+        text.contains('failed host lookup');
+  }
+
+  void _handleRefreshFailure(Object error) {
+    isUsingOfflineData.value = true;
+    _isInitialLoad.value = false;
+
+    final raw = error.toString().toLowerCase();
+    final isTimeout = error is TimeoutException ||
+        raw.contains('network_timeout') ||
+        raw.contains('timeout') ||
+        (error is DioException &&
+            (error.type == DioExceptionType.connectionTimeout ||
+                error.type == DioExceptionType.receiveTimeout ||
+                error.type == DioExceptionType.sendTimeout));
+
+    final isDisconnected = error is SocketException ||
+        raw.contains('socketexception') ||
+        raw.contains('failed host lookup') ||
+        raw.contains('network is unreachable') ||
+        (error is DioException &&
+            error.type == DioExceptionType.connectionError);
+
+    final statusCode = error is DioException ? error.response?.statusCode : null;
+
+    if (isTimeout) {
+      networkBannerType.value = 'timeout';
+      networkBannerMessage.value =
+          'Jaringan lemah atau waktu koneksi habis. Menampilkan data terakhir.';
+      CustomSnackbar.show(
+        title: 'Koneksi Terlalu Lambat',
+        message:
+            'Waktu tunggu habis karena jaringan lemah atau server sedang sibuk. Data terakhir yang tersimpan tetap ditampilkan. Silakan coba lagi nanti.',
+        backgroundColor: AppColors.primaryOrange,
+        icon: Icons.hourglass_bottom_rounded,
+        duration: const Duration(seconds: 4),
+      );
+    } else if (isDisconnected) {
+      networkBannerType.value = 'offline';
+      networkBannerMessage.value =
+          'Koneksi ke server terputus. Menampilkan data terakhir tersimpan.';
+      CustomSnackbar.show(
+        title: 'Koneksi Terputus',
+        message:
+            'Sambungan ke server terputus saat memperbarui data. Pastikan sinyal internet stabil lalu tarik ke bawah untuk mencoba lagi.',
+        backgroundColor: AppColors.alertSoftRed,
+        icon: Icons.wifi_off_rounded,
+        duration: const Duration(seconds: 4),
+      );
+    } else if (statusCode == 401) {
+      networkBannerType.value = 'error';
+      networkBannerMessage.value = 'Sesi login Anda telah berakhir.';
+      CustomSnackbar.show(
+        title: 'Sesi Berakhir',
+        message:
+            'Sesi login Anda sudah tidak aktif. Silakan keluar dan masuk kembali ke aplikasi.',
+        backgroundColor: AppColors.alertSoftRed,
+        icon: Icons.lock_clock_rounded,
+        duration: const Duration(seconds: 4),
+      );
+    } else {
+      networkBannerType.value = 'error';
+      networkBannerMessage.value =
+          'Gagal memperbarui data. Menampilkan data terakhir tersimpan.';
+      CustomSnackbar.show(
+        title: 'Gagal Memperbarui Data',
+        message: NetworkErrorHelper.getFriendlyErrorMessage(error),
+        backgroundColor: AppColors.alertSoftRed,
+        icon: Icons.cloud_off_rounded,
+        duration: const Duration(seconds: 4),
+      );
+    }
+  }
+
+  Future<void> _refreshTankData({bool throwOnError = false}) async {
     // Jika storage belum terpilih namun tersedia, pilih lokasi pertama
     if (storageLocations.isNotEmpty &&
         (selectedStorage.value.isEmpty ||
@@ -521,10 +784,15 @@ class HomeController extends GetxController {
       try {
         await Future.wait([
           _homeService.initDataFlow(selectedUnitCode.value, storageCode),
-          _fetchManualTanksApi(selectedUnitCode.value, storageCode),
+          _fetchManualTanksApi(
+            selectedUnitCode.value,
+            storageCode,
+            throwOnError: throwOnError,
+          ),
         ]);
       } catch (e) {
         debugPrint("⚠️ [HomeController] Sinkronisasi tangki gagal/timeout: $e");
+        if (throwOnError) rethrow;
       }
     }
   }
@@ -559,12 +827,14 @@ class HomeController extends GetxController {
     });
   }
 
-  Future<void> _loadApproverTransactions() async {
+  Future<void> _loadApproverTransactions({bool throwOnError = false}) async {
     final authData = _loginService.getCurrentAuth();
     if (authData == null) return;
 
     final userLevel = authData.user.otorisasi.isNotEmpty ? authData.user.otorisasi.first : '';
-    final kodeUnit = authData.currentKodeUnit ?? '';
+    final kodeUnit = selectedUnitCode.value.isNotEmpty
+        ? selectedUnitCode.value
+        : (authData.currentKodeUnit ?? '');
 
     try {
       final List<Map<String, dynamic>> tempApproval = [];
@@ -676,10 +946,11 @@ class HomeController extends GetxController {
       approvalTransactions.assignAll(tempApproval);
     } catch (e) {
       print("Error loading approval transactions: $e");
+      if (throwOnError) rethrow;
     }
   }
 
-  Future<void> _loadServerOpenTransactions() async {
+  Future<void> _loadServerOpenTransactions({bool throwOnError = false}) async {
     try {
       final authData = _loginService.getCurrentAuth();
       if (authData == null) return;
@@ -694,6 +965,7 @@ class HomeController extends GetxController {
       }
 
       final List<Map<String, dynamic>> tempOutstanding = [];
+      Object? apiError;
 
       // 1. Fetch Drafts from API Server (status_inbound == 'O')
       try {
@@ -724,6 +996,7 @@ class HomeController extends GetxController {
           }
         }
       } catch (e) {
+        apiError = e;
         print("Error fetching server open transactions: $e");
       }
 
@@ -758,8 +1031,12 @@ class HomeController extends GetxController {
       }
 
       outstandingTransactions.assignAll(tempOutstanding);
+      if (apiError != null && throwOnError) {
+        throw apiError;
+      }
     } catch (e) {
       print("Error loading server transactions: $e");
+      if (throwOnError) rethrow;
     }
   }
 
@@ -799,28 +1076,40 @@ class HomeController extends GetxController {
     }
   }
 
-  Future<void> _fetchManualTanksApi(String unitCode, String storageCode) async {
+  Future<void> _fetchManualTanksApi(
+    String unitCode,
+    String storageCode, {
+    bool throwOnError = false,
+  }) async {
     bool online = await ConnectivityHelper.isConnected();
     isUsingOfflineData.value = !online;
 
     try {
-      final results = await _homeService.repository.syncSensorStockWithLocal(
+      final result = await _homeService.repository.syncSensorStockWithStatus(
         unitId: unitCode,
         storageCode: storageCode,
       );
 
-      if (results.isNotEmpty) {
-        manualTanksList.assignAll(results);
+      if (result.isFromServer && result.tanks.isNotEmpty) {
+        manualTanksList.assignAll(result.tanks);
         _updateUiFromManualData();
 
-        if (online) isUsingOfflineData.value = false;
+        isUsingOfflineData.value = false;
+        networkBannerType.value = null;
+        networkBannerMessage.value = '';
+        lastSyncLabel.value =
+            'Diperbarui ${DateFormat('HH:mm').format(DateTime.now())}';
 
         await _fuelDataService.saveLastInputType("A");
       } else {
         _loadFallbackData(storageCode);
+        if (result.error != null && throwOnError) {
+          throw result.error!;
+        }
       }
     } catch (e) {
       _loadFallbackData(storageCode);
+      if (throwOnError) rethrow;
     } finally {
       _isInitialLoad.value = false;
     }
@@ -913,13 +1202,21 @@ class HomeController extends GetxController {
       selectedUnitCode.value = unitCode;
       userAddress.value = '$unitCode - $unitName';
       userName.value = authData.currentFullName;
-      isApprover.value = (authData.user.otorisasi.first == "fuel_level_1") ? false : true;
+      isApprover.value = authData.user.otorisasi.isNotEmpty
+          ? (authData.user.otorisasi.first != "fuel_level_1")
+          : false;
 
-      final nameParts = userName.value.trim().split(RegExp(r'\s+'));
+      final nameParts = userName.value
+          .trim()
+          .split(RegExp(r'\s+'))
+          .where((p) => p.isNotEmpty)
+          .toList();
       if (nameParts.isNotEmpty) {
         profileInitials.value = (nameParts.length > 1)
             ? "${nameParts[0][0]}${nameParts[1][0]}".toUpperCase()
             : nameParts[0][0].toUpperCase();
+      } else {
+        profileInitials.value = 'UU';
       }
 
       _prepareAvailableUnits(authData);
@@ -1039,7 +1336,7 @@ class HomeController extends GetxController {
     );
   }
 
-  void loadStorageLocations(String unitCode) {
+  void loadStorageLocations(String unitCode, {bool skipTankFetch = false}) {
     storageLocations.clear();
     List<String> formattedList = [];
 
@@ -1054,11 +1351,15 @@ class HomeController extends GetxController {
     if (formattedList.isNotEmpty) {
       storageLocations.addAll(formattedList);
 
-      if (selectedStorage.value == 'Pilih Lokasi Storage' || selectedStorage.value.isEmpty) {
-        changeStorageLocation(storageLocations.first);
-      } else if (!storageLocations.contains(selectedStorage.value)) {
-        changeStorageLocation(storageLocations.first);
-      } else {
+      if (selectedStorage.value == 'Pilih Lokasi Storage' ||
+          selectedStorage.value.isEmpty ||
+          !storageLocations.contains(selectedStorage.value)) {
+        if (skipTankFetch) {
+          selectedStorage.value = storageLocations.first;
+        } else {
+          changeStorageLocation(storageLocations.first);
+        }
+      } else if (!skipTankFetch) {
         final storageCode = _getStorageCode(selectedStorage.value);
         _fetchManualTanksApi(selectedUnitCode.value, storageCode);
       }
@@ -1129,4 +1430,16 @@ class HomeController extends GetxController {
     draftSearchController.dispose();
     super.onClose();
   }
+}
+
+class _RefreshSyncOutcome {
+  final bool allSucceeded;
+  final bool anySucceeded;
+  final Object? primaryError;
+
+  const _RefreshSyncOutcome({
+    required this.allSucceeded,
+    required this.anySucceeded,
+    this.primaryError,
+  });
 }
