@@ -76,10 +76,27 @@ jobs:
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
-          echo "Mencoba membuat update OTA (Patch)..."
-          if ! shorebird patch android --track=stable; then
-            echo "Patch tidak dapat dibuat (versi baru atau belum ada release). Membuat Release APK baru..."
+          set -o pipefail
+          RELEASE_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | tr -d '\r')
+          echo "Detected app version from pubspec.yaml: $RELEASE_VERSION"
+          echo "Mencoba membuat update OTA (Patch) untuk versi $RELEASE_VERSION..."
+
+          set +e
+          shorebird patch android \
+            --release-version="$RELEASE_VERSION" \
+            --track=stable \
+            --allow-asset-diffs 2>&1 | tee patch_output.log
+          PATCH_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$PATCH_EXIT" -eq 0 ]; then
+            echo "✅ Shorebird OTA Patch berhasil dibuat untuk versi $RELEASE_VERSION."
+          elif grep -qiE "no release|not found|does not exist|couldn't find|could not find|no matching release" patch_output.log; then
+            echo "ℹ️ Release untuk versi $RELEASE_VERSION belum ada di Shorebird. Membuat Release APK baru..."
             shorebird release android --artifact=apk --flutter-version=3.50.0
+          else
+            echo "❌ Shorebird Patch gagal dengan exit code $PATCH_EXIT (bukan karena release belum ada). Hentikan build agar tidak menimpa release yang sudah ada."
+            exit "$PATCH_EXIT"
           fi
 
       - name: 📤 Upload APK Artifact

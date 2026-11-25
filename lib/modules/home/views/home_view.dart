@@ -325,9 +325,9 @@ class HomeView extends GetView<HomeController> {
                           ? Colors.red.shade700
                           : Colors.orange.shade800;
                       final iconData = isError
-                          ? Icons.cloud_off_rounded
+                          ? Icons.error_outline_rounded
                           : (isTimeout
-                              ? Icons.signal_wifi_bad_rounded
+                              ? Icons.warning_amber_rounded
                               : Icons.wifi_off_rounded);
                       final message =
                           controller.networkBannerMessage.value.isNotEmpty

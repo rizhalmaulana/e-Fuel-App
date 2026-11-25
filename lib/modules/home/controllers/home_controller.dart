@@ -565,7 +565,7 @@ class HomeController extends GetxController {
           message:
               'Sinyal internet saat ini terlalu lambat untuk menghubungi server. Data terakhir tetap ditampilkan, silakan coba lagi saat sinyal stabil.',
           backgroundColor: AppColors.primaryOrange,
-          icon: Icons.signal_wifi_bad_rounded,
+          icon: Icons.warning_amber_rounded,
           duration: const Duration(seconds: 4),
         );
         return;
@@ -726,7 +726,7 @@ class HomeController extends GetxController {
         message:
             'Waktu tunggu habis karena jaringan lemah atau server sedang sibuk. Data terakhir yang tersimpan tetap ditampilkan. Silakan coba lagi nanti.',
         backgroundColor: AppColors.primaryOrange,
-        icon: Icons.hourglass_bottom_rounded,
+        icon: Icons.access_time_filled,
         duration: const Duration(seconds: 4),
       );
     } else if (isDisconnected) {
@@ -749,7 +749,7 @@ class HomeController extends GetxController {
         message:
             'Sesi login Anda sudah tidak aktif. Silakan keluar dan masuk kembali ke aplikasi.',
         backgroundColor: AppColors.alertSoftRed,
-        icon: Icons.lock_clock_rounded,
+        icon: Icons.lock_outline,
         duration: const Duration(seconds: 4),
       );
     } else {
@@ -760,7 +760,7 @@ class HomeController extends GetxController {
         title: 'Gagal Memperbarui Data',
         message: NetworkErrorHelper.getFriendlyErrorMessage(error),
         backgroundColor: AppColors.alertSoftRed,
-        icon: Icons.cloud_off_rounded,
+        icon: Icons.error_outline_rounded,
         duration: const Duration(seconds: 4),
       );
     }
