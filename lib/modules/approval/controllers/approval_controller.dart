@@ -51,21 +51,32 @@ class ApprovalController extends GetxController {
     fetchDetailData();
   }
 
+  bool _isSubmitting = false;
+
   void fetchDetailData() async {
     isLoading.value = true;
-    if (noBast.isNotEmpty) {
-      final data = await _approvalService.getInboundOpenDetail(noBast);
-      if (data != null) {
-        detailData.assignAll(data);
-      } else {
-        Get.snackbar("Terjadi Kesalahan", "Gagal memuat detail data transaksi");
+    try {
+      if (noBast.isNotEmpty) {
+        final data = await _approvalService.getInboundOpenDetail(noBast);
+        if (data != null) {
+          detailData.assignAll(data);
+        } else {
+          Get.snackbar("Terjadi Kesalahan", "Gagal memuat detail data transaksi");
+        }
       }
+    } catch (e) {
+      NetworkErrorHelper.showErrorSnackbar(
+        title: "Gagal Memuat Data",
+        error: e,
+      );
+    } finally {
+      isLoading.value = false;
     }
-    isLoading.value = false;
   }
 
   void nextPage() async {
     await Future.delayed(const Duration(seconds: 1));
+    if (isClosed || !pageController.hasClients) return;
 
     pageController.nextPage(
       duration: const Duration(milliseconds: 600),
@@ -75,6 +86,7 @@ class ApprovalController extends GetxController {
   }
 
   void prevPage() {
+    if (!pageController.hasClients) return;
     pageController.previousPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease
@@ -83,6 +95,8 @@ class ApprovalController extends GetxController {
   }
 
   Future<void> submitDecision(String status) async {
+    if (_isSubmitting) return;
+
     if (status == 'APPROVED' && signatureController.isEmpty) {
       Get.snackbar("Informasi", "Tanda tangan wajib diisi untuk Approve", backgroundColor: AppColors.info, colorText: Colors.white);
       return;
@@ -93,19 +107,24 @@ class ApprovalController extends GetxController {
       return;
     }
 
+    _isSubmitting = true;
     Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primary)), barrierDismissible: false);
 
     try {
       File? signFile;
       if (status == 'APPROVED') {
         final Uint8List? data = await signatureController.toPngBytes();
+        if (data == null || data.isEmpty) {
+          throw "Gagal memproses gambar tanda tangan. Silakan tanda tangan ulang.";
+        }
         final tempDir = await getTemporaryDirectory();
         signFile = await File('${tempDir.path}/sign_approval_${DateTime.now().millisecondsSinceEpoch}.png').create();
-        await signFile.writeAsBytes(data!);
+        await signFile.writeAsBytes(data);
       }
 
       final auth = _loginService.getCurrentAuth();
-      final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
+      final otorisasi = auth?.user.otorisasi ?? [];
+      final userLevel = otorisasi.isNotEmpty ? otorisasi.first : 'fuel_level_2';
       final kodeUnit = auth?.currentKodeUnit ?? ''; // Ambil kode unit untuk parameter getApprovalList
 
       final success = await _approvalService.submitPenerimaanApprovalDecision(
@@ -132,7 +151,7 @@ class ApprovalController extends GetxController {
           if (isFullApproved) {
             String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
 
-            Get.back(); // Tutup loading progress dialog
+            if (Get.isDialogOpen ?? false) Get.back(); // Tutup loading progress dialog
             Get.offAllNamed(Routes.HOME); // Arahkan ke Home
 
             if (downloadedFilePath != null) {
@@ -159,11 +178,11 @@ class ApprovalController extends GetxController {
         }
 
         // (Belum Full Approved atau REJECTED)
-        Get.back();
+        if (Get.isDialogOpen ?? false) Get.back();
         Get.offAllNamed(Routes.HOME);
         Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
       } else {
-        Get.back();
+        if (Get.isDialogOpen ?? false) Get.back();
         NetworkErrorHelper.showErrorSnackbar(
           title: "Gagal Proses Dokumen",
           error: "Terjadi kesalahan saat memproses keputusan approval. Silakan coba lagi.",
@@ -175,6 +194,8 @@ class ApprovalController extends GetxController {
         title: "Gagal Proses Dokumen",
         error: e,
       );
+    } finally {
+      _isSubmitting = false;
     }
   }
 

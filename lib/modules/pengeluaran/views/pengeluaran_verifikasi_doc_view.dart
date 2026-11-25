@@ -7,6 +7,7 @@ import 'package:signature/signature.dart';
 import '../../../configs/app_colors.dart';
 import '../../../configs/app_fonts.dart';
 import '../../../datas/models/widgets/capture_image_detail.dart';
+import '../../../helpers/decimal_input_formatter.dart';
 import '../controllers/pengeluaran_verifikasi_doc_controller.dart';
 
 class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocController> {
@@ -163,6 +164,7 @@ class PengeluaranVerifikasiDocView extends GetView<PengeluaranVerifikasiDocContr
                 TextField(
                   controller: controller.aktualSolarC,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [DecimalInputFormatter()],
                   style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.darkText),
                   decoration: InputDecoration(
                     hintText: "0",

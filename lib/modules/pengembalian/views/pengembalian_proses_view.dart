@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:marquee/marquee.dart';
 import '../../../configs/app_colors.dart';
 import '../../../configs/app_fonts.dart';
+import '../../../helpers/decimal_input_formatter.dart';
 import '../controllers/pengembalian_proses_controller.dart';
 
 class PengembalianProsesView extends GetView<PengembalianProsesController> {
@@ -240,7 +241,8 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
           ),
           child: TextField(
             controller: txtController,
-            keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+            keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+            inputFormatters: isNumber ? [DecimalInputFormatter()] : null,
             style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.primaryText),
             decoration: InputDecoration(
               border: InputBorder.none,

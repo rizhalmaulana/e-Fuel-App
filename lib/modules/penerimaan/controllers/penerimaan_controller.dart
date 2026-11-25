@@ -560,10 +560,12 @@ class PenerimaanController extends GetxController {
         } catch (_) {}
 
         if (ctrls != null) {
-          final double volManual =
-              double.tryParse(ctrls['volume']!.text.replaceAll('.', '')) ?? 0;
-          final double hManual =
-              double.tryParse(ctrls['height']!.text.replaceAll(',', '.')) ?? 0;
+          final double volManual = double.tryParse(
+                  ctrls['volume']!.text.replaceAll('.', '').replaceAll(',', '.')) ??
+              0;
+          final double hManual = double.tryParse(
+                  ctrls['height']!.text.replaceAll('.', '').replaceAll(',', '.')) ??
+              0;
           manualData.add({
             'tank_code': code.replaceAll(' ', '_'),
             'volume_manual': volManual,
@@ -640,10 +642,12 @@ class PenerimaanController extends GetxController {
         double hManual = 0.0;
         final ctrls = manualInputControllers[code];
         if (ctrls != null) {
-          volManual =
-              double.tryParse(ctrls['volume']!.text.replaceAll('.', '')) ?? 0;
-          hManual =
-              double.tryParse(ctrls['height']!.text.replaceAll(',', '.')) ?? 0;
+          volManual = double.tryParse(
+                  ctrls['volume']!.text.replaceAll('.', '').replaceAll(',', '.')) ??
+              0;
+          hManual = double.tryParse(
+                  ctrls['height']!.text.replaceAll('.', '').replaceAll(',', '.')) ??
+              0;
         }
 
         double volIot = 0.0;
@@ -738,7 +742,7 @@ class PenerimaanController extends GetxController {
         'iot_json_backup': jsonEncode(iotData),
         'tanggal': adminData['date_inbound'],
         'waktu_sounding':
-            DateFormat('yyyy-MM-dd HH:MM:ss').format(DateTime.now()),
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
         'status': 'pengisian_solar',
         'storage_code': finalStorageCode,
       });

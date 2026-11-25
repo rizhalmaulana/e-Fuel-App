@@ -9,7 +9,7 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
   const ReportPenerimaanView({super.key});
 
   Widget _buildDateFilter(BuildContext context) {
-    return Obx(() => Padding(
+    return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
@@ -22,7 +22,7 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
           ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _dateField(BuildContext context, String label, TextEditingController textCon) {
@@ -45,7 +45,10 @@ class ReportPenerimaanView extends GetView<ReportPenerimaanController> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(textCon.text, style: AppFonts.fUrbanistRegular12),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: textCon,
+                  builder: (_, value, __) => Text(value.text, style: AppFonts.fUrbanistRegular12),
+                ),
                 const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primary),
               ],
             ),

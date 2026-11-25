@@ -73,6 +73,7 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   final isSensorApiActive = false.obs;
   final isRefreshingSensor = false.obs;
+  final isSubmitting = false.obs;
   String activeStorageCode = "";
 
   @override
@@ -119,7 +120,7 @@ class PengisianSolarPengeluaranController extends GetxController {
     statusSupir.value = payload['status_supir']?.toString() ?? 'Internal';
 
     _currentInternalOrder = noIO.value;
-    _ratioArg = (payload['ratio'] ?? '0').toString();
+    _ratioArg = (payload['ratio_input'] ?? payload['ratio'] ?? '0').toString();
     _hmKmAkhirArg = (payload['hm_km_akhir'] ?? '0').toString();
     _tanggalAkhirArg = (payload['tanggal_akhir'] ?? '').toString();
 
@@ -162,7 +163,7 @@ class PengisianSolarPengeluaranController extends GetxController {
           dateLog: today
       );
 
-      if (stockStorageData!.success && stockStorageData.errorCode.isEmpty) {
+      if (stockStorageData != null && stockStorageData.success && stockStorageData.errorCode.isEmpty) {
         double flowOut = stockStorageData.volume;
 
         isSensorApiActive.value = true;
@@ -171,17 +172,17 @@ class PengisianSolarPengeluaranController extends GetxController {
 
         aktualSolarC.text = flowOut % 1 == 0
             ? flowOut.toInt().toString()
-            : flowOut.toStringAsFixed(2).replaceAll('.', ',');
+            : flowOut.toStringAsFixed(2);
 
         _calculateVarian();
-      } else if (!stockStorageData.success && stockStorageData.dateLog.isNotEmpty) {
+      } else if (stockStorageData != null && !stockStorageData.success && stockStorageData.dateLog.isNotEmpty) {
         isSensorApiActive.value = false;
 
         messageResponse.value = stockStorageData.message;
         dateLogResponse.value = stockStorageData.dateLog;
       } else {
         isSensorApiActive.value = false;
-        messageResponse.value = stockStorageData.message;
+        messageResponse.value = stockStorageData?.message ?? '';
       }
     } catch (e) {
       print("Gagal refresh sensor pengeluaran: $e");
@@ -194,7 +195,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   void _loadUserInfo() {
     final auth = _loginService.getCurrentAuth();
     if (auth != null) {
-      _currentUserUnitCode = auth.currentKodeUnit!;
+      _currentUserUnitCode = auth.currentKodeUnit ?? "E000";
     } else {
       _currentUserUnitCode = "E000";
     }
@@ -204,11 +205,11 @@ class PengisianSolarPengeluaranController extends GetxController {
     double estimasi = double.tryParse(estimasiSolarC.text.replaceAll(',', '.')) ?? 0;
     String cleanAktual = aktualSolarC.text.replaceAll(',', '.');
     double aktual = double.tryParse(cleanAktual) ?? 0;
-    double result = aktual - estimasi;
+    double result = double.parse((aktual - estimasi).toStringAsFixed(2));
 
     String formatted = result % 1 == 0
         ? result.toInt().toString()
-        : result.toStringAsFixed(2).replaceAll('.', ',');
+        : result.toStringAsFixed(2);
 
     varianSolarC.text = formatted;
   }
@@ -223,6 +224,7 @@ class PengisianSolarPengeluaranController extends GetxController {
 
   // --- SUBMIT LOGIC ---
   void showSubmitConfirmation() {
+    if (isSubmitting.value) return;
     if (!isManualInput.value) {
       if (fotoDispenser.value == null) {
         DialogFlexible.showInfo(
@@ -319,6 +321,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   Future<File?> _compressImage(File file) async {
     try {
       final lastIndex = file.path.lastIndexOf(RegExp(r'.jp'));
+      if (lastIndex == -1) return file;
       final splitted = file.path.substring(0, (lastIndex));
       final outPath = "${splitted}_compressed.jpg";
 
@@ -343,8 +346,10 @@ class PengisianSolarPengeluaranController extends GetxController {
   }
 
   Future<void> submitTransaction() async {
+    if (isSubmitting.value) return;
     if (!await ConnectivityHelper.validateNetwork()) return;
 
+    isSubmitting.value = true;
     final closeLoading = DialogFlexible.showLoading(
       title: "Mengirim Data...",
       subtitle: "Mohon tunggu sebentar",
@@ -355,6 +360,9 @@ class PengisianSolarPengeluaranController extends GetxController {
       print("=== MULAI SUBMIT PENGELUARAN ===");
       final auth = _loginService.getCurrentAuth();
       if (auth == null) throw "Data user tidak valid.";
+      if (auth.user.otorisasi.isEmpty) {
+        throw "Akun Anda tidak memiliki otorisasi approval.";
+      }
 
       String userLevel = auth.user.otorisasi.first;
       String kodeUnit = auth.currentKodeUnit ?? "";
@@ -512,6 +520,7 @@ class PengisianSolarPengeluaranController extends GetxController {
         icon: Icons.error_outline_rounded,
       );
     } finally {
+      isSubmitting.value = false;
       closeLoading();
     }
   }

@@ -317,9 +317,10 @@ class PenerimaanApiService {
     String url = UrlApiStatic.API_END_POINT + UrlApiStatic.API_POST_FCM_TOKEN;
     String deviceId = await _getDeviceId();
 
+    final otorisasi = auth?.user.otorisasi ?? [];
     final Map<String, dynamic> dataPayload = {
       "device_id": deviceId,
-      "level_approval": auth?.user.otorisasi.first,
+      "level_approval": otorisasi.isNotEmpty ? otorisasi.first : null,
       "fcm_token": fcmToken,
       "app_name": AppConfig.appName,
       "version": AppConfig.versionProd,
@@ -361,7 +362,9 @@ class PenerimaanApiService {
         },
         options: _getOptions(),
       );
-      if (response.data.isNotEmpty && response.data != null) {
+      if (response.data != null &&
+          ((response.data is Map && (response.data as Map).isNotEmpty) ||
+              (response.data is String && (response.data as String).isNotEmpty))) {
         Map<String, dynamic> dataMap;
         if (response.data is String) {
           dataMap = jsonDecode(response.data);

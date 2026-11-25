@@ -78,9 +78,11 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
       children: List.generate(approvals.length, (index) {
         var appv = approvals[index];
         bool isLast = index == approvals.length - 1;
-        String date = appv['tgl_approve'] != null
-            ? appv['tgl_approve'].toString().substring(0, 16).replaceAll('T', ' ')
-            : '-';
+        final rawDate = appv['tgl_approve']?.toString() ?? '';
+        final String date = rawDate.isEmpty
+            ? '-'
+            : (rawDate.length >= 16 ? rawDate.substring(0, 16) : rawDate)
+                .replaceAll('T', ' ');
         String status = appv['status_approve'] ?? 'PENDING';
         Color statusColor = status == 'APPROVED' ? Colors.green : Colors.orange;
 

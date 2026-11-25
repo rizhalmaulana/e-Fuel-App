@@ -17,6 +17,7 @@ class PengembalianProsesController extends GetxController {
   late PengembalianSolarModel data;
   
   final isLoading = false.obs;
+  bool _isSubmitting = false;
 
   final foto1Path = RxnString();
   final foto2Path = RxnString();
@@ -35,6 +36,13 @@ class PengembalianProsesController extends GetxController {
       Get.back();
       Get.snackbar('Error', 'Data transaksi tidak ditemukan');
     }
+  }
+
+  @override
+  void onClose() {
+    keteranganController.dispose();
+    varianLiterController.dispose();
+    super.onClose();
   }
 
   Future<void> pickImage(int index, String label) async {
@@ -65,7 +73,7 @@ class PengembalianProsesController extends GetxController {
 
   Future<File?> _compressImage(File file) async {
     try {
-      final lastIndex = file.path.lastIndexOf(RegExp(r'.jp'));
+      final lastIndex = file.path.lastIndexOf(RegExp(r'\.jp', caseSensitive: false));
       if (lastIndex == -1) return file; 
 
       final splitted = file.path.substring(0, (lastIndex));
@@ -84,8 +92,11 @@ class PengembalianProsesController extends GetxController {
         minHeight: 1024,
       );
 
-      await file.delete();
-      return result != null ? File(result.path) : null;
+      if (result != null) {
+        await file.delete();
+        return File(result.path);
+      }
+      return file;
     } catch (e) {
       return file; 
     }
@@ -98,38 +109,47 @@ class PengembalianProsesController extends GetxController {
   }
 
   Future<void> submit() async {
+    if (_isSubmitting) return;
+
     // Dismiss keyboard and lingering snackbars
     FocusManager.instance.primaryFocus?.unfocus();
     if (Get.isSnackbarOpen) {
       Get.closeAllSnackbars();
     }
 
-    // Validate inputs
-    int varianInput = int.tryParse(varianLiterController.text.toString()) ?? 0;
+    // Parse sebagai double agar nilai desimal (misal 81.04) tidak berubah menjadi 0
+    final double varianInput =
+        double.tryParse(varianLiterController.text.trim().replaceAll(',', '.')) ??
+            data.varianLiterTransfer.toDouble();
 
     if (foto1Path.value == null) {
       _showError('Wajib melampirkan Foto Pengambilan Solar.');
       return;
     }
 
-    final bool? confirm = await Get.dialog<bool>(
-      DialogFlexible(
-        title: 'Konfirmasi Submit',
-        message: 'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
-        primaryButtonText: 'Ya, Submit',
-        secondaryButtonText: 'Batal',
-        logo: LottiesHelper().getLottieConfirmation(),
-      ),
-      barrierDismissible: false,
-    );
+    _isSubmitting = true;
+    try {
+      final bool? confirm = await Get.dialog<bool>(
+        DialogFlexible(
+          title: 'Konfirmasi Submit',
+          message: 'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
+          primaryButtonText: 'Ya, Submit',
+          secondaryButtonText: 'Batal',
+          logo: LottiesHelper().getLottieConfirmation(),
+        ),
+        barrierDismissible: false,
+      );
 
-    if (confirm == true) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      _doSubmit(varianInput);
+      if (confirm == true) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        await _doSubmit(varianInput);
+      }
+    } finally {
+      _isSubmitting = false;
     }
   }
 
-  Future<void> _doSubmit(int varianInput) async {
+  Future<void> _doSubmit(double varianInput) async {
     final closeLoading = DialogFlexible.showLoading(
       title: "Memproses Pengembalian...",
       subtitle: "Mohon tunggu sebentar",

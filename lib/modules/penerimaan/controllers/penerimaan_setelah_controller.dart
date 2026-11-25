@@ -315,7 +315,7 @@ class PenerimaanSetelahController extends GetxController {
     }
 
     _debounceTimers[tankCode] = Timer(const Duration(milliseconds: 800), () async {
-      String cleanHeight = heightText.replaceAll('.', '').replaceAll(',', '.');
+      String cleanHeight = heightText.trim().replaceAll(',', '.');
       if (cleanHeight.isEmpty) {
         volCtrl.text = "0";
         _updateTotalManual();
@@ -323,17 +323,20 @@ class PenerimaanSetelahController extends GetxController {
       }
 
       double? heightMm = double.tryParse(cleanHeight);
-      if (heightMm != null && heightMm > 0) {
+      if (heightMm == null || heightMm <= 0) {
+        volCtrl.text = "0";
+        _updateTotalManual();
+        return;
+      }
 
-        double? literResult = await _repository.getLiterFromCalibration(capacity, heightMm);
-        literResult ??= CalibrationHelper.getVolumeByHeight(capacity, heightMm.toInt());
+      double? literResult = await _repository.getLiterFromCalibration(capacity, heightMm);
+      literResult ??= CalibrationHelper.getVolumeByHeight(capacity, heightMm.toInt());
 
-        if (literResult > 0) {
-          if (volCtrl.text != TextConvertHelper().formatNumber(literResult)) {
-            volCtrl.text = TextConvertHelper().formatNumber(literResult);
-          }
-          _updateTotalManual();
+      if (literResult > 0) {
+        if (volCtrl.text != TextConvertHelper().formatNumber(literResult)) {
+          volCtrl.text = TextConvertHelper().formatNumber(literResult);
         }
+        _updateTotalManual();
       }
     });
   }
@@ -529,7 +532,7 @@ class PenerimaanSetelahController extends GetxController {
 
       double? volVal = double.tryParse(TextConvertHelper().cleanNumber(volTxt));
       double? heightVal =
-          double.tryParse(TextConvertHelper().cleanNumber(heightTxt));
+          double.tryParse(heightTxt.replaceAll(',', '.'));
 
       if (volVal == null || heightVal == null) {
         isValid = false;
@@ -563,7 +566,7 @@ class PenerimaanSetelahController extends GetxController {
             TextConvertHelper().cleanNumber(ctrls['volume']!.text)) ??
             0.0,
         'height': double.tryParse(
-            TextConvertHelper().cleanNumber(ctrls['height']!.text)) ??
+            ctrls['height']!.text.trim().replaceAll(',', '.')) ??
             0.0,
       };
     });
@@ -618,7 +621,7 @@ class PenerimaanSetelahController extends GetxController {
 
   double getHeightManualSesudah(String code) {
     String txt = manualInputControllers[code]?['height']?.text ?? '0';
-    return double.tryParse(TextConvertHelper().cleanNumber(txt)) ?? 0.0;
+    return double.tryParse(txt.trim().replaceAll(',', '.')) ?? 0.0;
   }
 
   double getVarianVolume(String code) =>

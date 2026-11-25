@@ -1,5 +1,7 @@
 import 'package:e_fuel/datas/models/bon_sementara/bon_sementara_model.dart';
+import 'package:e_fuel/helpers/decimal_input_formatter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
@@ -234,8 +236,8 @@ class PengeluaranInputBonSementaraView
 
     void calculateAutomatedFields() {
       if (!isTypeGS) {
-        double kmAwal = double.tryParse(kmAwalController.text) ?? 0;
-        double kmAkhir = double.tryParse(kmAkhirController.text) ?? 0;
+        double kmAwal = double.tryParse(kmAwalController.text.replaceAll(',', '.')) ?? 0;
+        double kmAkhir = double.tryParse(kmAkhirController.text.replaceAll(',', '.')) ?? 0;
         double diff = (kmAkhir - kmAwal) > 0 ? (kmAkhir - kmAwal) : 0;
         varianController.text = kmAkhirController.text.isNotEmpty ? diff.toStringAsFixed(0) : "0";
 
@@ -285,7 +287,7 @@ class PengeluaranInputBonSementaraView
                     children: [
                       Expanded(child: _inputField("HM/KM Awal", controller: kmAwalController, readOnly: true)),
                       const SizedBox(width: 10),
-                      Expanded(child: _inputField("HM/KM Akhir", controller: kmAkhirController, keyboardType: TextInputType.number)),
+                      Expanded(child: _inputField("HM/KM Akhir", controller: kmAkhirController, keyboardType: const TextInputType.numberWithOptions(decimal: true), isDecimal: true)),
                     ],
                   ),
                 ],
@@ -295,9 +297,9 @@ class PengeluaranInputBonSementaraView
 
                 Row(
                   children: [
-                    Expanded(child: _inputField("Ratio", controller: ratioController)),
+                    Expanded(child: _inputField("Ratio", controller: ratioController, keyboardType: const TextInputType.numberWithOptions(decimal: true), isDecimal: true)),
                     const SizedBox(width: 10),
-                    Expanded(child: _inputField("Liter", controller: literController, keyboardType: TextInputType.number)),
+                    Expanded(child: _inputField("Liter", controller: literController, keyboardType: const TextInputType.numberWithOptions(decimal: true), isDecimal: true)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -309,8 +311,8 @@ class PengeluaranInputBonSementaraView
                     onPressed: () {
                       // --- VALIDASI PERINGATAN KM AKHIR < KM AWAL ---
                       if (!isTypeGS) {
-                        double awal = double.tryParse(kmAwalController.text) ?? 0;
-                        double akhir = double.tryParse(kmAkhirController.text) ?? 0;
+                        double awal = double.tryParse(kmAwalController.text.replaceAll(',', '.')) ?? 0;
+                        double akhir = double.tryParse(kmAkhirController.text.replaceAll(',', '.')) ?? 0;
 
                         if (akhir < awal && akhir != 0) {
                           Get.snackbar(
@@ -326,9 +328,9 @@ class PengeluaranInputBonSementaraView
 
                       controller.updateDataBon(
                         item.internalOrder!,
-                        double.tryParse(kmAkhirController.text) ?? 0,
-                        double.tryParse(literController.text) ?? 0,
-                        ratioController.text,
+                        double.tryParse(kmAkhirController.text.replaceAll(',', '.')) ?? 0,
+                        double.tryParse(literController.text.replaceAll(',', '.')) ?? 0,
+                        ratioController.text.replaceAll(',', '.'),
                         dateAkhir: dateAkhirController.text,
                         operationHoliday: operationHoliday.text,
                       );
@@ -346,7 +348,7 @@ class PengeluaranInputBonSementaraView
     );
   }
 
-  Widget _inputField(String label, {TextEditingController? controller, bool readOnly = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget _inputField(String label, {TextEditingController? controller, bool readOnly = false, TextInputType keyboardType = TextInputType.text, bool isDecimal = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -358,6 +360,7 @@ class PengeluaranInputBonSementaraView
             controller: controller,
             readOnly: readOnly,
             keyboardType: keyboardType,
+            inputFormatters: isDecimal ? [DecimalInputFormatter()] : null,
             style: AppFonts.fUrbanistRegular12,
             decoration: InputDecoration(
               isDense: true,

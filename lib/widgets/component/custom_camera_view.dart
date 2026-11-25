@@ -32,30 +32,29 @@ class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBinding
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    controller?.dispose();
+    final oldController = controller;
+    controller = null;
+    oldController?.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final CameraController? cameraController = controller;
-
-    // If camera controller is not initialized, do nothing
-    if (cameraController == null || !cameraController.value.isInitialized) {
-      return;
-    }
-
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      // Free camera resource when app goes to background
-      cameraController.dispose();
-      if (mounted) {
+      final CameraController? cameraController = controller;
+      if (cameraController != null) {
+        controller = null;
+        cameraController.dispose();
+      }
+      if (mounted && isCameraInitialized) {
         setState(() {
           isCameraInitialized = false;
         });
       }
     } else if (state == AppLifecycleState.resumed) {
-      // Re-initialize camera when app returns to foreground
-      _initCamera();
+      if (controller == null && mounted) {
+        _initCamera();
+      }
     }
   }
 
@@ -99,17 +98,27 @@ class _CustomCameraViewState extends State<CustomCameraView> with WidgetsBinding
       return;
     }
 
+    // Dispose existing controller before creating a new one
+    final oldController = controller;
+    controller = null;
+    await oldController?.dispose();
+
     // Use ResolutionPreset.medium (usually 720p or 480p) to prevent OOM errors on lower-end devices
-    controller = CameraController(
+    final newController = CameraController(
       cameras[0],
       ResolutionPreset.medium,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
+    controller = newController;
 
     try {
-      await controller!.initialize();
-      if (!mounted) return;
+      await newController.initialize();
+      if (!mounted) {
+        await newController.dispose();
+        if (controller == newController) controller = null;
+        return;
+      }
       setState(() {
         isCameraInitialized = true;
       });

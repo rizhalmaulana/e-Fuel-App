@@ -42,12 +42,15 @@ class CustomSnackbar {
     }
     
     bool isRemoved = false;
+    bool isInserted = false;
     late OverlayEntry newOverlay;
 
     void safeRemove() {
       if (!isRemoved) {
         isRemoved = true;
-        newOverlay.remove();
+        if (isInserted) {
+          newOverlay.remove();
+        }
       }
     }
 
@@ -77,8 +80,9 @@ class CustomSnackbar {
     // Gunakan post-frame callback agar pemanggilan safe jika dipicu saat fase build widget
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
-        if (overlay.mounted) {
+        if (!isRemoved && overlay.mounted) {
           overlay.insert(newOverlay);
+          isInserted = true;
         }
       } catch (e) {
         print("Gagal memasukkan overlay snackbar: $e");

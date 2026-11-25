@@ -30,6 +30,7 @@ class TransferKonfirmasiController extends GetxController {
   final fotoOperator = Rx<File?>(null);
 
   final varianValue = 0.0.obs;
+  bool _isSubmitting = false;
 
   @override
   void onInit() {
@@ -93,13 +94,14 @@ class TransferKonfirmasiController extends GetxController {
   void _calculateVarian() {
     double pengambilan = data.aktualLiter.toDouble();
     double aktual = double.tryParse(aktualController.text.replaceAll(',', '.')) ?? 0;
-    varianValue.value = pengambilan - aktual;
+    // Bulatkan ke 2 angka di belakang koma untuk mencegah noise floating-point (mis. 81.03999999999999)
+    varianValue.value = double.parse((pengambilan - aktual).toStringAsFixed(2));
   }
 
   String get varianText {
     String formatted = varianValue.value % 1 == 0
         ? varianValue.value.toInt().toString()
-        : varianValue.value.toStringAsFixed(2).replaceAll('.', ',');
+        : varianValue.value.toStringAsFixed(2);
     if (varianValue.value > 0) {
       return "+$formatted";
     }
@@ -193,20 +195,24 @@ class TransferKonfirmasiController extends GetxController {
   }
 
   void submit() async {
-    int aktual = int.tryParse(aktualController.text.replaceAll('.', '')) ?? 0;
-    int pengambilan = (data.aktualLiter).toInt();
+    if (_isSubmitting) return;
 
-    if (aktualController.text.isEmpty) {
+    final String rawAktual = aktualController.text.trim().replaceAll(',', '.');
+    if (rawAktual.isEmpty) {
       _showError('Aktual Pengisian wajib diisi.');
       return;
     }
 
-    if (aktual <= 0) {
-      _showError('Aktual Pengisian tidak boleh 0 atau kurang.');
+    final double? parsedAktual = double.tryParse(rawAktual);
+    if (parsedAktual == null || parsedAktual <= 0) {
+      _showError('Aktual Pengisian harus berupa angka lebih dari 0.');
       return;
     }
 
-    if (aktual > pengambilan) {
+    final double aktual = double.parse(parsedAktual.toStringAsFixed(2));
+    final double pengambilan = data.aktualLiter.toDouble();
+
+    if (aktual - pengambilan > 1e-9) {
       _showError('Aktual Pengisian tidak boleh melebihi Pengambilan.');
       return;
     }
@@ -224,28 +230,33 @@ class TransferKonfirmasiController extends GetxController {
     FocusManager.instance.primaryFocus?.unfocus();
     if (Get.isSnackbarOpen) Get.closeAllSnackbars();
 
-    final bool? confirm = await Get.dialog<bool>(
-      DialogFlexible(
-        logo: LottiesHelper().getLottieQuestion(),
-        title: 'Konfirmasi',
-        message: 'Apakah Anda yakin data Aktual Pengisian dan Foto sudah benar?',
-        primaryColor: AppColors.primaryOrange,
-        secondaryColor: AppColors.secondaryOrange,
-        primaryButtonText: 'Ya, Simpan',
-        onPrimaryPressed: () => Get.back(result: true),
-        secondaryButtonText: 'Batal',
-        onSecondaryPressed: () => Get.back(result: false),
-      ),
-      barrierDismissible: false,
-    );
+    _isSubmitting = true;
+    try {
+      final bool? confirm = await Get.dialog<bool>(
+        DialogFlexible(
+          logo: LottiesHelper().getLottieQuestion(),
+          title: 'Konfirmasi',
+          message: 'Apakah Anda yakin data Aktual Pengisian dan Foto sudah benar?',
+          primaryColor: AppColors.primaryOrange,
+          secondaryColor: AppColors.secondaryOrange,
+          primaryButtonText: 'Ya, Simpan',
+          onPrimaryPressed: () => Get.back(result: true),
+          secondaryButtonText: 'Batal',
+          onSecondaryPressed: () => Get.back(result: false),
+        ),
+        barrierDismissible: false,
+      );
 
-    if (confirm == true) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      _processSubmit(aktual);
+      if (confirm == true) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        await _processSubmit(aktual);
+      }
+    } finally {
+      _isSubmitting = false;
     }
   }
 
-  void _processSubmit(int aktual) async {
+  Future<void> _processSubmit(double aktual) async {
     final closeLoading = DialogFlexible.showLoading(
       title: 'Menyimpan Data...',
       subtitle: 'Mohon tunggu sebentar',
@@ -254,11 +265,16 @@ class TransferKonfirmasiController extends GetxController {
 
     // Proses Simpan Offline
     try {
+      final double pengambilan = data.aktualLiter.toDouble();
+      final double cleanVarian =
+          double.parse((pengambilan - aktual).toStringAsFixed(2));
+      varianValue.value = cleanVarian;
+
       TransferOfflineService offlineService = Get.find<TransferOfflineService>();
       await offlineService.updateToOfflineSubmitted(
         id: data.id,
         aktualLiter: aktual,
-        varianLiter: varianValue.value,
+        varianLiter: cleanVarian,
         foto1Path: data.foto1Path ?? '', // already assigned in Proses Controller
         foto2Path: fotoAlatBerat.value!.path,
         foto3Path: fotoOperator.value!.path,

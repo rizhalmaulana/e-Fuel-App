@@ -1065,7 +1065,10 @@ class PengeluaranView extends GetView<PengeluaranController> {
                                   hint: "0",
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
-                                          decimal: true)),
+                                          decimal: true),
+                                  customFormatters: [
+                                    DecimalInputFormatter(),
+                                  ]),
                             ])),
                         const SizedBox(width: 12),
                         Expanded(
@@ -1080,7 +1083,10 @@ class PengeluaranView extends GetView<PengeluaranController> {
                                   hint: "0",
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
-                                          decimal: true)),
+                                          decimal: true),
+                                  customFormatters: [
+                                    DecimalInputFormatter(),
+                                  ]),
                             ])),
                       ]);
                     } else {

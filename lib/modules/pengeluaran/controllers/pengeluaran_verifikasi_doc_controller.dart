@@ -30,6 +30,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
   final PageController pageController = PageController();
   var currentPage = 0.obs;
   var isTakingPhoto = false.obs;
+  var isSubmitting = false.obs;
 
   // Photo State
   final RxList<CapturedImageDetail?> photoSlots =
@@ -140,7 +141,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
     if (auth != null) {
       userName.value = "${auth.user.firstName} ${auth.user.lastName}";
       userJabatan.value = auth.user.jabatan?.namaJabatan ?? "Staff Gudang";
-      _currentUserUnitCode = auth.currentKodeUnit!;
+      _currentUserUnitCode = auth.currentKodeUnit ?? "E000";
     } else {
       _currentUserUnitCode = "E000";
     }
@@ -254,7 +255,8 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
   Future<File?> _compressImage(File file) async {
     try {
-      final lastIndex = file.path.lastIndexOf(RegExp(r'.jp'));
+      final lastIndex = file.path.lastIndexOf(RegExp(r'\.jp', caseSensitive: false));
+      if (lastIndex == -1) return file;
       final splitted = file.path.substring(0, (lastIndex));
       final outPath = "${splitted}_compressed.jpg";
 
@@ -271,8 +273,11 @@ class PengeluaranVerifikasiDocController extends GetxController {
         minHeight: 1024,
       );
 
-      await file.delete();
-      return result != null ? File(result.path) : null;
+      if (result != null) {
+        await file.delete();
+        return File(result.path);
+      }
+      return file;
     } catch (e) {
       return file;
     }
@@ -289,6 +294,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
   // --- SUBMIT FUNCTIONS ---
   void _confirmAndSubmit() {
+    if (isSubmitting.value) return;
     if (driverSignatureController.isEmpty) {
       DialogFlexible.showInfo(
         title: "Tanda Tangan Kosong",
@@ -322,6 +328,8 @@ class PengeluaranVerifikasiDocController extends GetxController {
   }
 
   Future<void> submitVerification() async {
+    if (isSubmitting.value) return;
+    isSubmitting.value = true;
     final closeLoading = DialogFlexible.showLoading(
       title: "Memproses Verifikasi...",
       subtitle: "Mohon tunggu sebentar",
@@ -346,6 +354,9 @@ class PengeluaranVerifikasiDocController extends GetxController {
 
       final auth = _loginService.getCurrentAuth();
       if (auth == null) throw "Data user tidak valid.";
+      if (auth.user.otorisasi.isEmpty) {
+        throw "Akun Anda tidak memiliki otorisasi approval.";
+      }
 
       String userLevel = auth.user.otorisasi.first;
 
@@ -361,7 +372,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
       );
 
       String finalNoDoc = noDoc.value;
-      double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+      double finalSolar = double.tryParse(aktualSolarC.text.trim().replaceAll(',', '.')) ?? 0;
 
       Map<String, dynamic> payload = {
         "no_io": noIO.value,
@@ -369,7 +380,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
         "nopol_check": noPolisi.value,
         "status_supir": statusSupir.value,
         "supir_check": namaSupir.value,
-        "km_pengisian": double.tryParse(kmPengisian.value.replaceAll(',', '')) ?? 0,
+        "km_pengisian": double.tryParse(kmPengisian.value.trim().replaceAll(',', '.')) ?? 0,
         "jumlah_pengisian_solar": finalSolar,
       };
 
@@ -451,6 +462,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
         icon: Icons.error_outline_rounded,
       );
     } finally {
+      isSubmitting.value = false;
       closeLoading();
     }
   }

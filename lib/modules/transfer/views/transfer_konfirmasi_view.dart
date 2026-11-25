@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/transfer_konfirmasi_controller.dart';
 import '../../../../configs/app_colors.dart';
 import '../../../../configs/app_fonts.dart';
+import '../../../../helpers/decimal_input_formatter.dart';
 
 class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
   const TransferKonfirmasiView({super.key});
@@ -64,6 +65,7 @@ class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
       controller: controller,
       readOnly: isReadOnly,
       keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+      inputFormatters: isNumber ? [DecimalInputFormatter()] : null,
       style: AppFonts.fUrbanistRegular14.copyWith(
         color: isReadOnly ? AppColors.secondaryText : AppColors.primaryText,
       ),
@@ -326,6 +328,7 @@ class TransferKonfirmasiView extends GetView<TransferKonfirmasiController> {
                           TextField(
                             controller: controller.aktualController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: [DecimalInputFormatter()],
                             style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
                             decoration: InputDecoration(
                               filled: true,

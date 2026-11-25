@@ -271,10 +271,12 @@ class HomeController extends GetxController {
       final isOnline = result is List
           ? !result.contains(ConnectivityResult.none)
           : result != ConnectivityResult.none;
-      if (isOnline && isUsingOfflineData.value) {
-        isUsingOfflineData.value = false;
-        final storageCode = _getStorageCode(selectedStorage.value);
-        _fetchManualTanksApi(selectedUnitCode.value, storageCode);
+      if (isOnline) {
+        if (isUsingOfflineData.value) {
+          isUsingOfflineData.value = false;
+          final storageCode = _getStorageCode(selectedStorage.value);
+          _fetchManualTanksApi(selectedUnitCode.value, storageCode);
+        }
       } else {
         isUsingOfflineData.value = true;
       }
@@ -308,7 +310,11 @@ class HomeController extends GetxController {
 
   Future<void> _initialDataSync() async {
     final online = await ConnectivityHelper.isConnected();
-    if (!online) return;
+    if (!online) {
+      isUsingOfflineData.value = true;
+      _isInitialLoad.value = false;
+      return;
+    }
 
     final auth = _loginService.getCurrentAuth();
     if (auth == null) return;

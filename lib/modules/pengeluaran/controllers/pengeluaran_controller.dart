@@ -247,6 +247,7 @@ class PengeluaranController extends GetxController {
     dateAwalC.dispose();
     dateAkhirC.dispose();
     varianC.dispose();
+    ratioC.dispose();
     ratioInput.dispose();
     kodeUnitController.dispose();
     aktualSolarC.dispose();
@@ -511,11 +512,11 @@ class PengeluaranController extends GetxController {
     double estimasi = double.tryParse(pengisianSolarC.text.replaceAll(',', '.')) ?? 0;
     String cleanAktual = aktualSolarC.text.replaceAll(',', '.');
     double aktual = double.tryParse(cleanAktual) ?? 0;
-    double result = aktual - estimasi;
+    double result = double.parse((aktual - estimasi).toStringAsFixed(2));
 
     String formatted = result % 1 == 0
         ? result.toInt().toString()
-        : result.toStringAsFixed(2).replaceAll('.', ',');
+        : result.toStringAsFixed(2);
 
     varianSolarC.text = formatted;
   }
@@ -646,8 +647,10 @@ class PengeluaranController extends GetxController {
           String title = item['title_unit']?.toString() ?? "";
           String unit = item['kode_unit']?.toString() ?? "";
 
-          if (title.isNotEmpty && !titles.contains(title)) titles.add(title);
-          if (unit.isNotEmpty && !units.contains(unit)) units.add(unit);
+          if (title.isNotEmpty && unit.isNotEmpty && !titles.contains(title)) {
+            titles.add(title);
+            units.add(unit);
+          }
 
           if (item['kode_unit'] == auth.currentKodeUnit) {
             defaultTitle = title;
@@ -700,8 +703,10 @@ class PengeluaranController extends GetxController {
       for (var item in data) {
         String title = item['title_unit']?.toString() ?? "";
         String unit = item['kode_unit']?.toString() ?? "";
-        if (title.isNotEmpty && !titles.contains(title)) titles.add(title);
-        if (unit.isNotEmpty && !units.contains(unit)) units.add(unit);
+        if (title.isNotEmpty && unit.isNotEmpty && !titles.contains(title)) {
+          titles.add(title);
+          units.add(unit);
+        }
       }
 
       listTitleUnitPerArea.assignAll(titles);
@@ -1250,7 +1255,7 @@ class PengeluaranController extends GetxController {
     }
 
     double inputSolar =
-        double.tryParse(TextConvertHelper().cleanNumber(pengisianSolarC.text)) ?? 0;
+        TextConvertHelper().parseToDouble(pengisianSolarC.text.trim());
     if (inputSolar <= 0 && !isTamu && !isTipeGenset && !isVendor) {
       return _failValidation(
         'Jumlah Pengisian Solar harus lebih dari 0.',
@@ -1260,10 +1265,8 @@ class PengeluaranController extends GetxController {
 
     // Validasi untuk Tipe Kendaraan (KD/AB) - Kecuali Tamu & Vendor
     if (isTipeKendaraan && !isTamu && !isVendor) {
-      double awal =
-          double.tryParse(TextConvertHelper().cleanNumber(hmKmAwalC.text)) ?? 0;
-      double akhir =
-          double.tryParse(TextConvertHelper().cleanNumber(hmKmAkhirC.text)) ?? 0;
+      double awal = TextConvertHelper().parseToDouble(hmKmAwalC.text.trim());
+      double akhir = TextConvertHelper().parseToDouble(hmKmAkhirC.text.trim());
 
       if (awal > akhir) {
         String satuanLabel = (tipeUnit.value == 'AB') ? 'HM' : 'KM';
@@ -1289,12 +1292,15 @@ class PengeluaranController extends GetxController {
       }
     }
 
-    if (isManualInput.value) {
+    if (isManualInput.value || isTamu) {
       final aktualVal =
-          double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+          double.tryParse(aktualSolarC.text.trim().replaceAll(',', '.')) ?? 0;
       if (aktualSolarC.text.trim().isEmpty || aktualVal <= 0) {
         return _failValidation('Aktual Pengeluaran Solar wajib diisi lebih dari 0.');
       }
+    }
+
+    if (isManualInput.value) {
       if (tanggalTransaksi.value == null || tanggalTransaksiC.text.isEmpty) {
         return _failValidation('Pilih Tanggal Transaksi terlebih dahulu.');
       }
@@ -1350,9 +1356,11 @@ class PengeluaranController extends GetxController {
       bool isOnline = await ConnectivityHelper.isConnected();
       String inputTypeStr = isOnline ? "A" : "M";
 
-      String cleanKm = TextConvertHelper().cleanNumber(hmKmAkhirC.text);
+      double kmAkhirDouble = TextConvertHelper().parseToDouble(hmKmAkhirC.text.trim());
+      double kmAwalDouble = TextConvertHelper().parseToDouble(hmKmAwalC.text.trim());
+      double varianDouble = TextConvertHelper().parseToDouble(varianC.text.trim());
       String rawSolar = isTamu ? aktualSolarC.text : pengisianSolarC.text;
-      double solarDouble = TextConvertHelper().parseToDouble(rawSolar);
+      double solarDouble = TextConvertHelper().parseToDouble(rawSolar.trim());
 
       String namaSupirFinal = driverNameC.text;
       // String docType = (selectedJenisBon.value == 'BPB') ? "BPB" : "Bon Sementara";
@@ -1371,9 +1379,9 @@ class PengeluaranController extends GetxController {
         }(),
         "supir_check": namaSupirFinal.toUpperCase(),
         "keterangan": keteranganC.text.isEmpty ? "-" : keteranganC.text,
-        "km_pengisian": double.tryParse(cleanKm) ?? 0,
+        "km_pengisian": kmAkhirDouble,
         "doc_type": "FOT",
-        "hm_km_akhir": double.tryParse(hmKmAkhirC.text) ?? 0,
+        "hm_km_akhir": kmAkhirDouble,
         "no_io": isTamu ? "-" : ioController.text,
         "unit_io": isTamu 
             ? (_selectedKategoriObj?.kategoriKendaraan ?? "-")
@@ -1383,13 +1391,13 @@ class PengeluaranController extends GetxController {
                     ? selectedUnit.value!.description
                     : (selectedUnit.value?.noPolisi ?? '-'))),
         "liter": solarDouble,
-        "hm_km_awal": double.tryParse(hmKmAwalC.text) ?? 0,
+        "hm_km_awal": kmAwalDouble,
         "cost_center": isTamu ? ioController.text.toUpperCase() : "-",
         "status_supir": selectedStatusSupir.value ?? "Internal",
         "ratio": ratioDefault,
         "ratio_input": ratioUser,
         "tipe_unit_io": tipeUnitC.text,
-        "varian": double.tryParse(varianC.text) ?? 0,
+        "varian": varianDouble,
         "input_type": inputTypeStr,
         "jumlah_pengisian_solar": solarDouble,
         "tanggal_akhir": (dateAkhir.value == null || dateAkhir.value == "")
@@ -1438,6 +1446,9 @@ class PengeluaranController extends GetxController {
         // Lanjutkan API 2,3,4 langsung
         final auth = _loginService.getCurrentAuth();
         if (auth == null) throw "Data user tidak valid.";
+        if (auth.user.otorisasi.isEmpty) {
+          throw "Akun Anda tidak memiliki otorisasi approval.";
+        }
 
         String userLevel = auth.user.otorisasi.first;
         String kodeUnit = auth.currentKodeUnit ?? "";
@@ -1453,9 +1464,9 @@ class PengeluaranController extends GetxController {
           orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval untuk tipe FOT.",
         );
 
-        double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
-        double finalVarianLiter = double.tryParse(varianSolarC.text.replaceAll(',', '.')) ?? 0;
-        double finalKm = double.tryParse(cleanKm) ?? 0;
+        double finalSolar = double.tryParse(aktualSolarC.text.trim().replaceAll(',', '.')) ?? 0;
+        double finalVarianLiter = double.tryParse(varianSolarC.text.trim().replaceAll(',', '.')) ?? 0;
+        double finalKm = kmAkhirDouble;
 
         await _apiService.createTransactionApproval(
             noDoc: noDoc,
@@ -1514,7 +1525,7 @@ class PengeluaranController extends GetxController {
               finalKm,
               (dateAkhir.value == null || dateAkhir.value == "") ? "" : dateAkhir.value!,
               finalSolar,
-              ratioC.text,
+              ratioInput.text.trim().isNotEmpty ? ratioInput.text.trim() : ratioC.text,
               unitCodeOverride: currentUnit,
               storageCodeOverride: storageCode
           );

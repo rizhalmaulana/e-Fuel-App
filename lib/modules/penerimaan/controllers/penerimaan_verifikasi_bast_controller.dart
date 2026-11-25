@@ -251,8 +251,10 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   void onPageChanged(int index) { currentPage.value = index; }
 
+  bool _isSubmitting = false;
+
   bool _validateCurrentPage() {
-    if (currentPage.value == 1) return _validateStepPengukuran();
+    if (currentPage.value == 0) return _validateStepPengukuran();
     if (currentPage.value == 2) return _validateStepGudang();
     if (currentPage.value == 3) return _validateStepPartner();
     return true;
@@ -301,28 +303,34 @@ class PenerimaanVerifikasiBastController extends GetxController {
   }
 
   Future<void> submitBast() async {
+    if (_isSubmitting) return;
     if (!await ConnectivityHelper.validateNetwork()) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
     if (Get.isSnackbarOpen) Get.closeAllSnackbars();
 
-    final bool? confirm = await Get.dialog<bool>(
-      DialogFlexible(
-        logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),
-        title: "Konfirmasi Submit",
-        message: "Apakah Anda yakin data dan tanda tangan sudah benar?",
-        primaryColor: AppColors.primary,
-        secondaryButtonText: "Cek Lagi",
-        onSecondaryPressed: () => Get.back(result: false),
-        primaryButtonText: "Ya, Submit",
-        onPrimaryPressed: () => Get.back(result: true),
-      ),
-      barrierDismissible: false,
-    );
+    _isSubmitting = true;
+    try {
+      final bool? confirm = await Get.dialog<bool>(
+        DialogFlexible(
+          logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),
+          title: "Konfirmasi Submit",
+          message: "Apakah Anda yakin data dan tanda tangan sudah benar?",
+          primaryColor: AppColors.primary,
+          secondaryButtonText: "Cek Lagi",
+          onSecondaryPressed: () => Get.back(result: false),
+          primaryButtonText: "Ya, Submit",
+          onPrimaryPressed: () => Get.back(result: true),
+        ),
+        barrierDismissible: false,
+      );
 
-    if (confirm == true) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      _processSubmit();
+      if (confirm == true) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        await _processSubmit();
+      }
+    } finally {
+      _isSubmitting = false;
     }
   }
 
@@ -344,6 +352,10 @@ class PenerimaanVerifikasiBastController extends GetxController {
       File? fileSecurity = await _repository.saveSignatureToFile(signatureSecurityController, "ttd_security_${activeNoBast.value}.png");
 
       if (fileGudang == null || filePartner == null || fileSecurity == null) throw "Gagal menyimpan Tanda Tangan.";
+
+      if (auth.user.otorisasi.isEmpty) {
+        throw "Akun Anda tidak memiliki otorisasi approval.";
+      }
 
       String userLevel = auth.user.otorisasi.first;
       String kodeUnit = currentTransaction.value?.dataSebelum?.kodeUnit ?? "";
@@ -405,7 +417,7 @@ class PenerimaanVerifikasiBastController extends GetxController {
       await _repository.uploadSignatureTransactionApproval(
         noDoc: activeNoBast.value,
         levelApproval: myConfig.levelApproval ?? "1",
-        imageSign1: fileGudang, imageSign2: fileSecurity,
+        imageSign1: fileGudang, imageSign2: filePartner,
       );
 
       // Post Data for Security, and signature

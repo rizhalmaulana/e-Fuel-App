@@ -54,53 +54,64 @@ class ApprovalEbpbController extends GetxController {
     fetchDetailData();
   }
 
+  bool _isSubmitting = false;
+
   void fetchDetailData() async {
     isLoading.value = true;
-    if (noDoc.isNotEmpty) {
-      final data = await _approvalService.getEbpbDetail(noDoc);
-      if (data != null) {
-        if (data['approvals'] != null && data['approvals'] is List) {
-          final approvals = data['approvals'] as List;
-          
-          approvals.forEach((app) {
-            String title = (app['title']?.toString() ?? '').toUpperCase();
-            if (title.contains('KERANI') || title.contains('KEPALA GUDANG')) {
-              app['title'] = 'Asst. Traksi';
-            }
-          });
-          
-          final order = ['ASST. TRAKSI', 'KASIE', 'MANAGER'];
-          
-          approvals.sort((a, b) {
-            String titleA = (a['title']?.toString() ?? '').toUpperCase();
-            String titleB = (b['title']?.toString() ?? '').toUpperCase();
-            
-            int indexA = order.indexWhere((t) => titleA.contains(t));
-            int indexB = order.indexWhere((t) => titleB.contains(t));
-            
-            if (indexA == -1) indexA = 99;
-            if (indexB == -1) indexB = 99;
-            
-            if (indexA != indexB) {
-              return indexA.compareTo(indexB);
-            }
-            
-            int levelA = int.tryParse(a['level_approve']?.toString() ?? '99') ?? 99;
-            int levelB = int.tryParse(b['level_approve']?.toString() ?? '99') ?? 99;
-            return levelA.compareTo(levelB);
-          });
-          data['approvals'] = approvals;
+    try {
+      if (noDoc.isNotEmpty) {
+        final data = await _approvalService.getEbpbDetail(noDoc);
+        if (data != null) {
+          if (data['approvals'] != null && data['approvals'] is List) {
+            final approvals = data['approvals'] as List;
+
+            approvals.forEach((app) {
+              String title = (app['title']?.toString() ?? '').toUpperCase();
+              if (title.contains('KERANI') || title.contains('KEPALA GUDANG')) {
+                app['title'] = 'Asst. Traksi';
+              }
+            });
+
+            final order = ['ASST. TRAKSI', 'KASIE', 'MANAGER'];
+
+            approvals.sort((a, b) {
+              String titleA = (a['title']?.toString() ?? '').toUpperCase();
+              String titleB = (b['title']?.toString() ?? '').toUpperCase();
+
+              int indexA = order.indexWhere((t) => titleA.contains(t));
+              int indexB = order.indexWhere((t) => titleB.contains(t));
+
+              if (indexA == -1) indexA = 99;
+              if (indexB == -1) indexB = 99;
+
+              if (indexA != indexB) {
+                return indexA.compareTo(indexB);
+              }
+
+              int levelA = int.tryParse(a['level_approve']?.toString() ?? '99') ?? 99;
+              int levelB = int.tryParse(b['level_approve']?.toString() ?? '99') ?? 99;
+              return levelA.compareTo(levelB);
+            });
+            data['approvals'] = approvals;
+          }
+          detailData.assignAll(data);
+        } else {
+          Get.snackbar("Terjadi Kesalahan", "Gagal memuat detail data transaksi E-BPB");
         }
-        detailData.assignAll(data);
-      } else {
-        Get.snackbar("Terjadi Kesalahan", "Gagal memuat detail data transaksi E-BPB");
       }
+    } catch (e) {
+      NetworkErrorHelper.showErrorSnackbar(
+        title: "Gagal Memuat E-BPB",
+        error: e,
+      );
+    } finally {
+      isLoading.value = false;
     }
-    isLoading.value = false;
   }
 
   void nextPage() async {
     await Future.delayed(const Duration(milliseconds: 500));
+    if (isClosed || !pageController.hasClients) return;
     pageController.nextPage(
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOut,
@@ -109,6 +120,7 @@ class ApprovalEbpbController extends GetxController {
   }
 
   void prevPage() {
+    if (!pageController.hasClients) return;
     pageController.previousPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease
@@ -117,6 +129,8 @@ class ApprovalEbpbController extends GetxController {
   }
 
   Future<void> submitDecision(String status) async {
+    if (_isSubmitting) return;
+
     if (status == 'APPROVED' && signatureController.isEmpty) {
       Get.snackbar("Informasi", "Tanda tangan wajib diisi untuk Approve",
           backgroundColor: AppColors.info, colorText: Colors.white);
@@ -129,6 +143,7 @@ class ApprovalEbpbController extends GetxController {
       return;
     }
 
+    _isSubmitting = true;
     Get.dialog(
         const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         barrierDismissible: false);
@@ -137,13 +152,17 @@ class ApprovalEbpbController extends GetxController {
       File? signFile;
       if (status == 'APPROVED') {
         final Uint8List? data = await signatureController.toPngBytes();
+        if (data == null || data.isEmpty) {
+          throw "Gagal memproses gambar tanda tangan. Silakan tanda tangan ulang.";
+        }
         final tempDir = await getTemporaryDirectory();
         signFile = await File('${tempDir.path}/sign_ebpb_${DateTime.now().millisecondsSinceEpoch}.png').create();
-        await signFile.writeAsBytes(data!);
+        await signFile.writeAsBytes(data);
       }
 
       final auth = _loginService.getCurrentAuth();
-      final userLevel = auth?.user.otorisasi.first ?? 'fuel_level_2';
+      final otorisasi = auth?.user.otorisasi ?? [];
+      final userLevel = otorisasi.isNotEmpty ? otorisasi.first : 'fuel_level_2';
 
       await _pengeluaranService.updateStatusEBPB(
         noDoc: noDoc,
@@ -180,7 +199,7 @@ class ApprovalEbpbController extends GetxController {
         }
       }
 
-      Get.back(); // Tutup loading progress dialog
+      if (Get.isDialogOpen ?? false) Get.back(); // Tutup loading progress dialog
       Get.offAllNamed(Routes.HOME);
 
       if (isFullApproved) {
@@ -210,12 +229,14 @@ class ApprovalEbpbController extends GetxController {
       }
           
     } catch (e) {
-      Get.back(); // Tutup loading progress dialog
+      if (Get.isDialogOpen ?? false) Get.back(); // Tutup loading progress dialog
       NetworkErrorHelper.showErrorSnackbar(
         title: "Gagal Proses E-BPB",
         error: e,
       );
       print("Error submit EBPB: $e");
+    } finally {
+      _isSubmitting = false;
     }
   }
 

@@ -9,7 +9,7 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
   const ReportPengeluaranView({super.key});
 
   Widget _buildDateFilter(BuildContext context) {
-    return Obx(() => Padding(
+    return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
@@ -22,7 +22,7 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
           ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _dateField(BuildContext context, String label, TextEditingController textCon) {
@@ -39,8 +39,10 @@ class ReportPengeluaranView extends GetView<ReportPengeluaranController> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Pastikan teks mengambil data terbaru dari controller
-                Text(textCon.text, style: AppFonts.fUrbanistRegular12),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: textCon,
+                  builder: (_, value, __) => Text(value.text, style: AppFonts.fUrbanistRegular12),
+                ),
                 const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primaryOrange),
               ],
             ),

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
+import 'package:e_fuel/helpers/decimal_input_formatter.dart';
 import 'package:e_fuel/helpers/lotties_helper.dart';
 import 'package:e_fuel/modules/pengisian_solar/controllers/pengeluaran/pengisian_solar_pengeluaran_controller.dart';
 import 'package:flutter/material.dart';
@@ -176,6 +177,7 @@ class PengisianSolarPengeluaranView extends GetView<PengisianSolarPengeluaranCon
                     TextField(
                       controller: controller.aktualSolarC,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [DecimalInputFormatter()],
                       readOnly: false,
                       decoration: InputDecoration(
                         hintText: "0",
