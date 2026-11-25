@@ -31,18 +31,35 @@ class PengeluaranEBpbController extends GetxController {
   var bpbList = <BonSementaraModel>[].obs;
   var filteredBpbList = <BonSementaraModel>[].obs;
   var dailyTransactionList = <PengeluaranDailyModel>[].obs;
+  final List<PengeluaranDailyModel> _allDailyTransactions = [];
 
   final Map<String, TextEditingController> costCenterControllers = {};
   final Map<String, TextEditingController> noteControllers = {};
 
   final searchTextC = TextEditingController();
+  final searchQuery = ''.obs;
 
   var isLoading = false.obs;
+  var isSubmitting = false.obs;
   var selectedUnitCode = 'E000'.obs;
   var selectedUnitTitle = 'Unknown'.obs;
   var selectedDate = "Pilih Tanggal".obs;
   var totalVolume = 0.0.obs;
   var totalQty = 0.obs;
+
+  /// Format total volume tanpa pembulatan ke bilangan bulat,
+  /// namun tetap bersih dari noise floating-point IEEE 754 (mis. 81.03999999999999 -> 81.04).
+  String get formattedTotalVolume {
+    final val = totalVolume.value;
+    final clean = double.parse(val.toStringAsFixed(6));
+    if (clean % 1 == 0) {
+      return clean.toInt().toString();
+    }
+    return clean
+        .toStringAsFixed(6)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+  }
 
   var hasOutstandingPreviousDate = false.obs;
   var outstandingPreviousMessage = "".obs;
@@ -95,6 +112,15 @@ class PengeluaranEBpbController extends GetxController {
   void onClose() {
     signatureController.dispose();
     pageController.dispose();
+    searchTextC.dispose();
+    for (final ctrl in costCenterControllers.values) {
+      ctrl.dispose();
+    }
+    for (final ctrl in noteControllers.values) {
+      ctrl.dispose();
+    }
+    costCenterControllers.clear();
+    noteControllers.clear();
     super.onClose();
   }
 
@@ -119,7 +145,9 @@ class PengeluaranEBpbController extends GetxController {
 
       userName.value = "${authData.user.firstName} ${authData.user.lastName}";
       userJabatan.value = authData.user.jabatan?.namaJabatan ?? "Asst. Traksi";
-      userLevelApproval.value = authData.user.otorisasi.first;
+      userLevelApproval.value = authData.user.otorisasi.isNotEmpty
+          ? authData.user.otorisasi.first
+          : "fuel_level_1";
     }
   }
 
@@ -135,18 +163,20 @@ class PengeluaranEBpbController extends GetxController {
       return;
     }
 
-    if (dailyTransactionList.isEmpty) {
+    if (_allDailyTransactions.isEmpty) {
       Get.snackbar("Data Kosong", "Tidak ada transaksi untuk diproses.",
           backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
       return;
     }
 
     bool isValid = true;
-    for (var item in dailyTransactionList) {
+    for (var item in _allDailyTransactions) {
       String key = item.id.toString();
-      if (item.kategoriKendaraan == "TAMU") {
+      final kategori = (item.kategoriKendaraan ?? "").toUpperCase();
+      final isTamuItem = kategori == "TAMU" || kategori == "TMU";
+      if (isTamuItem) {
         String costCenter = costCenterControllers[key]?.text ?? item.costCenter ?? "";
-        if (costCenter.trim().isEmpty) {
+        if (costCenter.trim().isEmpty || costCenter.trim() == "-") {
           isValid = false;
           break;
         }
@@ -263,41 +293,23 @@ class PengeluaranEBpbController extends GetxController {
   Future<void> fetchDailyTransactions() async {
     isLoading.value = true;
     try {
-      List<PengeluaranOutstandingModel> outstandingList = await _apiService.getOutstandingTransactions();
-      
-      DateTime selectedDateTime;
-      try {
-        selectedDateTime = DateFormat('yyyy-MM-dd').parse(selectedDateApi.value);
-      } catch (e) {
-        selectedDateTime = DateTime.now();
-      }
-
-      // bool foundPrevious = false;
-      // for (var item in outstandingList) {
-      //   try {
-      //      DateTime outstandingDate = DateFormat('yyyy-MM-dd').parse(item.tanggalTransaksi ?? "");
-      //      if (outstandingDate.isBefore(selectedDateTime)) {
-      //        foundPrevious = true;
-      //        break;
-      //      }
-      //   } catch (e) { }
-      // }
-      //
-      // if (foundPrevious) {
-      //   hasOutstandingPreviousDate.value = true;
-      //   outstandingPreviousMessage.value = "Tidak bisa submit E-BPB karena masih ada transaksi outstanding di tanggal sebelumnya.";
-      // } else {
-      //   hasOutstandingPreviousDate.value = false;
-      //   outstandingPreviousMessage.value = "";
-      // }
-
       var data = await _apiService.getDailyTransactions(
           dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);
-      dailyTransactionList.assignAll(data);
+      _allDailyTransactions
+        ..clear()
+        ..addAll(data);
+      _applySearchFilter();
       _calculateTotals();
     } catch (e) {
+      _allDailyTransactions.clear();
       dailyTransactionList.clear();
       _calculateTotals();
+      Get.snackbar(
+        "Gagal Memuat Data",
+        NetworkErrorHelper.getFriendlyErrorMessage(e),
+        backgroundColor: AppColors.alertSoftRed,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -317,27 +329,40 @@ class PengeluaranEBpbController extends GetxController {
   }
 
   void searchBpb(String query) {
-    if (query.isEmpty) {
-      fetchDailyTransactions();
-    } else {
-      var filtered = dailyTransactionList.where((item) {
-        return (item.namaUnit ?? "")
-                .toLowerCase()
-                .contains(query.toLowerCase()) ||
-            (item.noIo ?? "").toLowerCase().contains(query.toLowerCase());
-      }).toList();
+    searchQuery.value = query;
+    _applySearchFilter();
+  }
 
+  void clearSearch() {
+    searchTextC.clear();
+    searchQuery.value = '';
+    _applySearchFilter();
+  }
+
+  void _applySearchFilter() {
+    final q = searchQuery.value.trim().toLowerCase();
+    if (q.isEmpty) {
+      dailyTransactionList.assignAll(_allDailyTransactions);
+    } else {
+      final filtered = _allDailyTransactions.where((item) {
+        return (item.namaUnit ?? "").toLowerCase().contains(q) ||
+            (item.noIo ?? "").toLowerCase().contains(q) ||
+            (item.noDoc ?? "").toLowerCase().contains(q) ||
+            (item.namaSupir ?? "").toLowerCase().contains(q) ||
+            (item.costCenter ?? "").toLowerCase().contains(q);
+      }).toList();
       dailyTransactionList.assignAll(filtered);
     }
   }
 
   void _calculateTotals() {
-    totalQty.value = dailyTransactionList.length;
-    totalVolume.value = dailyTransactionList.fold(
+    totalQty.value = _allDailyTransactions.length;
+    totalVolume.value = _allDailyTransactions.fold(
         0.0, (sum, item) => sum + (item.aktualLiter ?? 0.0));
   }
 
   Future<void> submitBpb() async {
+    if (isSubmitting.value) return;
     if (signatureController.isEmpty) {
       DialogFlexible.showInfo(
         title: "Tanda Tangan Kosong",
@@ -348,9 +373,9 @@ class PengeluaranEBpbController extends GetxController {
       return;
     }
 
-    // Prepare Payload
+    // Prepare Payload dari seluruh transaksi pada tanggal terpilih (tidak terpotong filter search)
     List<Map<String, dynamic>> fotPayload = [];
-    for (var item in dailyTransactionList) {
+    for (var item in _allDailyTransactions) {
       String key = item.id.toString();
       bool isCc = (item.noIo?.trim().isEmpty ?? true) || item.noIo == "-";
       fotPayload.add({
@@ -367,7 +392,7 @@ class PengeluaranEBpbController extends GetxController {
       DialogFlexible(
         logo: LottiesHelper().getLottieQuestion(),
         title: "Konfirmasi E-BPB",
-        message: "Buat E-BPB untuk ${dailyTransactionList.length} item?",
+        message: "Buat E-BPB untuk ${_allDailyTransactions.length} transaksi (${formattedTotalVolume} Ltr)?",
         primaryColor: AppColors.primaryOrange,
         secondaryButtonText: "Batal",
         onSecondaryPressed: () => Get.back(),
@@ -397,6 +422,8 @@ class PengeluaranEBpbController extends GetxController {
   }
 
   void _processSubmitApi(List<Map<String, dynamic>> fotPayload) async {
+    if (isSubmitting.value) return;
+    isSubmitting.value = true;
     final closeLoading = DialogFlexible.showLoading(
       title: "Membuat E-BPB...",
       subtitle: "Mohon tunggu sebentar",
@@ -465,6 +492,7 @@ class PengeluaranEBpbController extends GetxController {
         icon: Icons.error_outline_rounded,
       );
     } finally {
+      isSubmitting.value = false;
       closeLoading();
     }
   }
