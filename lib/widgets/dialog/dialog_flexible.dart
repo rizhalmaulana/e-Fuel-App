@@ -88,7 +88,8 @@ class DialogFlexible extends StatelessWidget {
   }
 
   /// Menampilkan dialog tunggu dan mengembalikan fungsi penutup yang aman
-  /// (hanya menutup dialog tunggu ini saja, tidak akan menutup dialog/snackbar lain).
+  /// (hanya menutup dialog tunggu ini saja, tidak akan menutup dialog/snackbar lain
+  /// maupun tertinggal terbuka jika [closeLoading] dipanggil sebelum dialog ter-mount).
   static VoidCallback showLoading({
     String title = 'Sedang Memproses...',
     String? subtitle = 'Mohon tunggu sebentar',
@@ -97,50 +98,66 @@ class DialogFlexible extends StatelessWidget {
     FocusManager.instance.primaryFocus?.unfocus();
     BuildContext? loadingDialogContext;
     bool isClosed = false;
+    bool isPopped = false;
+
+    void popIfPossible(BuildContext? ctx) {
+      if (isPopped) return;
+      if (ctx != null && ctx.mounted) {
+        final nav = Navigator.of(ctx, rootNavigator: true);
+        if (nav.canPop()) {
+          isPopped = true;
+          nav.pop();
+        }
+      }
+    }
 
     void closeLoading() {
       if (isClosed) return;
       isClosed = true;
-      final ctx = loadingDialogContext;
-      if (ctx != null && ctx.mounted) {
-        Navigator.of(ctx).pop();
-      } else if (Get.isDialogOpen == true) {
-        Get.back();
-      }
+      popIfPossible(loadingDialogContext);
     }
 
     Get.dialog(
-      Builder(
-        builder: (dialogCtx) {
-          loadingDialogContext = dialogCtx;
-          return Dialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: color ?? AppColors.primary),
-                  const SizedBox(height: 20),
-                  Text(
-                    title,
-                    style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (subtitle != null && subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+      PopScope(
+        canPop: false,
+        child: Builder(
+          builder: (dialogCtx) {
+            loadingDialogContext = dialogCtx;
+            if (isClosed && !isPopped) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                popIfPossible(dialogCtx);
+              });
+              return const SizedBox.shrink();
+            }
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: color ?? AppColors.primary),
+                    const SizedBox(height: 20),
                     Text(
-                      subtitle,
-                      style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+                      title,
+                      style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryText),
                       textAlign: TextAlign.center,
                     ),
+                    if (subtitle != null && subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle,
+                        style: AppFonts.fUrbanistRegular12.copyWith(color: AppColors.secondaryText),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
       barrierDismissible: false,
     );

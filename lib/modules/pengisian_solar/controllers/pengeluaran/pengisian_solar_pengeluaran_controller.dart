@@ -223,7 +223,7 @@ class PengisianSolarPengeluaranController extends GetxController {
   }
 
   // --- SUBMIT LOGIC ---
-  void showSubmitConfirmation() {
+  Future<void> showSubmitConfirmation() async {
     if (isSubmitting.value) return;
     if (!isManualInput.value) {
       if (fotoDispenser.value == null) {
@@ -257,26 +257,19 @@ class PengisianSolarPengeluaranController extends GetxController {
       return;
     }
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
-
-    Get.dialog(
-      DialogFlexible(
-        logo: LottiesHelper().getLottieQuestion(),
-        title: "Konfirmasi Submit",
-        message: "Pastikan data solar dan foto sudah sesuai. Lanjutkan submit?",
-        primaryColor: AppColors.primaryOrange,
-        secondaryColor: AppColors.secondaryOrange,
-        secondaryButtonText: "Cek Lagi",
-        onSecondaryPressed: () => Get.back(),
-        primaryButtonText: "Ya, Submit",
-        onPrimaryPressed: () {
-          Get.back();
-          submitTransaction();
-        },
-      ),
-      barrierDismissible: false,
+    final confirm = await DialogFlexible.showConfirm(
+      logo: LottiesHelper().getLottieQuestion(),
+      title: "Konfirmasi Submit",
+      message: "Pastikan data solar dan foto sudah sesuai. Lanjutkan submit?",
+      primaryColor: AppColors.primaryOrange,
+      cancelText: "Cek Lagi",
+      confirmText: "Ya, Submit",
     );
+
+    if (confirm) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      submitTransaction();
+    }
   }
 
   Future<void> takePhoto(bool isSupir) async {

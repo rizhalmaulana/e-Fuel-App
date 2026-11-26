@@ -310,15 +310,21 @@ class PengeluaranView extends GetView<PengeluaranController> {
 
     final TextEditingController searchC = TextEditingController();
 
-    Get.bottomSheet(
-      Container(
-        height: Get.height * 0.78,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-        decoration: const BoxDecoration(
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Material(
           color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(sheetCtx).size.height * 0.78,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Handle bar
@@ -514,8 +520,8 @@ class PengeluaranView extends GetView<PengeluaranController> {
                             )
                           : null,
                       onTap: () {
+                        Navigator.of(sheetCtx).pop();
                         controller.onUnitSelected(unit);
-                        Navigator.of(context).pop();
                       },
                     );
                   },
@@ -524,9 +530,13 @@ class PengeluaranView extends GetView<PengeluaranController> {
             ),
           ],
         ),
+            ),
+          ),
+        ),
       ),
-      isScrollControlled: true,
-    );
+    ).whenComplete(() {
+      Future.delayed(const Duration(milliseconds: 350), searchC.dispose);
+    });
   }
 
   Widget _buildFilterChip({
@@ -574,15 +584,21 @@ class PengeluaranView extends GetView<PengeluaranController> {
     controller.searchMainUnit('');
     final TextEditingController searchC = TextEditingController();
 
-    Get.bottomSheet(
-      Container(
-        height: Get.height * 0.72,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-        decoration: const BoxDecoration(
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Material(
           color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(sheetCtx).size.height * 0.72,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
@@ -710,7 +726,10 @@ class PengeluaranView extends GetView<PengeluaranController> {
                               .copyWith(color: AppColors.primaryOrange),
                         ),
                       ),
-                      onTap: () => controller.onReplacedUnitSelected(unit),
+                      onTap: () {
+                        Navigator.of(sheetCtx).pop();
+                        controller.onReplacedUnitSelected(unit);
+                      },
                     );
                   },
                 );
@@ -718,9 +737,13 @@ class PengeluaranView extends GetView<PengeluaranController> {
             ),
           ],
         ),
+            ),
+          ),
+        ),
       ),
-      isScrollControlled: true,
-    );
+    ).whenComplete(() {
+      Future.delayed(const Duration(milliseconds: 350), searchC.dispose);
+    });
   }
 
   String _resolveUnitDisplayName(MasterIoModel unit) {

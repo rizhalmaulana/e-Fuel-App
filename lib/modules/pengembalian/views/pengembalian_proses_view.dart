@@ -119,21 +119,46 @@ class PengembalianProsesView extends GetView<PengembalianProsesController> {
             SizedBox(
               width: double.infinity,
               height: 50,
-              child: ElevatedButton(
-                onPressed: controller.submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              child: Obx(() {
+                final checking = controller.isCheckingNetwork.value;
+                return ElevatedButton(
+                  onPressed: checking ? null : controller.submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor: AppColors.primary.withOpacity(0.65),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 4,
+                    shadowColor: AppColors.primary.withOpacity(0.4),
                   ),
-                  elevation: 4,
-                  shadowColor: AppColors.primary.withOpacity(0.4),
-                ),
-                child: Text(
-                  'Submit Pengembalian',
-                  style: AppFonts.fUrbanistBold16.copyWith(color: Colors.white),
-                ),
-              ),
+                  child: checking
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Memeriksa Jaringan...',
+                              style: AppFonts.fUrbanistBold16
+                                  .copyWith(color: Colors.white),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'Submit Pengembalian',
+                          style: AppFonts.fUrbanistBold16
+                              .copyWith(color: Colors.white),
+                        ),
+                );
+              }),
             ),
             const SizedBox(height: 16),
           ],

@@ -254,8 +254,10 @@ class PengeluaranInputBonSementaraView
     kmAkhirController.addListener(calculateAutomatedFields);
     calculateAutomatedFields();
 
-    Get.dialog(
-      Dialog(
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -263,8 +265,23 @@ class PengeluaranInputBonSementaraView
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Penyesuaian Bon", style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryOrange)),
-                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Penyesuaian Bon",
+                        style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.primaryOrange),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                      icon: const Icon(Icons.close, size: 20, color: AppColors.secondaryText),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 _inputField("Nama Unit IO", controller: nameController, readOnly: true),
 
                 if (isTypeGS) ...[
@@ -334,7 +351,7 @@ class PengeluaranInputBonSementaraView
                         dateAkhir: dateAkhirController.text,
                         operationHoliday: operationHoliday.text,
                       );
-                      Get.back();
+                      Navigator.of(dialogCtx).pop();
                     },
                     child: Text("Simpan Perubahan", style: AppFonts.fUrbanistSemiBold14.copyWith(color: Colors.white)),
                   ),
@@ -344,7 +361,6 @@ class PengeluaranInputBonSementaraView
           ),
         ),
       ),
-      barrierDismissible: false,
     );
   }
 

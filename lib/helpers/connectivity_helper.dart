@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../helpers/lotties_helper.dart';
 import '../widgets/dialog/dialog_flexible.dart';
@@ -63,45 +64,87 @@ class ConnectivityHelper {
   /// Cek koneksi internet DAN tampilkan dialog jika offline.
   /// Gunakan ini hanya untuk aksi eksplisit user yang butuh internet:
   /// - Tombol Refresh (pull-to-refresh)
-  /// - Submit transaksi (Penerimaan, Pengeluaran)
+  /// - Submit transaksi (Penerimaan, Pengeluaran, Pengembalian)
+  /// - Upload Transfer Solar
   /// - Approval
   ///
   /// JANGAN gunakan untuk loading awal Home/halaman — gunakan [isConnected()] saja.
-  static Future<bool> validateNetwork() async {
-    bool hasInternet = await isConnected();
+  static Future<bool> validateNetwork({
+    String? title,
+    String? message,
+  }) async {
+    final status = await checkNetworkStatus();
 
-    if (!hasInternet) {
-      return await _showNoConnectionDialog();
+    if (status != NetworkCheckStatus.connected) {
+      return await _showNoConnectionDialog(
+        status: status,
+        title: title,
+        message: message,
+      );
     }
 
     return true;
   }
 
-  static Future<bool> _showNoConnectionDialog() async {
-    if (Get.isDialogOpen == true) {
+  static bool _isNoConnectionDialogShowing = false;
+
+  static Future<bool> _showNoConnectionDialog({
+    NetworkCheckStatus status = NetworkCheckStatus.noNetwork,
+    String? title,
+    String? message,
+  }) async {
+    if (_isNoConnectionDialogShowing) {
       return false;
     }
 
-    final result = await Get.dialog<bool>(
-      DialogFlexible(
-        logo: LottiesHelper().getLottieFailed(),
-        title: 'Koneksi Terputus!',
-        message: 'Aplikasi memerlukan koneksi internet stabil untuk melakukan proses ini. Silakan cek jaringan Anda.',
-        primaryColor: AppColors.alertSoftRed,
-        primaryButtonText: 'Tutup',
-        onPrimaryPressed: () {
-          Get.back(result: false);
-        },
-        secondaryButtonText: "Coba Lagi",
-        onSecondaryPressed: () {
-          Get.back(result: true);
-        },
-      ),
-      barrierDismissible: false,
-    );
+    if (Get.isSnackbarOpen) {
+      Get.closeAllSnackbars();
+    }
+
+    final resolvedTitle = title ??
+        (status == NetworkCheckStatus.slowOrUnreachable
+            ? 'Jaringan Tidak Stabil'
+            : 'Tidak Ada Jaringan');
+    final resolvedMessage = message ??
+        (status == NetworkCheckStatus.slowOrUnreachable
+            ? 'Sinyal internet terlalu lambat atau tidak merespons. Silakan periksa jaringan Anda dan coba lagi.'
+            : 'Aplikasi memerlukan koneksi internet aktif untuk melakukan proses ini. Silakan cek jaringan Anda dan coba lagi.');
+
+    _isNoConnectionDialogShowing = true;
+    bool? result;
+    try {
+      result = await Get.dialog<bool>(
+        Builder(
+          builder: (dialogCtx) => DialogFlexible(
+            logo: LottiesHelper().getLottieFailed(),
+            title: resolvedTitle,
+            message: resolvedMessage,
+            primaryColor: AppColors.alertSoftRed,
+            primaryButtonText: 'Tutup',
+            onPrimaryPressed: () {
+              if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
+                Navigator.of(dialogCtx, rootNavigator: true).pop(false);
+              }
+            },
+            secondaryButtonText: "Coba Lagi",
+            onSecondaryPressed: () {
+              if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
+                Navigator.of(dialogCtx, rootNavigator: true).pop(true);
+              }
+            },
+          ),
+        ),
+        barrierDismissible: false,
+      );
+    } finally {
+      _isNoConnectionDialogShowing = false;
+    }
 
     if (result == true) {
-      return await validateNetwork();
+      // Beri jeda singkat agar dialog sebelumnya benar-benar selesai tertutup
+      // sebelum menampilkan ulang dialog bila jaringan masih offline.
+      await Future.delayed(const Duration(milliseconds: 150));
+      return await validateNetwork(title: title, message: message);
     }
 
     return false;

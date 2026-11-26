@@ -287,20 +287,23 @@ class TransferKonfirmasiController extends GetxController {
 
       closeLoading();
 
+      // Refresh list in TransferController
+      if (Get.isRegistered<TransferController>()) {
+        Get.find<TransferController>().loadLocalData();
+      }
+
+      // Beri jeda singkat agar loading dialog benar-benar keluar sebelum unwind route
+      await Future.delayed(const Duration(milliseconds: 120));
+
+      // Back to Transfer View
+      Get.until((route) => Get.currentRoute == '/transfer' || route.isFirst);
+
       Get.snackbar(
         'Sukses',
         'Data berhasil disimpan.',
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
-
-      // Refresh list in TransferController
-      if (Get.isRegistered<TransferController>()) {
-        Get.find<TransferController>().loadLocalData();
-      }
-
-      // Back to Transfer View
-      Get.until((route) => Get.currentRoute == '/transfer' || route.isFirst);
       
     } catch (e) {
       closeLoading();

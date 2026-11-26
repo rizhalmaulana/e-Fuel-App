@@ -38,6 +38,8 @@ class PengembalianView extends GetView<PengembalianController> {
         }
 
         if (controller.filteredTransaksiList.isEmpty) {
+          final err = controller.errorMessage.value;
+          final isOffline = controller.isOfflineError.value;
           return RefreshIndicator(
             onRefresh: controller.fetchData,
             color: AppColors.primary,
@@ -47,9 +49,70 @@ class PengembalianView extends GetView<PengembalianController> {
                 SizedBox(
                   height: Get.height * 0.7,
                   child: Center(
-                    child: Text(
-                      'Belum ada Transaksi Pengembalian',
-                      style: AppFonts.fUrbanistMedium14.copyWith(color: AppColors.secondaryText),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: err != null
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.alertSoftRed
+                                        .withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isOffline
+                                        ? Icons.wifi_off_rounded
+                                        : Icons.error_outline_rounded,
+                                    color: AppColors.alertSoftRed,
+                                    size: 36,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  isOffline
+                                      ? 'Tidak Ada Jaringan'
+                                      : 'Gagal Memuat Data',
+                                  style: AppFonts.fUrbanistBold16
+                                      .copyWith(color: AppColors.primaryText),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  err,
+                                  style: AppFonts.fUrbanistMedium12
+                                      .copyWith(color: AppColors.secondaryText),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  onPressed: () => controller.fetchData(),
+                                  icon: const Icon(Icons.refresh,
+                                      size: 18, color: Colors.white),
+                                  label: Text(
+                                    'Coba Lagi',
+                                    style: AppFonts.fUrbanistBold14
+                                        .copyWith(color: Colors.white),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              'Belum ada Transaksi Pengembalian',
+                              style: AppFonts.fUrbanistMedium14
+                                  .copyWith(color: AppColors.secondaryText),
+                            ),
                     ),
                   ),
                 ),
@@ -96,7 +159,7 @@ class PengembalianView extends GetView<PengembalianController> {
       }),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showSearchBottomSheet(),
+        onPressed: () => _showSearchBottomSheet(context),
         backgroundColor: AppColors.white,
         mini: true,
         child: const Icon(Icons.search, color: AppColors.primary),
@@ -104,15 +167,23 @@ class PengembalianView extends GetView<PengembalianController> {
     );
   }
 
-  void _showSearchBottomSheet() {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 32),
-        decoration: const BoxDecoration(
+  void _showSearchBottomSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-        ),
-        child: Column(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 28),
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -155,7 +226,7 @@ class PengembalianView extends GetView<PengembalianController> {
             Text('Rentang Tanggal', style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: () => controller.pickDateRange(Get.context!),
+              onTap: () => controller.pickDateRange(sheetCtx),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
@@ -184,10 +255,28 @@ class PengembalianView extends GetView<PengembalianController> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(sheetCtx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Terapkan Filter',
+                  style: AppFonts.fUrbanistBold14.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
           ],
         ),
+          ),
+        ),
       ),
-      isScrollControlled: true,
     );
   }
 

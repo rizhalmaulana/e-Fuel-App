@@ -5,7 +5,6 @@ import '../../../datas/models/report/report_transaction_model.dart';
 import '../../../datas/network/api_client_network.dart';
 import '../../auth/services/login_service.dart';
 import 'package:hive/hive.dart';
-import 'package:flutter/material.dart';
 
 class ReportApiService {
   final ApiClientNetwork _apiClient = ApiClientNetwork();
@@ -70,17 +69,8 @@ class ReportApiService {
       List? cachedData = box.get(cacheKey);
       
       if (cachedData != null && cachedData.isNotEmpty) {
-        Get.snackbar(
-          "Mode Offline", 
-          "Menampilkan data laporan tersimpan. Refresh untuk data terbaru.",
-          backgroundColor: Colors.orange.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-          margin: const EdgeInsets.all(16),
-          icon: const Icon(Icons.wifi_off_rounded, color: Colors.white),
-        );
-            
-        // Convert List dinamis dari Hive ke List of Map agar bisa di-parse oleh fromJson
+        // Hindari menampilkan Get.snackbar langsung dari layer API service agar
+        // tidak membajak Get.back() / overlay di halaman laporan.
         List<Map<String, dynamic>> mapData = cachedData.map((e) => Map<String, dynamic>.from(e)).toList();
         return mapData.map((e) => ReportTransactionModel.fromJson(e)).toList();
       }

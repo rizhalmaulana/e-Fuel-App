@@ -13,6 +13,7 @@ import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import '../services/approval_service.dart';
 import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/dialog/dialog_flexible.dart';
 
 class ApprovalEbpbController extends GetxController {
   final ApprovalService _approvalService = ApprovalService();
@@ -143,10 +144,15 @@ class ApprovalEbpbController extends GetxController {
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     _isSubmitting = true;
-    Get.dialog(
-        const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        barrierDismissible: false);
+    final closeLoading = DialogFlexible.showLoading(
+      title: 'Memproses E-BPB...',
+      subtitle: 'Mohon tunggu sebentar',
+      color: AppColors.primary,
+    );
 
     try {
       File? signFile;
@@ -199,7 +205,7 @@ class ApprovalEbpbController extends GetxController {
         }
       }
 
-      if (Get.isDialogOpen ?? false) Get.back(); // Tutup loading progress dialog
+      closeLoading();
       Get.offAllNamed(Routes.HOME);
 
       if (isFullApproved) {
@@ -229,13 +235,14 @@ class ApprovalEbpbController extends GetxController {
       }
           
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back(); // Tutup loading progress dialog
+      closeLoading();
       NetworkErrorHelper.showErrorSnackbar(
         title: "Gagal Proses E-BPB",
         error: e,
       );
       print("Error submit EBPB: $e");
     } finally {
+      closeLoading();
       _isSubmitting = false;
     }
   }

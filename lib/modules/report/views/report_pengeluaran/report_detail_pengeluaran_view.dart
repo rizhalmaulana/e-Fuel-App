@@ -152,59 +152,62 @@ class ReportDetailPengeluaranView extends GetView<ReportDetailPengeluaranControl
             padding: const EdgeInsets.only(right: 12),
             child: Column(
               children: [
-                GestureDetector(
-                  onTap: () {
-                    Get.dialog(
-                      Dialog(
-                        backgroundColor: Colors.transparent,
-                        insetPadding: const EdgeInsets.all(16),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            InteractiveViewer(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  img["url"]!,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                Builder(
+                  builder: (itemCtx) => GestureDetector(
+                    onTap: () {
+                      showDialog<void>(
+                        context: itemCtx,
+                        builder: (dialogCtx) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          insetPadding: const EdgeInsets.all(16),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              InteractiveViewer(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    img["url"]!,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                                  ),
                                 ),
                               ),
-                            ),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: IconButton(
-                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                onPressed: () => Get.back(),
+                              Positioned(
+                                top: 10,
+                                right: 10,
+                                child: IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                  onPressed: () => Navigator.of(dialogCtx).pop(),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                      );
+                    },
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    );
-                  },
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        img["url"]!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryOrange));
-                        },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          img["url"]!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryOrange));
+                          },
+                        ),
                       ),
                     ),
                   ),

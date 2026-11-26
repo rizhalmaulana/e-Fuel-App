@@ -6,6 +6,7 @@ import '../../../../configs/app_colors.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
 import '../../../../widgets/dialog/dialog_flexible.dart';
+import '../../../../helpers/connectivity_helper.dart';
 import '../../../../helpers/network_error_helper.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../services/pengembalian_service.dart';
@@ -17,6 +18,7 @@ class PengembalianProsesController extends GetxController {
   late PengembalianSolarModel data;
   
   final isLoading = false.obs;
+  final isCheckingNetwork = false.obs;
   bool _isSubmitting = false;
 
   final foto1Path = RxnString();
@@ -128,23 +130,34 @@ class PengembalianProsesController extends GetxController {
     }
 
     _isSubmitting = true;
+    isCheckingNetwork.value = true;
     try {
-      final bool? confirm = await Get.dialog<bool>(
-        DialogFlexible(
-          title: 'Konfirmasi Submit',
-          message: 'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
-          primaryButtonText: 'Ya, Submit',
-          secondaryButtonText: 'Batal',
-          logo: LottiesHelper().getLottieConfirmation(),
-        ),
-        barrierDismissible: false,
+      final hasInternet = await ConnectivityHelper.validateNetwork(
+        title: 'Tidak Ada Jaringan',
+        message:
+            'Gagal memproses Pengembalian Solar karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+      );
+      isCheckingNetwork.value = false;
+
+      if (!hasInternet) {
+        return;
+      }
+
+      final confirm = await DialogFlexible.showConfirm(
+        title: 'Konfirmasi Submit',
+        message:
+            'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
+        confirmText: 'Ya, Submit',
+        cancelText: 'Batal',
+        logo: LottiesHelper().getLottieConfirmation(),
       );
 
-      if (confirm == true) {
+      if (confirm) {
         await Future.delayed(const Duration(milliseconds: 150));
         await _doSubmit(varianInput);
       }
     } finally {
+      isCheckingNetwork.value = false;
       _isSubmitting = false;
     }
   }
@@ -191,11 +204,15 @@ class PengembalianProsesController extends GetxController {
       }
     } catch (e) {
       closeLoading();
+      final friendly = NetworkErrorHelper.getFriendlyErrorMessage(e);
+      final isNetErr = friendly.toLowerCase().contains('internet') ||
+          friendly.toLowerCase().contains('jaringan') ||
+          friendly.toLowerCase().contains('koneksi');
       DialogFlexible.showInfo(
-        title: 'Gagal Submit',
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        title: isNetErr ? 'Tidak Ada Jaringan' : 'Gagal Submit',
+        message: friendly,
         color: AppColors.alertSoftRed,
-        icon: Icons.error_outline_rounded,
+        icon: isNetErr ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
       );
     } finally {
       closeLoading();

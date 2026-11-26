@@ -11,6 +11,7 @@ import '../../auth/services/login_service.dart';
 import '../services/approval_service.dart';
 import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/dialog/dialog_flexible.dart';
 
 class ApprovalController extends GetxController {
   final ApprovalService _approvalService = ApprovalService();
@@ -107,8 +108,15 @@ class ApprovalController extends GetxController {
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+
     _isSubmitting = true;
-    Get.dialog(const Center(child: CircularProgressIndicator(color: AppColors.primary)), barrierDismissible: false);
+    final closeLoading = DialogFlexible.showLoading(
+      title: 'Memproses Approval...',
+      subtitle: 'Mohon tunggu sebentar',
+      color: AppColors.primary,
+    );
 
     try {
       File? signFile;
@@ -151,7 +159,7 @@ class ApprovalController extends GetxController {
           if (isFullApproved) {
             String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
 
-            if (Get.isDialogOpen ?? false) Get.back(); // Tutup loading progress dialog
+            closeLoading();
             Get.offAllNamed(Routes.HOME); // Arahkan ke Home
 
             if (downloadedFilePath != null) {
@@ -178,23 +186,24 @@ class ApprovalController extends GetxController {
         }
 
         // (Belum Full Approved atau REJECTED)
-        if (Get.isDialogOpen ?? false) Get.back();
+        closeLoading();
         Get.offAllNamed(Routes.HOME);
         Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
       } else {
-        if (Get.isDialogOpen ?? false) Get.back();
+        closeLoading();
         NetworkErrorHelper.showErrorSnackbar(
           title: "Gagal Proses Dokumen",
           error: "Terjadi kesalahan saat memproses keputusan approval. Silakan coba lagi.",
         );
       }
     } catch (e) {
-      if (Get.isDialogOpen ?? false) Get.back();
+      closeLoading();
       NetworkErrorHelper.showErrorSnackbar(
         title: "Gagal Proses Dokumen",
         error: e,
       );
     } finally {
+      closeLoading();
       _isSubmitting = false;
     }
   }

@@ -843,8 +843,6 @@ class PengeluaranController extends GetxController {
       platController.text = selectedUnit.value?.namaUnit ?? '';
       isPlatReadOnly.value = false;
     }
-
-    Get.back(); // tutup bottom sheet
   }
 
   void _populateMainUnitList() {

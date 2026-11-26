@@ -12,6 +12,7 @@ import '../../auth/services/login_service.dart';
 class TransferController extends GetxController {
   final isLoading = false.obs;
   final isSyncing = false.obs;
+  final isCheckingUpload = false.obs;
 
   final pendingList = <TransferSolarModel>[].obs;
   final savedList = <TransferSolarModel>[].obs;
@@ -180,144 +181,157 @@ class TransferController extends GetxController {
   }
 
   Future<void> syncData({bool isAuto = false}) async {
+    if (isSyncing.value) return;
     isSyncing.value = true;
 
-    // Get current kode_unit from active user
-    final auth = _loginService.getCurrentAuth();
-    final kodeUnit = auth?.currentKodeUnit ?? '';
-
-    if (kodeUnit.isEmpty) {
+    try {
       if (!isAuto) {
-        Get.snackbar('Error', 'Kode Unit tidak ditemukan',
-            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+        final hasInternet = await ConnectivityHelper.validateNetwork(
+          title: 'Tidak Ada Jaringan',
+          message:
+              'Gagal menyinkronkan data Transfer Solar karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+        );
+        if (!hasInternet) return;
       }
+
+      // Get current kode_unit from active user
+      final auth = _loginService.getCurrentAuth();
+      final kodeUnit = auth?.currentKodeUnit ?? '';
+
+      if (kodeUnit.isEmpty) {
+        if (!isAuto) {
+          DialogFlexible.showInfo(
+            title: 'Gagal Sinkronisasi',
+            message: 'Kode Unit tidak ditemukan. Silakan muat ulang halaman.',
+            color: AppColors.alertSoftRed,
+            icon: Icons.error_outline_rounded,
+          );
+        }
+        return;
+      }
+
+      bool success = await offlineService.syncDataFromBE(kodeUnit);
+      if (success) {
+        loadLocalData();
+        if (!isAuto) {
+          Get.snackbar('Sukses', 'Data berhasil disinkronisasi',
+              backgroundColor: Colors.green, colorText: Colors.white);
+        }
+      } else {
+        if (!isAuto) {
+          DialogFlexible.showInfo(
+            title: 'Gagal Sinkronisasi',
+            message:
+                'Gagal menyinkronkan data dari server. Periksa koneksi internet Anda lalu coba lagi.',
+            color: AppColors.alertSoftRed,
+            icon: Icons.wifi_off_rounded,
+          );
+        }
+      }
+    } finally {
       isSyncing.value = false;
-      return;
     }
-
-    bool success = await offlineService.syncDataFromBE(kodeUnit);
-    if (success) {
-      loadLocalData();
-      if (!isAuto) {
-        Get.snackbar('Sukses', 'Data berhasil disinkronisasi',
-            backgroundColor: Colors.green, colorText: Colors.white);
-      }
-    } else {
-      if (!isAuto) {
-        Get.snackbar('Gagal',
-            'Gagal mensinkronisasi data, periksa koneksi internet Anda',
-            backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
-      }
-    }
-
-    isSyncing.value = false;
   }
 
   bool _isProcessRunning = false;
 
   Future<void> uploadData(TransferSolarModel data) async {
     if (_isProcessRunning) return;
-    if (Get.isDialogOpen ?? false) return;
     _isProcessRunning = true;
+    isCheckingUpload.value = true;
 
     try {
-      // Cek Koneksi
-      bool isOnline = await ConnectivityHelper.isConnected();
-      if (!isOnline) {
-        _isProcessRunning = false;
-        NetworkErrorHelper.showErrorSnackbar(
-          title: 'Tidak Ada Koneksi',
-          error: 'Koneksi internet diperlukan untuk mengunggah data ke server.',
-        );
-        return;
-      }
-
-      if (Get.isDialogOpen ?? false) {
-        _isProcessRunning = false;
-        return;
-      }
-
       FocusManager.instance.primaryFocus?.unfocus();
       if (Get.isSnackbarOpen) Get.closeAllSnackbars();
 
-      // Tampilkan Dialog Konfirmasi dan tunggu hasilnya sampai dialog benar-benar tertutup
-      final bool? confirm = await Get.dialog<bool>(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieQuestion(),
-          title: 'Konfirmasi Upload',
-          message: 'Apakah Anda yakin ingin mengunggah transaksi ini ke server?',
-          primaryColor: AppColors.primaryOrange,
-          secondaryColor: AppColors.secondaryOrange,
-          primaryButtonText: 'Ya, Upload',
-          onPrimaryPressed: () => Get.back(result: true),
-          secondaryButtonText: 'Batal',
-          onSecondaryPressed: () => Get.back(result: false),
-        ),
-        barrierDismissible: false,
+      final isOnline = await ConnectivityHelper.validateNetwork(
+        title: 'Tidak Ada Jaringan',
+        message:
+            'Gagal mengunggah data Transfer Solar karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+      );
+      isCheckingUpload.value = false;
+
+      if (!isOnline) {
+        _isProcessRunning = false;
+        return;
+      }
+
+      final confirm = await DialogFlexible.showConfirm(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: 'Konfirmasi Upload',
+        message: 'Apakah Anda yakin ingin mengunggah transaksi ini ke server?',
+        primaryColor: AppColors.primaryOrange,
+        confirmText: 'Ya, Upload',
+        cancelText: 'Batal',
       );
 
-      if (confirm == true) {
-        // Beri jeda agar transisi penutupan dialog konfirmasi selesai sempurna
+      if (confirm) {
         await Future.delayed(const Duration(milliseconds: 150));
         await _processUpload(data);
       } else {
         _isProcessRunning = false;
       }
     } catch (e) {
+      isCheckingUpload.value = false;
       _isProcessRunning = false;
+      DialogFlexible.showInfo(
+        title: 'Gagal Upload',
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.wifi_off_rounded,
+      );
     }
   }
 
   Future<void> uploadAllData() async {
     if (_isProcessRunning) return;
-    if (Get.isDialogOpen ?? false) return;
-    
+
     final dataToUpload = filteredSavedList.toList();
     if (dataToUpload.isEmpty) return;
 
     _isProcessRunning = true;
+    isCheckingUpload.value = true;
     try {
-      bool isOnline = await ConnectivityHelper.isConnected();
-      if (!isOnline) {
-        _isProcessRunning = false;
-        NetworkErrorHelper.showErrorSnackbar(
-          title: 'Tidak Ada Koneksi',
-          error: 'Koneksi internet diperlukan untuk mengunggah data ke server.',
-        );
-        return;
-      }
-
-      if (Get.isDialogOpen ?? false) {
-        _isProcessRunning = false;
-        return;
-      }
-
       FocusManager.instance.primaryFocus?.unfocus();
       if (Get.isSnackbarOpen) Get.closeAllSnackbars();
 
-      final bool? confirm = await Get.dialog<bool>(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieQuestion(),
-          title: 'Konfirmasi Upload Semua',
-          message: 'Apakah Anda yakin ingin mengunggah ${dataToUpload.length} transaksi ini ke server?',
-          primaryColor: AppColors.primaryOrange,
-          secondaryColor: AppColors.secondaryOrange,
-          primaryButtonText: 'Upload Semua',
-          onPrimaryPressed: () => Get.back(result: true),
-          secondaryButtonText: 'Batal',
-          onSecondaryPressed: () => Get.back(result: false),
-        ),
-        barrierDismissible: false,
+      final isOnline = await ConnectivityHelper.validateNetwork(
+        title: 'Tidak Ada Jaringan',
+        message:
+            'Gagal mengunggah ${dataToUpload.length} data Transfer Solar karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+      );
+      isCheckingUpload.value = false;
+
+      if (!isOnline) {
+        _isProcessRunning = false;
+        return;
+      }
+
+      final confirm = await DialogFlexible.showConfirm(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: 'Konfirmasi Upload Semua',
+        message:
+            'Apakah Anda yakin ingin mengunggah ${dataToUpload.length} transaksi ini ke server?',
+        primaryColor: AppColors.primaryOrange,
+        confirmText: 'Upload Semua',
+        cancelText: 'Batal',
       );
 
-      if (confirm == true) {
+      if (confirm) {
         await Future.delayed(const Duration(milliseconds: 150));
         await _processUploadAll(dataToUpload);
       } else {
         _isProcessRunning = false;
       }
     } catch (e) {
+      isCheckingUpload.value = false;
       _isProcessRunning = false;
+      DialogFlexible.showInfo(
+        title: 'Gagal Upload',
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.wifi_off_rounded,
+      );
     }
   }
 
@@ -367,6 +381,7 @@ class TransferController extends GetxController {
 
     int successCount = 0;
     int failCount = 0;
+    String? lastErrorMessage;
 
     try {
       for (var data in dataList) {
@@ -379,6 +394,7 @@ class TransferController extends GetxController {
           }
         } catch (e) {
           failCount++;
+          lastErrorMessage = NetworkErrorHelper.getFriendlyErrorMessage(e);
         }
       }
 
@@ -388,10 +404,20 @@ class TransferController extends GetxController {
       if (failCount == 0) {
         Get.snackbar('Sukses', '$successCount data berhasil diupload.',
             backgroundColor: Colors.green, colorText: Colors.white);
+      } else if (successCount == 0) {
+        DialogFlexible.showInfo(
+          title: 'Gagal Upload',
+          message: lastErrorMessage ??
+              'Semua ($failCount) data gagal diupload. Pastikan koneksi internet Anda stabil lalu coba lagi.',
+          color: AppColors.alertSoftRed,
+          icon: Icons.wifi_off_rounded,
+        );
       } else {
+        final detail = lastErrorMessage != null ? '\n$lastErrorMessage' : '';
         DialogFlexible.showInfo(
           title: 'Upload Sebagian Gagal',
-          message: '$successCount berhasil, $failCount gagal diupload. Silakan coba lagi.',
+          message:
+              '$successCount berhasil, $failCount gagal diupload. Silakan coba lagi.$detail',
           color: AppColors.primaryOrange,
           icon: Icons.warning_amber_rounded,
         );

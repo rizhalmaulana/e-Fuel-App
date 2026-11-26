@@ -148,7 +148,7 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('id', 'ID'),
-      transitionDuration: const Duration(milliseconds: 600),
+      transitionDuration: const Duration(milliseconds: 250),
       theme: ThemeData(
         primaryColor: AppColors.primary,
         scaffoldBackgroundColor: Colors.white,

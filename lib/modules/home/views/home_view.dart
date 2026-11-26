@@ -851,17 +851,22 @@ class HomeView extends GetView<HomeController> {
   }
 
   void _showDraftFilterBottomSheet(BuildContext context) {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-        decoration: const BoxDecoration(
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.only(
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
           ),
-        ),
-        child: SingleChildScrollView(
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+            child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,7 +982,7 @@ class HomeView extends GetView<HomeController> {
 
               // Custom Date Picker container
               GestureDetector(
-                onTap: () => controller.pickDraftDateRange(context),
+                onTap: () => controller.pickDraftDateRange(sheetCtx),
                 child: Obx(() => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
@@ -1036,7 +1041,7 @@ class HomeView extends GetView<HomeController> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.of(sheetCtx).pop(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1050,9 +1055,10 @@ class HomeView extends GetView<HomeController> {
               ),
             ],
           ),
+            ),
+          ),
         ),
       ),
-      isScrollControlled: true,
     );
   }
 

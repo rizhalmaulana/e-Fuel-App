@@ -721,9 +721,15 @@ class PengeluaranApiService {
       );
 
       if (response.statusCode == 200) {
-        List dataRaw = response.data;
+        final raw = response.data;
+        final List dataRaw = raw is List
+            ? raw
+            : (raw is Map && raw['data'] is List ? raw['data'] as List : []);
         return dataRaw
-            .map((e) => PengeluaranOutstandingModel.fromJson(e))
+            .whereType<Map>()
+            .map((e) => PengeluaranOutstandingModel.fromJson(
+                  Map<String, dynamic>.from(e),
+                ))
             .toList();
       }
       return [];
@@ -731,8 +737,8 @@ class PengeluaranApiService {
       if (e is DioException) {
         throw _handleDioError(e);
       } else {
-        _logError("getDetailPengeluaran", e);
-        return [];
+        _logError("getOutstandingTransactions", e);
+        rethrow;
       }
     }
   }
@@ -960,18 +966,8 @@ class PengeluaranApiService {
   }
 
   void _logError(String context, dynamic e) {
+    // Hindari menampilkan Get.snackbar langsung dari layer API service agar
+    // tidak membajak Get.back() / merusak tumpukan dialog di controller pemanggil.
     print("⚠️ [$context] Unexpected Error: $e");
-    
-    if (e is! DioException) {
-      if (Get.isSnackbarOpen != true) {
-        Get.snackbar(
-          'Terjadi Kesalahan',
-          'Terdapat kendala pada sistem ($context). Silakan coba lagi.',
-          backgroundColor: const Color(0xFFE57373),
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-        );
-      }
-    }
   }
 }

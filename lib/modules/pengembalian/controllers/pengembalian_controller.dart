@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import '../../../../configs/app_colors.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
+import '../../../../helpers/connectivity_helper.dart';
 import '../../../../helpers/network_error_helper.dart';
+import '../../../../widgets/dialog/dialog_flexible.dart';
 import '../services/pengembalian_service.dart';
 
 class PengembalianController extends GetxController {
@@ -10,6 +13,8 @@ class PengembalianController extends GetxController {
 
   final isLoading = false.obs;
   final transaksiList = <PengembalianSolarModel>[].obs;
+  final errorMessage = RxnString();
+  final isOfflineError = false.obs;
 
   final searchQuery = ''.obs;
   final TextEditingController searchController = TextEditingController();
@@ -23,10 +28,38 @@ class PengembalianController extends GetxController {
     fetchData();
   }
 
-  Future<void> fetchData() async {
+  Future<void> fetchData({bool showDialogOnError = true}) async {
     isLoading.value = true;
+    errorMessage.value = null;
+    isOfflineError.value = false;
+
     try {
-      final data = await _service.getListPengembalian();
+      final netStatus = await ConnectivityHelper.checkNetworkStatus();
+      if (netStatus != NetworkCheckStatus.connected) {
+        isOfflineError.value = true;
+        errorMessage.value = netStatus == NetworkCheckStatus.slowOrUnreachable
+            ? 'Sinyal internet terlalu lambat atau tidak merespons. Periksa jaringan Anda lalu coba lagi.'
+            : 'Perangkat tidak terhubung ke jaringan internet. Aktifkan Wi-Fi atau data seluler, lalu coba lagi.';
+        isLoading.value = false;
+
+        if (showDialogOnError) {
+          final retryConnected = await ConnectivityHelper.validateNetwork(
+            title: netStatus == NetworkCheckStatus.slowOrUnreachable
+                ? 'Jaringan Tidak Stabil'
+                : 'Tidak Ada Jaringan',
+            message:
+                'Gagal memuat data Pengembalian Solar karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+          );
+          if (retryConnected) {
+            await fetchData(showDialogOnError: true);
+          }
+        }
+        return;
+      }
+
+      final data = await _service
+          .getListPengembalian()
+          .timeout(const Duration(seconds: 12));
       // Sort by created_at descending
       data.sort((a, b) {
         try {
@@ -39,10 +72,22 @@ class PengembalianController extends GetxController {
       });
       transaksiList.assignAll(data);
     } catch (e) {
-      NetworkErrorHelper.showErrorSnackbar(
-        title: 'Gagal Memuat Data',
-        error: e,
-      );
+      final friendly = NetworkErrorHelper.getFriendlyErrorMessage(e);
+      errorMessage.value = friendly;
+      isOfflineError.value = friendly.toLowerCase().contains('internet') ||
+          friendly.toLowerCase().contains('jaringan') ||
+          friendly.toLowerCase().contains('koneksi');
+
+      if (showDialogOnError) {
+        DialogFlexible.showInfo(
+          title: isOfflineError.value ? 'Tidak Ada Jaringan' : 'Gagal Memuat Data',
+          message: friendly,
+          color: AppColors.alertSoftRed,
+          icon: isOfflineError.value
+              ? Icons.wifi_off_rounded
+              : Icons.error_outline_rounded,
+        );
+      }
     } finally {
       isLoading.value = false;
     }

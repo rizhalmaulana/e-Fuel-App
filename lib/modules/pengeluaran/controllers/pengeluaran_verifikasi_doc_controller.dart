@@ -293,7 +293,7 @@ class PengeluaranVerifikasiDocController extends GetxController {
   }
 
   // --- SUBMIT FUNCTIONS ---
-  void _confirmAndSubmit() {
+  Future<void> _confirmAndSubmit() async {
     if (isSubmitting.value) return;
     if (driverSignatureController.isEmpty) {
       DialogFlexible.showInfo(
@@ -305,26 +305,20 @@ class PengeluaranVerifikasiDocController extends GetxController {
       return;
     }
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
-
-    Get.dialog(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieQuestion(),
-          title: "Konfirmasi Submit",
-          message:
+    final confirm = await DialogFlexible.showConfirm(
+      logo: LottiesHelper().getLottieQuestion(),
+      title: "Konfirmasi Submit",
+      message:
           "Pastikan semua tanda tangan dan foto sudah sesuai. Lanjutkan proses?",
-          primaryColor: AppColors.primaryOrange,
-          secondaryColor: AppColors.secondaryOrange,
-          secondaryButtonText: "Cek Lagi",
-          onSecondaryPressed: () => Get.back(),
-          primaryButtonText: "Ya, Submit",
-          onPrimaryPressed: () {
-            Get.back();
-            submitVerification();
-          },
-        ),
-        barrierDismissible: false);
+      primaryColor: AppColors.primaryOrange,
+      cancelText: "Cek Lagi",
+      confirmText: "Ya, Submit",
+    );
+
+    if (confirm) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      submitVerification();
+    }
   }
 
   Future<void> submitVerification() async {

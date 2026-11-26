@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:signature/signature.dart';
 import '../../../configs/app_colors.dart';
-import '../../../configs/app_fonts.dart';
 import '../../../datas/models/bon_sementara/bon_sementara_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
@@ -41,6 +40,9 @@ class PengeluaranEBpbController extends GetxController {
 
   var isLoading = false.obs;
   var isSubmitting = false.obs;
+  var isLoadingOutstanding = false.obs;
+  final outstandingList = <PengeluaranOutstandingModel>[].obs;
+  final outstandingError = RxnString();
   var selectedUnitCode = 'E000'.obs;
   var selectedUnitTitle = 'Unknown'.obs;
   var selectedDate = "Pilih Tanggal".obs;
@@ -201,100 +203,55 @@ class PengeluaranEBpbController extends GetxController {
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
   }
 
-  Future<void> pickDate(BuildContext context) async {
-    Get.dialog(
-        const Center(
-            child: CircularProgressIndicator(color: AppColors.primaryOrange)),
-        barrierDismissible: false);
+  /// Memuat daftar tanggal transaksi belum selesai (outstanding) dengan batas timeout
+  /// agar tidak pernah menggantung di dialog loading.
+  Future<void> loadOutstandingDates() async {
+    if (isLoadingOutstanding.value) return;
+
+    isLoadingOutstanding.value = true;
+    outstandingError.value = null;
 
     try {
-      List<PengeluaranOutstandingModel> outstandingList =
-          await _apiService.getOutstandingTransactions();
-      
-      Get.back(); // close loading
-
-      if (outstandingList.isEmpty) {
-        Get.snackbar("Informasi", "Tidak ada transaksi outstanding",
-            backgroundColor: AppColors.primaryOrange, colorText: Colors.white);
-        return;
-      }
-
-      Get.bottomSheet(
-        Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border(
-                      bottom: BorderSide(
-                          color: AppColors.secondaryText.withOpacity(0.2))),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Transaksi Belum Selesai",
-                        style: AppFonts.fUrbanistBold16
-                            .copyWith(color: AppColors.primaryOrange)),
-                    GestureDetector(
-                      onTap: () => Get.back(),
-                      child: const Icon(Icons.close, color: AppColors.secondaryText),
-                    )
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: outstandingList.length,
-                  itemBuilder: (context, index) {
-                    var item = outstandingList[index];
-                    String rawDate = item.tanggalTransaksi ?? "";
-                    String displayDate = "";
-                    try {
-                      DateTime date = DateFormat('yyyy-MM-dd').parse(rawDate);
-                      displayDate = DateFormat('dd/MM/yyyy').format(date);
-                    } catch (e) {
-                      displayDate = rawDate;
-                    }
-
-                    return ListTile(
-                      title: Text(displayDate, style: AppFonts.fUrbanistBold14),
-                      subtitle: Text("Total Transaksi: ${item.totalTransaksi ?? 0}",
-                          style: AppFonts.fUrbanistMedium12
-                              .copyWith(color: AppColors.secondaryText)),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        Get.back();
-                        selectedDateDisplay.value = displayDate;
-                        selectedDateApi.value = rawDate;
-                        fetchDailyTransactions();
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        isScrollControlled: true,
-      );
+      final result = await _apiService
+          .getOutstandingTransactions()
+          .timeout(const Duration(seconds: 12));
+      outstandingList.assignAll(result);
     } catch (e) {
-      Get.back(); // close loading
-      Get.snackbar("Gagal", "Terjadi kesalahan saat memuat data",
-          backgroundColor: AppColors.alertSoftRed, colorText: Colors.white);
+      outstandingError.value = NetworkErrorHelper.getFriendlyErrorMessage(e);
+    } finally {
+      isLoadingOutstanding.value = false;
     }
+  }
+
+  /// Format tampilan tanggal dari string API (yyyy-MM-dd -> dd/MM/yyyy).
+  String formatOutstandingDate(String rawDate) {
+    try {
+      final date = DateFormat('yyyy-MM-dd').parse(rawDate);
+      return DateFormat('dd/MM/yyyy').format(date);
+    } catch (_) {
+      return rawDate;
+    }
+  }
+
+  /// Dipanggil setelah user memilih tanggal dari BottomSheet.
+  void selectTransactionDate(PengeluaranOutstandingModel item) {
+    final rawDate = item.tanggalTransaksi ?? '';
+    if (rawDate.isEmpty) return;
+
+    selectedDateDisplay.value = formatOutstandingDate(rawDate);
+    selectedDateApi.value = rawDate;
+    clearSearch();
+    fetchDailyTransactions();
   }
 
   Future<void> fetchDailyTransactions() async {
     isLoading.value = true;
     try {
-      var data = await _apiService.getDailyTransactions(
-          dateInbound: selectedDateApi.value, kodeUnit: selectedUnitCode.value);
+      var data = await _apiService
+          .getDailyTransactions(
+              dateInbound: selectedDateApi.value,
+              kodeUnit: selectedUnitCode.value)
+          .timeout(const Duration(seconds: 12));
       _allDailyTransactions
         ..clear()
         ..addAll(data);
@@ -385,25 +342,19 @@ class PengeluaranEBpbController extends GetxController {
       });
     }
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
-
-    Get.dialog(
-      DialogFlexible(
-        logo: LottiesHelper().getLottieQuestion(),
-        title: "Konfirmasi E-BPB",
-        message: "Buat E-BPB untuk ${_allDailyTransactions.length} transaksi (${formattedTotalVolume} Ltr)?",
-        primaryColor: AppColors.primaryOrange,
-        secondaryButtonText: "Batal",
-        onSecondaryPressed: () => Get.back(),
-        primaryButtonText: "Ya, Submit",
-        onPrimaryPressed: () {
-          Get.back();
-          _processSubmitApi(fotPayload);
-        },
-      ),
-      barrierDismissible: false,
+    final confirm = await DialogFlexible.showConfirm(
+      logo: LottiesHelper().getLottieQuestion(),
+      title: "Konfirmasi E-BPB",
+      message: "Buat E-BPB untuk ${_allDailyTransactions.length} transaksi (${formattedTotalVolume} Ltr)?",
+      primaryColor: AppColors.primaryOrange,
+      cancelText: "Batal",
+      confirmText: "Ya, Submit",
     );
+
+    if (confirm) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      _processSubmitApi(fotPayload);
+    }
   }
 
   Future<File?> _getSignatureFile() async {
@@ -469,20 +420,17 @@ class PengeluaranEBpbController extends GetxController {
 
       closeLoading();
 
-      Get.dialog(
+      await Get.dialog(
         DialogFlexible(
           logo: LottiesHelper().getLottieSuccess(),
           title: "Berhasil",
           message: "Dokumen E-BPB ($noDoc) berhasil dibuat dan diajukan.",
           primaryColor: AppColors.primaryOrange,
           primaryButtonText: "OK",
-          onPrimaryPressed: () {
-            Get.back();
-            Get.back();
-          },
         ),
         barrierDismissible: false,
       );
+      Get.back();
     } catch (e) {
       closeLoading();
       DialogFlexible.showInfo(

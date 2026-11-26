@@ -96,7 +96,7 @@ class TransferView extends GetView<TransferController> {
                 });
               },
               child: FloatingActionButton(
-                onPressed: () => _showSearchBottomSheet(),
+                onPressed: () => _showSearchBottomSheet(context),
                 backgroundColor: AppColors.white,
                 mini: true,
                 child:
@@ -109,15 +109,23 @@ class TransferView extends GetView<TransferController> {
     );
   }
 
-  void _showSearchBottomSheet() {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 32),
-        decoration: const BoxDecoration(
+  void _showSearchBottomSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-        ),
-        child: Column(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 28),
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -160,7 +168,7 @@ class TransferView extends GetView<TransferController> {
             Text('Rentang Tanggal', style: AppFonts.fUrbanistBold14.copyWith(color: AppColors.primaryText)),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: () => controller.pickDateRange(Get.context!),
+              onTap: () => controller.pickDateRange(sheetCtx),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
@@ -189,10 +197,28 @@ class TransferView extends GetView<TransferController> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(sheetCtx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Terapkan Filter',
+                  style: AppFonts.fUrbanistBold14.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
           ],
         ),
+          ),
+        ),
       ),
-      isScrollControlled: true,
     );
   }
 
@@ -297,42 +323,68 @@ class TransferView extends GetView<TransferController> {
               },
             ),
           ),
-          Container(
-            padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + MediaQuery.of(Get.context!).padding.bottom),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.15),
-                  offset: const Offset(0, -4),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                )
-              ],
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: controller.uploadAllData,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.cloud_upload_outlined, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Upload Semua',
-                      style: AppFonts.fUrbanistBold16.copyWith(color: AppColors.white),
+          Builder(
+            builder: (btnCtx) => Container(
+              padding: EdgeInsets.fromLTRB(
+                  24, 16, 24, 16 + MediaQuery.of(btnCtx).padding.bottom),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.15),
+                    offset: const Offset(0, -4),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: Obx(() {
+                  final checking = controller.isCheckingUpload.value;
+                  return ElevatedButton(
+                    onPressed: checking ? null : controller.uploadAllData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      disabledBackgroundColor: Colors.green.withOpacity(0.65),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (checking) ...[
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Memeriksa Jaringan...',
+                            style: AppFonts.fUrbanistBold16
+                                .copyWith(color: AppColors.white),
+                          ),
+                        ] else ...[
+                          const Icon(Icons.cloud_upload_outlined,
+                              color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Upload Semua',
+                            style: AppFonts.fUrbanistBold16
+                                .copyWith(color: AppColors.white),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
               ),
             ),
           ),

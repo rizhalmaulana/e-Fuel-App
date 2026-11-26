@@ -5,6 +5,7 @@ import 'package:e_fuel/configs/app_colors.dart';
 import 'package:e_fuel/configs/app_fonts.dart';
 import 'package:signature/signature.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
+import '../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
 import '../controllers/pengeluaran_e_bpb_controller.dart';
 
 class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
@@ -145,7 +146,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                   ),
                   const SizedBox(width: 10),
                   InkWell(
-                    onTap: () => controller.pickDate(context),
+                    onTap: () => _showOutstandingDateSheet(context),
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -324,6 +325,256 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
     });
   }
 
+  Future<void> _showOutstandingDateSheet(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    controller.loadOutstandingDates();
+
+    final PengeluaranOutstandingModel? picked =
+        await showModalBottomSheet<PengeluaranOutstandingModel>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            height: MediaQuery.of(sheetCtx).size.height * 0.62,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Transaksi Belum Selesai",
+                            style: AppFonts.fUrbanistBold16
+                                .copyWith(color: AppColors.primaryOrange),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "Pilih tanggal untuk memuat daftar transaksi E-BPB",
+                            style: AppFonts.fUrbanistRegular10
+                                .copyWith(color: AppColors.secondaryText),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(sheetCtx).pop(),
+                        icon: const Icon(Icons.close,
+                            color: AppColors.secondaryText, size: 20),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: Colors.grey.shade200),
+                Expanded(
+                  child: Obx(() {
+                    if (controller.isLoadingOutstanding.value) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircularProgressIndicator(
+                                color: AppColors.primaryOrange),
+                            const SizedBox(height: 12),
+                            Text(
+                              "Memuat daftar tanggal transaksi...",
+                              style: AppFonts.fUrbanistMedium12
+                                  .copyWith(color: AppColors.secondaryText),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (controller.outstandingError.value != null) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.error_outline_rounded,
+                                  size: 40, color: AppColors.alertSoftRed),
+                              const SizedBox(height: 12),
+                              Text(
+                                controller.outstandingError.value!,
+                                textAlign: TextAlign.center,
+                                style: AppFonts.fUrbanistMedium12
+                                    .copyWith(color: AppColors.primaryText),
+                              ),
+                              const SizedBox(height: 14),
+                              ElevatedButton.icon(
+                                onPressed: controller.loadOutstandingDates,
+                                icon: const Icon(Icons.refresh,
+                                    size: 16, color: Colors.white),
+                                label: Text(
+                                  "Coba Lagi",
+                                  style: AppFonts.fUrbanistBold12
+                                      .copyWith(color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryOrange,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (controller.outstandingList.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.folder_off_outlined,
+                                  size: 42, color: AppColors.secondaryText),
+                              const SizedBox(height: 10),
+                              Text(
+                                "Tidak ada transaksi outstanding",
+                                style: AppFonts.fUrbanistBold14
+                                    .copyWith(color: AppColors.primaryText),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Semua transaksi pengeluaran sebelumnya sudah dibuatkan E-BPB.",
+                                textAlign: TextAlign.center,
+                                style: AppFonts.fUrbanistRegular12
+                                    .copyWith(color: AppColors.secondaryText),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      itemCount: controller.outstandingList.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (itemCtx, index) {
+                        final item = controller.outstandingList[index];
+                        final rawDate = item.tanggalTransaksi ?? '';
+                        final displayDate =
+                            controller.formatOutstandingDate(rawDate);
+                        final isSelected =
+                            controller.selectedDateApi.value == rawDate;
+
+                        return Material(
+                          color: isSelected
+                              ? AppColors.primaryOrange.withOpacity(0.08)
+                              : AppColors.backgroundGrey.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => Navigator.of(sheetCtx).pop(item),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primaryOrange
+                                      : Colors.grey.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryOrange
+                                          .withOpacity(0.14),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.calendar_month_rounded,
+                                      size: 18,
+                                      color: AppColors.primaryOrange,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayDate,
+                                          style: AppFonts.fUrbanistBold14
+                                              .copyWith(
+                                                  color: AppColors.primaryText),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "Total Transaksi: ${item.totalTransaksi ?? 0} Item",
+                                          style: AppFonts.fUrbanistMedium12
+                                              .copyWith(
+                                                  color:
+                                                      AppColors.secondaryText),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 20,
+                                      color: AppColors.primaryOrange,
+                                    )
+                                  else
+                                    const Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                      color: AppColors.secondaryText,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (picked != null) {
+      controller.selectTransactionDate(picked);
+    }
+  }
+
   void _showCostCenterDialog(
       BuildContext context, PengeluaranDailyModel item) {
     String uniqueKey = item.id.toString();
@@ -332,8 +583,9 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
           (item.costCenter ?? ""),
     );
 
-    Get.dialog(
-      Dialog(
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         backgroundColor: Colors.white,
         child: Padding(
@@ -351,7 +603,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                         .copyWith(color: AppColors.primaryOrange),
                   ),
                   GestureDetector(
-                    onTap: () => Get.back(),
+                    onTap: () => Navigator.of(dialogCtx).pop(),
                     child: const Icon(Icons.close,
                         size: 20, color: AppColors.secondaryText),
                   ),
@@ -410,7 +662,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
@@ -432,7 +684,7 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                         String newText =
                             editController.text.trim().toUpperCase();
                         controller.updateCostCenter(uniqueKey, newText, item);
-                        Get.back();
+                        Navigator.of(dialogCtx).pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryOrange,
