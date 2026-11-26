@@ -14,6 +14,7 @@ import '../../../../helpers/connectivity_helper.dart';
 import '../../../../helpers/network_error_helper.dart';
 import '../../../../routes/app_pages.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
+import '../../../../widgets/component/custom_snackbar.dart';
 import '../../../auth/services/login_service.dart';
 import '../../../home/controllers/home_controller.dart';
 import '../../../home/services/home_service.dart';
@@ -257,18 +258,38 @@ class PengisianSolarPengeluaranController extends GetxController {
       return;
     }
 
-    final confirm = await DialogFlexible.showConfirm(
-      logo: LottiesHelper().getLottieQuestion(),
-      title: "Konfirmasi Submit",
-      message: "Pastikan data solar dan foto sudah sesuai. Lanjutkan submit?",
-      primaryColor: AppColors.primaryOrange,
-      cancelText: "Cek Lagi",
-      confirmText: "Ya, Submit",
-    );
+    isSubmitting.value = true;
+    try {
+      if (!await ConnectivityHelper.validateNetwork(
+        title: 'Tidak Ada Jaringan',
+        message:
+            'Gagal mengirim data pengeluaran solar karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+      )) {
+        return;
+      }
 
-    if (confirm) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      submitTransaction();
+      final result = await DialogFlexible.confirmAndRun<void>(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: "Konfirmasi Submit",
+        message: "Pastikan data solar dan foto sudah sesuai. Lanjutkan submit?",
+        primaryColor: AppColors.primaryOrange,
+        cancelText: "Cek Lagi",
+        confirmText: "Ya, Submit",
+        loadingTitle: "Mengirim Data...",
+        loadingSubtitle: "Mohon tunggu sebentar",
+        errorTitle: "Gagal Submit",
+        onConfirm: _executeSubmitTransaction,
+      );
+
+      if (result.succeeded) {
+        Get.offAllNamed(Routes.HOME);
+        CustomSnackbar.showSuccess(
+          title: "Berhasil",
+          message: "Data pengeluaran berhasil disubmit!",
+        );
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
@@ -338,184 +359,134 @@ class PengisianSolarPengeluaranController extends GetxController {
     }
   }
 
-  Future<void> submitTransaction() async {
-    if (isSubmitting.value) return;
-    if (!await ConnectivityHelper.validateNetwork()) return;
+  Future<void> _executeSubmitTransaction() async {
+    print("=== MULAI SUBMIT PENGELUARAN ===");
+    final auth = _loginService.getCurrentAuth();
+    if (auth == null) throw "Data user tidak valid.";
+    if (auth.user.otorisasi.isEmpty) {
+      throw "Akun Anda tidak memiliki otorisasi approval.";
+    }
 
-    isSubmitting.value = true;
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Mengirim Data...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primaryOrange,
+    String userLevel = auth.user.otorisasi.first;
+    String kodeUnit = auth.currentKodeUnit ?? "";
+
+    print("-> Step 1: getKonfigurasiApproval (transactionType: $currentDocType, kodeUnit: $kodeUnit)");
+    List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
+      transactionType: currentDocType,
+      kodeUnit: kodeUnit,
+      statusActive: true,
     );
 
-    try {
-      print("=== MULAI SUBMIT PENGELUARAN ===");
-      final auth = _loginService.getCurrentAuth();
-      if (auth == null) throw "Data user tidak valid.";
-      if (auth.user.otorisasi.isEmpty) {
-        throw "Akun Anda tidak memiliki otorisasi approval.";
-      }
+    KonfigurasiApprovalModel myConfig = configList.firstWhere(
+          (config) => config.levelApproval == userLevel,
+      orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval untuk tipe $currentDocType.",
+    );
+    print("-> Step 1 Selesai. Config ditemukan: level ${myConfig.levelApproval}");
 
-      String userLevel = auth.user.otorisasi.first;
-      String kodeUnit = auth.currentKodeUnit ?? "";
+    String finalNoDoc = noDoc.value;
+    double estimasiSolar = double.tryParse(estimasiSolarC.text.replaceAll(',', '.')) ?? 0;
+    double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
+    double finalVarianLiter = double.tryParse(varianSolarC.text.replaceAll(',', '.')) ?? 0;
+    double finalKm = double.tryParse(KmPengisian.value.replaceAll(',', '.')) ?? 0;
 
-      print("-> Step 1: getKonfigurasiApproval (transactionType: $currentDocType, kodeUnit: $kodeUnit)");
-      List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
-        transactionType: currentDocType,
-        kodeUnit: kodeUnit,
-        statusActive: true,
+    print("-> Step 2: createTransactionApproval (noDoc: $finalNoDoc)");
+    await _apiService.createTransactionApproval(
+        noDoc: finalNoDoc,
+        kodeUnit: _currentUserUnitCode,
+        transactionType: currentDocType // FOT or BPB
+    );
+    print("-> Step 2 Selesai");
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    print("-> Step 3: updateStatusTransactionApproval (isBpb: ${selectedJenisPengeluaran.value == 'BPB'})");
+    if (selectedJenisPengeluaran.value == 'BPB') {
+      await _apiService.updateStatusTransactionApprovalBpb(
+        noDoc: finalNoDoc,
+        levelApproval: myConfig.levelApproval ?? "1",
+        statusApprove: 'APPROVED',
+        catatan: "Verifikasi Langsung Tanpa TTD (BPB)",
+        isSign: false,
+        isPartnerSign: false,
       );
-
-      KonfigurasiApprovalModel myConfig = configList.firstWhere(
-            (config) => config.levelApproval == userLevel,
-        orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval untuk tipe $currentDocType.",
+    } else {
+      await _apiService.updateStatusTransactionApproval(
+        noDoc: finalNoDoc,
+        levelApproval: myConfig.levelApproval ?? "1",
+        statusApprove: 'APPROVED',
+        catatan: "Verifikasi Langsung Tanpa TTD ($currentDocType)",
+        isSign: false,
+        isPartnerSign: false,
       );
-      print("-> Step 1 Selesai. Config ditemukan: level ${myConfig.levelApproval}");
-
-      String finalNoDoc = noDoc.value;
-      double estimasiSolar = double.tryParse(estimasiSolarC.text.replaceAll(',', '.')) ?? 0;
-      double finalSolar = double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0;
-      double finalVarianLiter = double.tryParse(varianSolarC.text.replaceAll(',', '.')) ?? 0;
-      double finalKm = double.tryParse(KmPengisian.value.replaceAll(',', '.')) ?? 0;
-
-      print("-> Step 2: createTransactionApproval (noDoc: $finalNoDoc)");
-      await _apiService.createTransactionApproval(
-          noDoc: finalNoDoc,
-          kodeUnit: _currentUserUnitCode,
-          transactionType: currentDocType // FOT or BPB
-      );
-      print("-> Step 2 Selesai");
-
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      print("-> Step 3: updateStatusTransactionApproval (isBpb: ${selectedJenisPengeluaran.value == 'BPB'})");
-      if (selectedJenisPengeluaran.value == 'BPB') {
-        await _apiService.updateStatusTransactionApprovalBpb(
-          noDoc: finalNoDoc,
-          levelApproval: myConfig.levelApproval ?? "1",
-          statusApprove: 'APPROVED',
-          catatan: "Verifikasi Langsung Tanpa TTD (BPB)",
-          isSign: false,
-          isPartnerSign: false,
-        );
-      } else {
-        await _apiService.updateStatusTransactionApproval(
-          noDoc: finalNoDoc,
-          levelApproval: myConfig.levelApproval ?? "1",
-          statusApprove: 'APPROVED',
-          catatan: "Verifikasi Langsung Tanpa TTD ($currentDocType)",
-          isSign: false,
-          isPartnerSign: false,
-        );
-      }
-      print("-> Step 3 Selesai");
-
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      // 4. Upload Images
-      print("-> Step 4: uploadImagePengeluaran (isManualInput: ${isManualInput.value})");
-      if (!isManualInput.value) {
-        await _apiService.uploadImagePengeluaran(
-          noDoc: finalNoDoc,
-          foto2: fotoDispenser.value!,  // foto dispenser/angka meter
-          foto3: fotoSupir.value!,      // foto supir
-        );
-      }
-      print("-> Step 4 Selesai");
-
-      // 5. Update Aktual Liter
-      print("-> Step 5: updateAktualLiterPengeluaran");
-      if (selectedJenisPengeluaran.value == 'BPB') {
-        await _apiService.updateAktualLiterPengeluaranBPB(
-            noDoc: finalNoDoc,
-            aktual: finalSolar,
-            varianLiter: finalVarianLiter
-        );
-      } else {
-        await _apiService.updateAktualLiterPengeluaran(
-            noDoc: finalNoDoc,
-            aktual: finalSolar,
-            varianLiter: finalVarianLiter
-        );
-      }
-      print("-> Step 5 Selesai");
-
-      print("-> Step 6: updateUnitAfterTransaction (statusSupir: ${statusSupir.value})");
-      if (statusSupir.value == 'Internal') {
-        String currentUnit = _homeController.selectedUnitCode.value;
-        String currentStorageName = _homeController.selectedStorage.value;
-        String storageCode = currentStorageName.contains('-')
-            ? currentStorageName.split('-').last.trim()
-            : currentStorageName.trim();
-
-        await _homeService.updateUnitAfterTransaction(
-            noIO.value,
-            double.tryParse(KmPengisian.value.replaceAll(',', '.')) ?? 0, // Pakai KmPengisian
-            _tanggalAkhirArg,
-            double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0, // Pakai Aktual Liter
-            _ratioArg,
-            unitCodeOverride: currentUnit,
-            storageCodeOverride: storageCode
-        );
-      }
-      print("-> Step 6 Selesai");
-
-      Map<String, dynamic> payload = {
-        "no_io": noIO.value,
-        "unit_io": unitIO.value,
-        "nopol_check": noPolisi.value,
-        "status_supir": statusSupir.value,
-        "supir_check": namaSupir.value,
-        "km_pengisian": finalKm,
-        "jumlah_pengisian_solar": estimasiSolar,
-        "aktual_liter": finalSolar,
-        "varian_liter": finalVarianLiter
-      };
-
-      // try {
-      //   String prettyPayload = const JsonEncoder.withIndent('  ').convert(payload);
-      //   print("====== PAYLOAD SUBMIT PENGELUARAN ======\n$prettyPayload\n========================================");
-      // } catch (e) {
-      //   print("Payload: $payload");
-      // }
-
-      print("-> Step 7: _updateLocalStatus");
-      await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value?.path ?? '', fotoSupir.value?.path ?? '');
-      print("-> Step 7 Selesai");
-
-      print("=== SUBMIT PENGELUARAN BERHASIL ===");
-      closeLoading();
-      Get.dialog(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieSuccess(),
-          title: "Berhasil",
-          message: "Data pengeluaran berhasil disubmit!",
-          primaryColor: AppColors.primaryOrange,
-          secondaryColor: AppColors.secondaryOrange,
-          primaryButtonText: "Kembali ke Beranda",
-          onPrimaryPressed: () {
-            Get.back();
-            Get.offAllNamed(Routes.HOME);
-          },
-        ),
-        barrierDismissible: false,
-      );
-
-    } catch (e, stackTrace) {
-      closeLoading();
-      print("Error Submit Pengeluaran: $e");
-      print("Stack Trace: $stackTrace");
-      DialogFlexible.showInfo(
-        title: "Gagal Submit",
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-        color: AppColors.alertSoftRed,
-        icon: Icons.error_outline_rounded,
-      );
-    } finally {
-      isSubmitting.value = false;
-      closeLoading();
     }
+    print("-> Step 3 Selesai");
+
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    // 4. Upload Images
+    print("-> Step 4: uploadImagePengeluaran (isManualInput: ${isManualInput.value})");
+    if (!isManualInput.value) {
+      await _apiService.uploadImagePengeluaran(
+        noDoc: finalNoDoc,
+        foto2: fotoDispenser.value!,  // foto dispenser/angka meter
+        foto3: fotoSupir.value!,      // foto supir
+      );
+    }
+    print("-> Step 4 Selesai");
+
+    // 5. Update Aktual Liter
+    print("-> Step 5: updateAktualLiterPengeluaran");
+    if (selectedJenisPengeluaran.value == 'BPB') {
+      await _apiService.updateAktualLiterPengeluaranBPB(
+          noDoc: finalNoDoc,
+          aktual: finalSolar,
+          varianLiter: finalVarianLiter
+      );
+    } else {
+      await _apiService.updateAktualLiterPengeluaran(
+          noDoc: finalNoDoc,
+          aktual: finalSolar,
+          varianLiter: finalVarianLiter
+      );
+    }
+    print("-> Step 5 Selesai");
+
+    print("-> Step 6: updateUnitAfterTransaction (statusSupir: ${statusSupir.value})");
+    if (statusSupir.value == 'Internal') {
+      String currentUnit = _homeController.selectedUnitCode.value;
+      String currentStorageName = _homeController.selectedStorage.value;
+      String storageCode = currentStorageName.contains('-')
+          ? currentStorageName.split('-').last.trim()
+          : currentStorageName.trim();
+
+      await _homeService.updateUnitAfterTransaction(
+          noIO.value,
+          double.tryParse(KmPengisian.value.replaceAll(',', '.')) ?? 0, // Pakai KmPengisian
+          _tanggalAkhirArg,
+          double.tryParse(aktualSolarC.text.replaceAll(',', '.')) ?? 0, // Pakai Aktual Liter
+          _ratioArg,
+          unitCodeOverride: currentUnit,
+          storageCodeOverride: storageCode
+      );
+    }
+    print("-> Step 6 Selesai");
+
+    Map<String, dynamic> payload = {
+      "no_io": noIO.value,
+      "unit_io": unitIO.value,
+      "nopol_check": noPolisi.value,
+      "status_supir": statusSupir.value,
+      "supir_check": namaSupir.value,
+      "km_pengisian": finalKm,
+      "jumlah_pengisian_solar": estimasiSolar,
+      "aktual_liter": finalSolar,
+      "varian_liter": finalVarianLiter
+    };
+
+    print("-> Step 7: _updateLocalStatus");
+    await _updateLocalStatus(currentDocType, finalNoDoc, payload, fotoDispenser.value?.path ?? '', fotoSupir.value?.path ?? '');
+    print("-> Step 7 Selesai");
+    print("=== SUBMIT PENGELUARAN BERHASIL ===");
   }
 
   Future<void> _updateLocalStatus(String docTypeValue, String noDoc, Map<String, dynamic> payload, String pDispenser, String pSupir) async {

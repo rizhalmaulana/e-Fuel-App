@@ -92,6 +92,67 @@ class CustomSnackbar {
     });
   }
 
+  static void showSuccess({
+    required String title,
+    required String message,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    show(
+      title: title,
+      message: message,
+      backgroundColor: Colors.green.shade600,
+      textColor: Colors.white,
+      icon: Icons.check_circle,
+      duration: duration,
+    );
+  }
+
+  static void showError({
+    required String title,
+    required String message,
+    IconData icon = Icons.error_outline_rounded,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    show(
+      title: title,
+      message: message,
+      backgroundColor: AppColors.alertSoftRed,
+      textColor: Colors.white,
+      icon: icon,
+      duration: duration,
+    );
+  }
+
+  static void showWarning({
+    required String title,
+    required String message,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    show(
+      title: title,
+      message: message,
+      backgroundColor: AppColors.primaryOrange,
+      textColor: Colors.white,
+      icon: Icons.warning_amber_rounded,
+      duration: duration,
+    );
+  }
+
+  static void showInfo({
+    required String title,
+    required String message,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    show(
+      title: title,
+      message: message,
+      backgroundColor: AppColors.info,
+      textColor: Colors.white,
+      icon: Icons.info_outline_rounded,
+      duration: duration,
+    );
+  }
+
   static void dismiss() {
     if (_currentDismiss != null) {
       _currentDismiss!();

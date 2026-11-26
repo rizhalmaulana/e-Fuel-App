@@ -5,6 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../../configs/app_colors.dart';
 import '../../../../datas/models/pengembalian/pengembalian_solar_model.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
+import '../../../../widgets/component/custom_snackbar.dart';
 import '../../../../widgets/dialog/dialog_flexible.dart';
 import '../../../../helpers/connectivity_helper.dart';
 import '../../../../helpers/network_error_helper.dart';
@@ -143,79 +144,48 @@ class PengembalianProsesController extends GetxController {
         return;
       }
 
-      final confirm = await DialogFlexible.showConfirm(
+      final result = await DialogFlexible.confirmAndRun<void>(
         title: 'Konfirmasi Submit',
         message:
             'Apakah Anda yakin ingin menyelesaikan proses pengembalian solar ini?',
+        primaryColor: AppColors.primary,
         confirmText: 'Ya, Submit',
         cancelText: 'Batal',
         logo: LottiesHelper().getLottieConfirmation(),
+        loadingTitle: 'Memproses Pengembalian...',
+        loadingSubtitle: 'Mohon tunggu sebentar',
+        errorTitle: 'Gagal Submit',
+        onConfirm: () async {
+          bool success = await _service.submitPengembalian(
+            data: data,
+            varianLiterPengembalian: varianInput,
+            keterangan: keteranganController.text.isEmpty
+                ? "-"
+                : keteranganController.text,
+            foto1Path: foto1Path.value,
+          );
+          if (!success) {
+            throw 'Gagal mengirim pengembalian. Periksa koneksi internet dan coba lagi.';
+          }
+        },
       );
 
-      if (confirm) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        await _doSubmit(varianInput);
+      if (result.succeeded) {
+        Get.until((route) => Get.currentRoute == '/pengembalian');
+        CustomSnackbar.showSuccess(
+          title: 'Berhasil',
+          message: 'Pengembalian Solar berhasil diselesaikan.',
+        );
+
+        // Refresh list
+        try {
+          final listController = Get.find<PengembalianController>();
+          listController.fetchData(showDialogOnError: false);
+        } catch (_) {}
       }
     } finally {
       isCheckingNetwork.value = false;
       _isSubmitting = false;
-    }
-  }
-
-  Future<void> _doSubmit(double varianInput) async {
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Memproses Pengembalian...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primary,
-    );
-
-    try {
-      bool success = await _service.submitPengembalian(
-        data: data,
-        varianLiterPengembalian: varianInput,
-        keterangan: keteranganController.text.isEmpty ? "-" : keteranganController.text,
-        foto1Path: foto1Path.value,
-      );
-
-      closeLoading();
-
-      if (success) {
-        Get.snackbar(
-          'Berhasil',
-          'Pengembalian Solar Selesai',
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
-
-        Get.until((route) => Get.currentRoute == '/pengembalian');
-        
-        // Refresh list
-        try {
-           final listController = Get.find<PengembalianController>();
-           listController.fetchData();
-        } catch(e) {}
-      } else {
-        DialogFlexible.showInfo(
-          title: 'Gagal Submit',
-          message: 'Gagal mengirim pengembalian. Periksa koneksi internet dan coba lagi.',
-          color: AppColors.alertSoftRed,
-          icon: Icons.error_outline_rounded,
-        );
-      }
-    } catch (e) {
-      closeLoading();
-      final friendly = NetworkErrorHelper.getFriendlyErrorMessage(e);
-      final isNetErr = friendly.toLowerCase().contains('internet') ||
-          friendly.toLowerCase().contains('jaringan') ||
-          friendly.toLowerCase().contains('koneksi');
-      DialogFlexible.showInfo(
-        title: isNetErr ? 'Tidak Ada Jaringan' : 'Gagal Submit',
-        message: friendly,
-        color: AppColors.alertSoftRed,
-        icon: isNetErr ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
-      );
-    } finally {
-      closeLoading();
     }
   }
 

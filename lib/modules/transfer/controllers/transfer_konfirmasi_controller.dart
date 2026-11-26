@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../../widgets/component/custom_camera_view.dart';
+import '../../../../widgets/component/custom_snackbar.dart';
 import '../../../../configs/app_colors.dart';
 import '../services/transfer_offline_service.dart';
 import '../../../../datas/models/transfer/transfer_solar_model.dart';
@@ -232,89 +233,60 @@ class TransferKonfirmasiController extends GetxController {
 
     _isSubmitting = true;
     try {
-      final bool? confirm = await Get.dialog<bool>(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieQuestion(),
-          title: 'Konfirmasi',
-          message: 'Apakah Anda yakin data Aktual Pengisian dan Foto sudah benar?',
-          primaryColor: AppColors.primaryOrange,
-          secondaryColor: AppColors.secondaryOrange,
-          primaryButtonText: 'Ya, Simpan',
-          onPrimaryPressed: () => Get.back(result: true),
-          secondaryButtonText: 'Batal',
-          onSecondaryPressed: () => Get.back(result: false),
-        ),
-        barrierDismissible: false,
+      final result = await DialogFlexible.confirmAndRun<void>(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: 'Konfirmasi',
+        message:
+            'Apakah Anda yakin data Aktual Pengisian dan Foto sudah benar?',
+        primaryColor: AppColors.primaryOrange,
+        confirmText: 'Ya, Simpan',
+        cancelText: 'Batal',
+        loadingTitle: 'Menyimpan Data...',
+        loadingSubtitle: 'Mohon tunggu sebentar',
+        errorTitle: 'Gagal Menyimpan',
+        onConfirm: () async {
+          final double pengambilan = data.aktualLiter.toDouble();
+          final double cleanVarian =
+              double.parse((pengambilan - aktual).toStringAsFixed(2));
+          varianValue.value = cleanVarian;
+
+          TransferOfflineService offlineService =
+              Get.find<TransferOfflineService>();
+          await offlineService.updateToOfflineSubmitted(
+            id: data.id,
+            aktualLiter: aktual,
+            varianLiter: cleanVarian,
+            foto1Path: data.foto1Path ?? '',
+            foto2Path: fotoAlatBerat.value!.path,
+            foto3Path: fotoOperator.value!.path,
+            supirCheck: supirController.text,
+            hmKmAwal:
+                double.tryParse(hmAwalController.text.replaceAll(',', '.')) ??
+                    0,
+            hmKmAkhir:
+                double.tryParse(hmAkhirController.text.replaceAll(',', '.')) ??
+                    0,
+            ratio:
+                double.tryParse(ratioController.text.replaceAll(',', '.')) ?? 0,
+            estimasi:
+                double.tryParse(estimasiController.text.replaceAll(',', '.')) ??
+                    0,
+          );
+        },
       );
 
-      if (confirm == true) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        await _processSubmit(aktual);
+      if (result.succeeded) {
+        if (Get.isRegistered<TransferController>()) {
+          Get.find<TransferController>().loadLocalData();
+        }
+        Get.until((route) => Get.currentRoute == '/transfer' || route.isFirst);
+        CustomSnackbar.showSuccess(
+          title: 'Berhasil Disimpan',
+          message: 'Data transfer tersimpan di tab Menunggu Upload.',
+        );
       }
     } finally {
       _isSubmitting = false;
-    }
-  }
-
-  Future<void> _processSubmit(double aktual) async {
-    final closeLoading = DialogFlexible.showLoading(
-      title: 'Menyimpan Data...',
-      subtitle: 'Mohon tunggu sebentar',
-      color: AppColors.primaryOrange,
-    );
-
-    // Proses Simpan Offline
-    try {
-      final double pengambilan = data.aktualLiter.toDouble();
-      final double cleanVarian =
-          double.parse((pengambilan - aktual).toStringAsFixed(2));
-      varianValue.value = cleanVarian;
-
-      TransferOfflineService offlineService = Get.find<TransferOfflineService>();
-      await offlineService.updateToOfflineSubmitted(
-        id: data.id,
-        aktualLiter: aktual,
-        varianLiter: cleanVarian,
-        foto1Path: data.foto1Path ?? '', // already assigned in Proses Controller
-        foto2Path: fotoAlatBerat.value!.path,
-        foto3Path: fotoOperator.value!.path,
-        supirCheck: supirController.text,
-        hmKmAwal: double.tryParse(hmAwalController.text.replaceAll(',', '.')) ?? 0,
-        hmKmAkhir: double.tryParse(hmAkhirController.text.replaceAll(',', '.')) ?? 0,
-        ratio: double.tryParse(ratioController.text.replaceAll(',', '.')) ?? 0,
-        estimasi: double.tryParse(estimasiController.text.replaceAll(',', '.')) ?? 0,
-      );
-
-      closeLoading();
-
-      // Refresh list in TransferController
-      if (Get.isRegistered<TransferController>()) {
-        Get.find<TransferController>().loadLocalData();
-      }
-
-      // Beri jeda singkat agar loading dialog benar-benar keluar sebelum unwind route
-      await Future.delayed(const Duration(milliseconds: 120));
-
-      // Back to Transfer View
-      Get.until((route) => Get.currentRoute == '/transfer' || route.isFirst);
-
-      Get.snackbar(
-        'Sukses',
-        'Data berhasil disimpan.',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
-      
-    } catch (e) {
-      closeLoading();
-      DialogFlexible.showInfo(
-        title: 'Gagal Menyimpan',
-        message: 'Data gagal disimpan. Silakan coba lagi.',
-        color: AppColors.alertSoftRed,
-        icon: Icons.error_outline_rounded,
-      );
-    } finally {
-      closeLoading();
     }
   }
 

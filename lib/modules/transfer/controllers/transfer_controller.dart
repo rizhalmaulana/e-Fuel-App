@@ -6,6 +6,7 @@ import '../../../../datas/models/transfer/transfer_solar_model.dart';
 import '../../../../configs/app_colors.dart';
 import '../../../../helpers/connectivity_helper.dart';
 import '../../../../helpers/network_error_helper.dart';
+import '../../../../widgets/component/custom_snackbar.dart';
 import '../../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
 
@@ -256,30 +257,41 @@ class TransferController extends GetxController {
         return;
       }
 
-      final confirm = await DialogFlexible.showConfirm(
+      final result = await DialogFlexible.confirmAndRun<void>(
         logo: LottiesHelper().getLottieQuestion(),
         title: 'Konfirmasi Upload',
         message: 'Apakah Anda yakin ingin mengunggah transaksi ini ke server?',
         primaryColor: AppColors.primaryOrange,
         confirmText: 'Ya, Upload',
         cancelText: 'Batal',
+        loadingTitle: 'Proses Upload...',
+        loadingSubtitle: 'Mohon tunggu sebentar',
+        errorTitle: 'Gagal Upload',
+        onConfirm: () async {
+          bool success = await offlineService.uploadTransfer(data);
+          if (!success) {
+            throw 'Data gagal diupload. Silakan coba lagi.';
+          }
+        },
       );
 
-      if (confirm) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        await _processUpload(data);
-      } else {
-        _isProcessRunning = false;
+      if (result.succeeded) {
+        loadLocalData();
+        CustomSnackbar.showSuccess(
+          title: 'Upload Berhasil',
+          message: 'Data transaksi transfer berhasil diunggah ke server.',
+        );
       }
     } catch (e) {
-      isCheckingUpload.value = false;
-      _isProcessRunning = false;
       DialogFlexible.showInfo(
         title: 'Gagal Upload',
         message: NetworkErrorHelper.getFriendlyErrorMessage(e),
         color: AppColors.alertSoftRed,
         icon: Icons.wifi_off_rounded,
       );
+    } finally {
+      isCheckingUpload.value = false;
+      _isProcessRunning = false;
     }
   }
 
@@ -303,11 +315,10 @@ class TransferController extends GetxController {
       isCheckingUpload.value = false;
 
       if (!isOnline) {
-        _isProcessRunning = false;
         return;
       }
 
-      final confirm = await DialogFlexible.showConfirm(
+      final result = await DialogFlexible.confirmAndRun<Map<String, dynamic>>(
         logo: LottiesHelper().getLottieQuestion(),
         title: 'Konfirmasi Upload Semua',
         message:
@@ -315,115 +326,70 @@ class TransferController extends GetxController {
         primaryColor: AppColors.primaryOrange,
         confirmText: 'Upload Semua',
         cancelText: 'Batal',
-      );
+        loadingTitle: 'Proses Upload...',
+        loadingSubtitle: 'Mohon tunggu sebentar',
+        errorTitle: 'Gagal Upload',
+        onConfirm: () async {
+          int successCount = 0;
+          int failCount = 0;
+          String? lastErrorMessage;
 
-      if (confirm) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        await _processUploadAll(dataToUpload);
-      } else {
-        _isProcessRunning = false;
-      }
-    } catch (e) {
-      isCheckingUpload.value = false;
-      _isProcessRunning = false;
-      DialogFlexible.showInfo(
-        title: 'Gagal Upload',
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-        color: AppColors.alertSoftRed,
-        icon: Icons.wifi_off_rounded,
-      );
-    }
-  }
-
-  Future<void> _processUpload(TransferSolarModel data) async {
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Proses Upload...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primaryOrange,
-    );
-
-    try {
-      bool success = await offlineService.uploadTransfer(data);
-      closeLoading();
-
-      if (success) {
-        loadLocalData();
-        Get.snackbar('Sukses', 'Data berhasil diupload.',
-            backgroundColor: Colors.green, colorText: Colors.white);
-      } else {
-        DialogFlexible.showInfo(
-          title: 'Gagal Upload',
-          message: 'Data gagal diupload. Silakan coba lagi.',
-          color: AppColors.alertSoftRed,
-          icon: Icons.error_outline_rounded,
-        );
-      }
-    } catch (e) {
-      closeLoading();
-      DialogFlexible.showInfo(
-        title: 'Gagal Upload',
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-        color: AppColors.alertSoftRed,
-        icon: Icons.wifi_off_rounded,
-      );
-    } finally {
-      closeLoading();
-      _isProcessRunning = false;
-    }
-  }
-
-  Future<void> _processUploadAll(List<TransferSolarModel> dataList) async {
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Proses Upload...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primaryOrange,
-    );
-
-    int successCount = 0;
-    int failCount = 0;
-    String? lastErrorMessage;
-
-    try {
-      for (var data in dataList) {
-        try {
-          bool success = await offlineService.uploadTransfer(data);
-          if (success) {
-            successCount++;
-          } else {
-            failCount++;
+          for (var data in dataToUpload) {
+            try {
+              bool success = await offlineService.uploadTransfer(data);
+              if (success) {
+                successCount++;
+              } else {
+                failCount++;
+              }
+            } catch (e) {
+              failCount++;
+              lastErrorMessage = NetworkErrorHelper.getFriendlyErrorMessage(e);
+            }
           }
-        } catch (e) {
-          failCount++;
-          lastErrorMessage = NetworkErrorHelper.getFriendlyErrorMessage(e);
+
+          loadLocalData();
+
+          if (successCount == 0 && failCount > 0) {
+            throw lastErrorMessage ??
+                'Semua ($failCount) data gagal diupload. Pastikan koneksi internet Anda stabil lalu coba lagi.';
+          }
+
+          return {
+            'successCount': successCount,
+            'failCount': failCount,
+            'lastErrorMessage': lastErrorMessage,
+          };
+        },
+      );
+
+      if (result.succeeded && result.data != null) {
+        final successCount = result.data!['successCount'] as int? ?? 0;
+        final failCount = result.data!['failCount'] as int? ?? 0;
+        final lastErr = result.data!['lastErrorMessage'] as String?;
+
+        if (failCount == 0) {
+          CustomSnackbar.showSuccess(
+            title: 'Upload Berhasil',
+            message: '$successCount data transaksi berhasil diunggah ke server.',
+          );
+        } else {
+          final detail = lastErr != null ? ' ($lastErr)' : '';
+          CustomSnackbar.showWarning(
+            title: 'Upload Sebagian Gagal',
+            message: '$successCount berhasil, $failCount gagal diupload.$detail',
+          );
         }
       }
-
-      closeLoading();
-      loadLocalData();
-
-      if (failCount == 0) {
-        Get.snackbar('Sukses', '$successCount data berhasil diupload.',
-            backgroundColor: Colors.green, colorText: Colors.white);
-      } else if (successCount == 0) {
-        DialogFlexible.showInfo(
-          title: 'Gagal Upload',
-          message: lastErrorMessage ??
-              'Semua ($failCount) data gagal diupload. Pastikan koneksi internet Anda stabil lalu coba lagi.',
-          color: AppColors.alertSoftRed,
-          icon: Icons.wifi_off_rounded,
-        );
-      } else {
-        final detail = lastErrorMessage != null ? '\n$lastErrorMessage' : '';
-        DialogFlexible.showInfo(
-          title: 'Upload Sebagian Gagal',
-          message:
-              '$successCount berhasil, $failCount gagal diupload. Silakan coba lagi.$detail',
-          color: AppColors.primaryOrange,
-          icon: Icons.warning_amber_rounded,
-        );
-      }
+    } catch (e) {
+      DialogFlexible.showInfo(
+        title: 'Gagal Upload',
+        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
+        color: AppColors.alertSoftRed,
+        icon: Icons.wifi_off_rounded,
+      );
     } finally {
-      closeLoading();
+      isCheckingUpload.value = false;
       _isProcessRunning = false;
     }
   }

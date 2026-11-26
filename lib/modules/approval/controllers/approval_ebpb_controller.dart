@@ -13,6 +13,7 @@ import '../../transactions/pengeluaran/services/pengeluaran_api_service.dart';
 import '../services/approval_service.dart';
 import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 
 class ApprovalEbpbController extends GetxController {
@@ -133,116 +134,119 @@ class ApprovalEbpbController extends GetxController {
     if (_isSubmitting) return;
 
     if (status == 'APPROVED' && signatureController.isEmpty) {
-      Get.snackbar("Informasi", "Tanda tangan wajib diisi untuk Approve",
-          backgroundColor: AppColors.info, colorText: Colors.white);
+      CustomSnackbar.showWarning(
+        title: "Informasi",
+        message: "Tanda tangan wajib diisi untuk Approve.",
+      );
       return;
     }
 
     if (status == 'REJECTED' && noteController.text.trim().isEmpty) {
-      Get.snackbar("Informasi", "Mohon isi catatan alasan penolakan",
-          backgroundColor: AppColors.info, colorText: Colors.white);
+      CustomSnackbar.showWarning(
+        title: "Informasi",
+        message: "Mohon isi catatan alasan penolakan.",
+      );
       return;
     }
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
-
     _isSubmitting = true;
-    final closeLoading = DialogFlexible.showLoading(
-      title: 'Memproses E-BPB...',
-      subtitle: 'Mohon tunggu sebentar',
-      color: AppColors.primary,
-    );
-
     try {
-      File? signFile;
-      if (status == 'APPROVED') {
-        final Uint8List? data = await signatureController.toPngBytes();
-        if (data == null || data.isEmpty) {
-          throw "Gagal memproses gambar tanda tangan. Silakan tanda tangan ulang.";
-        }
-        final tempDir = await getTemporaryDirectory();
-        signFile = await File('${tempDir.path}/sign_ebpb_${DateTime.now().millisecondsSinceEpoch}.png').create();
-        await signFile.writeAsBytes(data);
-      }
+      final result = await DialogFlexible.runWithLoading<Map<String, dynamic>>(
+        primaryColor: AppColors.primary,
+        loadingTitle: 'Memproses E-BPB...',
+        loadingSubtitle: 'Mohon tunggu sebentar',
+        errorTitle: 'Gagal Proses E-BPB',
+        task: () async {
+          File? signFile;
+          if (status == 'APPROVED') {
+            final Uint8List? data = await signatureController.toPngBytes();
+            if (data == null || data.isEmpty) {
+              throw "Gagal memproses gambar tanda tangan. Silakan tanda tangan ulang.";
+            }
+            final tempDir = await getTemporaryDirectory();
+            signFile = await File(
+                    '${tempDir.path}/sign_ebpb_${DateTime.now().millisecondsSinceEpoch}.png')
+                .create();
+            await signFile.writeAsBytes(data);
+          }
 
-      final auth = _loginService.getCurrentAuth();
-      final otorisasi = auth?.user.otorisasi ?? [];
-      final userLevel = otorisasi.isNotEmpty ? otorisasi.first : 'fuel_level_2';
+          final auth = _loginService.getCurrentAuth();
+          final otorisasi = auth?.user.otorisasi ?? [];
+          final userLevel =
+              otorisasi.isNotEmpty ? otorisasi.first : 'fuel_level_2';
 
-      await _pengeluaranService.updateStatusEBPB(
-        noDoc: noDoc,
-        statusApprove: status,
-        levelApproval: userLevel,
-        catatan: noteController.text.trim(),
-        isSign: signFile != null,
+          await _pengeluaranService.updateStatusEBPB(
+            noDoc: noDoc,
+            statusApprove: status,
+            levelApproval: userLevel,
+            catatan: noteController.text.trim(),
+            isSign: signFile != null,
+          );
+
+          if (status == 'APPROVED' && signFile != null) {
+            await _pengeluaranService.uploadSignatureEBPB(
+              noDoc: noDoc,
+              levelApproval: userLevel,
+              imageSign: signFile,
+            );
+          }
+
+          bool isFullApproved = false;
+          String? downloadedFilePath;
+
+          if (status == 'APPROVED') {
+            final updatedDetail = await _approvalService.getEbpbDetail(noDoc);
+            if (updatedDetail != null) {
+              final approvalsList = updatedDetail['approvals'] as List?;
+              isFullApproved = approvalsList != null &&
+                  approvalsList.isNotEmpty &&
+                  approvalsList.every((appv) =>
+                      appv['status_approve']?.toUpperCase() == 'APPROVED');
+            }
+
+            if (isFullApproved) {
+              downloadedFilePath = await _approvalService
+                  .downloadPdfDocument(noDoc, isEbpb: true);
+            }
+          }
+
+          return {
+            'isFullApproved': isFullApproved,
+            'downloadedFilePath': downloadedFilePath,
+          };
+        },
       );
 
-      if (status == 'APPROVED' && signFile != null) {
-        await _pengeluaranService.uploadSignatureEBPB(
-          noDoc: noDoc,
-          levelApproval: userLevel,
-          imageSign: signFile,
-        );
-      }
+      if (result.succeeded && result.data != null) {
+        final isFullApproved = result.data!['isFullApproved'] == true;
+        final downloadedFilePath =
+            result.data!['downloadedFilePath'] as String?;
 
-      // Check for Full Approved
-      bool isFullApproved = false;
-      String? downloadedFilePath;
-
-      if (status == 'APPROVED') {
-        // Fetch updated details to verify all levels have approved
-        final updatedDetail = await _approvalService.getEbpbDetail(noDoc);
-        if (updatedDetail != null) {
-          final approvalsList = updatedDetail['approvals'] as List?;
-          isFullApproved = approvalsList != null &&
-              approvalsList.isNotEmpty &&
-              approvalsList.every((appv) => appv['status_approve']?.toUpperCase() == 'APPROVED');
-        }
+        Get.offAllNamed(Routes.HOME);
 
         if (isFullApproved) {
-          downloadedFilePath = await _approvalService.downloadPdfDocument(noDoc, isEbpb: true);
-        }
-      }
-
-      closeLoading();
-      Get.offAllNamed(Routes.HOME);
-
-      if (isFullApproved) {
-        if (downloadedFilePath != null) {
-          Get.snackbar(
-            "Full Approved!",
-            "Dokumen E-BPB berhasil diunduh.",
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-
-          // 🟢 Buka file PDF secara otomatis!
-          await Future.delayed(const Duration(milliseconds: 500)); // Beri jeda sedikit agar transisi ke Home mulus
-          await OpenFilex.open(downloadedFilePath);
+          if (downloadedFilePath != null) {
+            CustomSnackbar.showSuccess(
+              title: "Full Approved!",
+              message: "Dokumen E-BPB berhasil diunduh.",
+            );
+            await Future.delayed(const Duration(milliseconds: 500));
+            await OpenFilex.open(downloadedFilePath);
+          } else {
+            CustomSnackbar.showWarning(
+              title: "Full Approved!",
+              message:
+                  "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
+            );
+          }
         } else {
-          // Jika gagal mendownload dari server
-          Get.snackbar(
-            "Full Approved!",
-            "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
-            backgroundColor: Colors.orange,
-            colorText: Colors.white,
+          CustomSnackbar.showSuccess(
+            title: "Sukses",
+            message: "Dokumen E-BPB berhasil diproses ($status).",
           );
         }
-      } else {
-        Get.snackbar("Sukses", "Dokumen E-BPB berhasil diproses ($status)",
-            backgroundColor: Colors.green, colorText: Colors.white);
       }
-          
-    } catch (e) {
-      closeLoading();
-      NetworkErrorHelper.showErrorSnackbar(
-        title: "Gagal Proses E-BPB",
-        error: e,
-      );
-      print("Error submit EBPB: $e");
     } finally {
-      closeLoading();
       _isSubmitting = false;
     }
   }

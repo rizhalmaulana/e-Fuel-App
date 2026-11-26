@@ -20,6 +20,7 @@ import '../../../helpers/calibration_helper.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
 import '../../fuel/services/master_data_service.dart';
@@ -496,27 +497,33 @@ class PenerimaanController extends GetxController {
   }
 
   Future<void> validateAndProceed() async {
+    if (isSubmitting.value) return;
     if (!_validateInputs()) return;
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
-
-    final bool? confirm = await Get.dialog<bool>(
-      DialogFlexible(
+    isSubmitting.value = true;
+    try {
+      final result = await DialogFlexible.confirmAndRun<Map<String, dynamic>>(
         logo: LottiesHelper().getLottieConfirmation(),
         title: "Konfirmasi Sounding Stok",
         message: "Apakah Sounding Stok Solar (Manual) sudah sesuai?",
-        secondaryButtonText: "Batal",
-        onSecondaryPressed: () => Get.back(result: false),
-        primaryButtonText: "Submit",
-        onPrimaryPressed: () => Get.back(result: true),
-      ),
-      barrierDismissible: false,
-    );
+        primaryColor: AppColors.primary,
+        cancelText: "Batal",
+        confirmText: "Submit",
+        loadingTitle: "Mengirim Data...",
+        loadingSubtitle: "Mohon tunggu sebentar",
+        errorTitle: "Gagal Submit",
+        onConfirm: _executeSubmitFinalTransaction,
+      );
 
-    if (confirm == true) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      submitFinalTransaction();
+      if (result.succeeded && result.data != null) {
+        Get.offNamed(Routes.PENGISIAN_SOLAR, arguments: result.data);
+        CustomSnackbar.showSuccess(
+          title: "Berhasil",
+          message: "Data sounding penerimaan berhasil disimpan.",
+        );
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
@@ -530,19 +537,9 @@ class PenerimaanController extends GetxController {
     manualTotalVolume.value = total;
   }
 
-  Future<void> submitFinalTransaction() async {
-    if (isSubmitting.value) return;
-    isSubmitting.value = true;
-
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Mengirim Data...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primary,
-    );
-
-    try {
-      final auth = _loginService.getCurrentAuth();
-      if (auth == null) throw "Sesi user berakhir.";
+  Future<Map<String, dynamic>> _executeSubmitFinalTransaction() async {
+    final auth = _loginService.getCurrentAuth();
+    if (auth == null) throw "Sesi user berakhir.";
 
       List<Map<String, dynamic>> manualData = [];
       List<Map<String, dynamic>> iotData = [];
@@ -733,8 +730,7 @@ class PenerimaanController extends GetxController {
           noBast, manualData, iotData);
       await _repository.deleteDraft();
 
-      closeLoading();
-      Get.offNamed(Routes.PENGISIAN_SOLAR, arguments: {
+      return {
         'noBast': noBast,
         'noPO': adminData['purch_no'],
         'noPolisi': adminData['nopol_vendor'],
@@ -745,23 +741,7 @@ class PenerimaanController extends GetxController {
             DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
         'status': 'pengisian_solar',
         'storage_code': finalStorageCode,
-      });
-    } catch (e) {
-      closeLoading();
-      _handleError(e);
-    } finally {
-      closeLoading();
-      isSubmitting.value = false;
-    }
-  }
-
-  void _handleError(Object e) {
-    DialogFlexible.showInfo(
-      title: "Gagal Submit",
-      message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-      color: AppColors.alertSoftRed,
-      icon: Icons.error_outline_rounded,
-    );
+      };
   }
 
   String _getStorageCode(String full) {

@@ -21,6 +21,7 @@ import '../../../helpers/lotties_helper.dart';
 import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/component/custom_camera_view.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../auth/services/login_service.dart';
 import '../../transactions/outstanding_service.dart';
@@ -1317,42 +1318,46 @@ class PengeluaranController extends GetxController {
   }
 
   Future<void> _processSubmitToApi() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+    if (isSubmitting.value) return;
+    isSubmitting.value = true;
 
-    final bool? confirm = await Get.dialog<bool>(
-      DialogFlexible(
+    try {
+      final result = await DialogFlexible.confirmAndRun<Map<String, dynamic>>(
         logo: LottiesHelper().getLottieConfirmation(),
         title: "Konfirmasi Submit",
         message: "Apakah data inputan sudah sesuai semua?",
         primaryColor: AppColors.primaryOrange,
-        secondaryColor: AppColors.secondaryOrange,
-        secondaryButtonText: "Kembali",
-        onSecondaryPressed: () => Get.back(result: false),
-        primaryButtonText: "Submit",
-        onPrimaryPressed: () => Get.back(result: true),
-      ),
-      barrierDismissible: false,
-    );
+        cancelText: "Kembali",
+        confirmText: "Submit",
+        loadingTitle: "Sedang Mengirim Data...",
+        loadingSubtitle: "Mohon jangan tutup aplikasi",
+        errorTitle: "Gagal Submit",
+        onConfirm: _executeSubmitDataToApi,
+      );
 
-    if (confirm == true) {
-      if (isSubmitting.value) return;
-      await Future.delayed(const Duration(milliseconds: 150));
-      _submitDataToApi();
+      if (result.succeeded && result.data != null) {
+        final resData = result.data!;
+        if (resData['isTamu'] == true) {
+          Get.offAllNamed(Routes.HOME);
+          CustomSnackbar.showSuccess(
+            title: "Berhasil",
+            message: "Data pengeluaran berhasil disubmit!",
+          );
+        } else {
+          Get.offNamed(
+            Routes.PENGISIAN_SOLAR_PENGELUARAN,
+            arguments: resData['args'] as Map<String, dynamic>,
+          );
+        }
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
-  Future<void> _submitDataToApi() async {
-    isSubmitting.value = true;
-    final closeLoadingDialog = DialogFlexible.showLoading(
-      title: "Sedang Mengirim Data...",
-      subtitle: "Mohon jangan tutup aplikasi",
-      color: AppColors.primaryOrange,
-    );
-
-    try {
-      bool isOnline = await ConnectivityHelper.isConnected();
-      String inputTypeStr = isOnline ? "A" : "M";
+  Future<Map<String, dynamic>> _executeSubmitDataToApi() async {
+    bool isOnline = await ConnectivityHelper.isConnected();
+    String inputTypeStr = isOnline ? "A" : "M";
 
       double kmAkhirDouble = TextConvertHelper().parseToDouble(hmKmAkhirC.text.trim());
       double kmAwalDouble = TextConvertHelper().parseToDouble(hmKmAwalC.text.trim());
@@ -1553,28 +1558,11 @@ class PengeluaranController extends GetxController {
         );
         await outstandingService.saveTransactionPengeluaran(trx);
 
-        isSubmitting.value = false;
-        closeLoadingDialog();
-        Get.dialog(
-          DialogFlexible(
-            logo: LottiesHelper().getLottieSuccess(),
-            title: "Berhasil",
-            message: "Data pengeluaran berhasil disubmit!",
-            primaryColor: AppColors.primaryOrange,
-            secondaryColor: AppColors.secondaryOrange,
-            primaryButtonText: "Kembali ke Beranda",
-            onPrimaryPressed: () {
-              Get.back();
-              Get.offAllNamed(Routes.HOME);
-            },
-          ),
-          barrierDismissible: false,
-        );
+        return {'isTamu': true};
       } else {
-        closeLoadingDialog();
-        Get.offNamed(
-          Routes.PENGISIAN_SOLAR_PENGELUARAN,
-          arguments: {
+        return {
+          'isTamu': false,
+          'args': {
             'noDoc': noDoc,
             'unitIO': (selectedUnit.value?.namaUnit?.isNotEmpty == true
                 ? selectedUnit.value!.namaUnit
@@ -1588,32 +1576,8 @@ class PengeluaranController extends GetxController {
             'isVendor': isVendor,
             'jenis_pengeluaran': selectedJenisBon.value,
           },
-        );
+        };
       }
-    } on DioException catch (e) {
-      closeLoadingDialog();
-      _handleApiError(e);
-    } catch (e) {
-      closeLoadingDialog();
-      DialogFlexible.showInfo(
-        title: "Gagal Submit",
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-        color: AppColors.alertSoftRed,
-        icon: Icons.error_outline_rounded,
-      );
-    } finally {
-      isSubmitting.value = false;
-      closeLoadingDialog();
-    }
-  }
-
-  void _handleApiError(DioException e) {
-    DialogFlexible.showInfo(
-      title: "Gagal Submit",
-      message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-      color: AppColors.alertSoftRed,
-      icon: Icons.wifi_off_rounded,
-    );
   }
 
   // Future<void> _checkAndRestoreDraft() async {

@@ -12,6 +12,8 @@ import '../../../datas/models/pengeluaran/pengeluaran_daily_model.dart';
 import '../../../datas/models/pengeluaran/pengeluaran_outstanding_model.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../../../helpers/network_error_helper.dart';
+import '../../../routes/app_pages.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../../datas/dummy/master_unit_dummy.dart';
 import '../../auth/services/login_service.dart';
@@ -342,18 +344,32 @@ class PengeluaranEBpbController extends GetxController {
       });
     }
 
-    final confirm = await DialogFlexible.showConfirm(
-      logo: LottiesHelper().getLottieQuestion(),
-      title: "Konfirmasi E-BPB",
-      message: "Buat E-BPB untuk ${_allDailyTransactions.length} transaksi (${formattedTotalVolume} Ltr)?",
-      primaryColor: AppColors.primaryOrange,
-      cancelText: "Batal",
-      confirmText: "Ya, Submit",
-    );
+    isSubmitting.value = true;
+    try {
+      final result = await DialogFlexible.confirmAndRun<String>(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: "Konfirmasi E-BPB",
+        message:
+            "Buat E-BPB untuk ${_allDailyTransactions.length} transaksi ($formattedTotalVolume Ltr)?",
+        primaryColor: AppColors.primaryOrange,
+        cancelText: "Batal",
+        confirmText: "Ya, Submit",
+        loadingTitle: "Membuat E-BPB...",
+        loadingSubtitle: "Mohon tunggu sebentar",
+        errorTitle: "Gagal Submit",
+        onConfirm: () => _executeSubmitBpbApi(fotPayload),
+      );
 
-    if (confirm) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      _processSubmitApi(fotPayload);
+      if (result.succeeded) {
+        final noDoc = result.data ?? '';
+        Get.offAllNamed(Routes.HOME);
+        CustomSnackbar.showSuccess(
+          title: "E-BPB Berhasil Dibuat",
+          message: "Dokumen E-BPB ($noDoc) berhasil dibuat dan diajukan.",
+        );
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
@@ -372,76 +388,44 @@ class PengeluaranEBpbController extends GetxController {
     return file;
   }
 
-  void _processSubmitApi(List<Map<String, dynamic>> fotPayload) async {
-    if (isSubmitting.value) return;
-    isSubmitting.value = true;
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Membuat E-BPB...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primaryOrange,
-    );
+  Future<String> _executeSubmitBpbApi(
+      List<Map<String, dynamic>> fotPayload) async {
+    Map<String, dynamic> payload = {
+      "kode_unit": selectedUnitCode.value,
+      "tanggal_transaksi": selectedDateApi.value,
+      "fot": fotPayload
+    };
 
-    try {
-      Map<String, dynamic> payload = {
-        "kode_unit": selectedUnitCode.value,
-        "tanggal_transaksi": selectedDateApi.value,
-        "fot": fotPayload
-      };
+    var responseBpb =
+        await _apiService.createTransactionEBPB(payload: payload);
 
-      var responseBpb =
-          await _apiService.createTransactionEBPB(payload: payload);
+    String noDoc = responseBpb['no_doc']?.toString() ?? "";
+    if (noDoc.isEmpty) {
+      throw "Gagal memproses dokumen E-BPB. Silakan coba lagi.";
+    }
 
-      String noDoc = responseBpb['no_doc']?.toString() ?? "";
-      if (noDoc.isEmpty) {
-        throw "Gagal memproses dokumen E-BPB. Silakan coba lagi.";
-      }
+    if (userLevelApproval.value == "fuel_level_1") {
+      await _apiService.createTransactionEBPBApproval(
+          noDoc: noDoc, kodeUnit: selectedUnitCode.value);
 
-      if (userLevelApproval.value == "fuel_level_1") {
-        await _apiService.createTransactionEBPBApproval(
-            noDoc: noDoc, kodeUnit: selectedUnitCode.value);
-
-        File? signatureFile = await _getSignatureFile();
-        if (signatureFile != null) {
-          await _apiService.uploadSignatureEBPB(
-            noDoc: noDoc,
-            levelApproval: userLevelApproval.value,
-            imageSign: signatureFile,
-          );
-        }
-
-        await _apiService.updateStatusEBPB(
+      File? signatureFile = await _getSignatureFile();
+      if (signatureFile != null) {
+        await _apiService.uploadSignatureEBPB(
           noDoc: noDoc,
-          statusApprove: "APPROVED",
           levelApproval: userLevelApproval.value,
-          catatan: "",
-          isSign: signatureFile != null,
+          imageSign: signatureFile,
         );
       }
 
-      closeLoading();
-
-      await Get.dialog(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieSuccess(),
-          title: "Berhasil",
-          message: "Dokumen E-BPB ($noDoc) berhasil dibuat dan diajukan.",
-          primaryColor: AppColors.primaryOrange,
-          primaryButtonText: "OK",
-        ),
-        barrierDismissible: false,
+      await _apiService.updateStatusEBPB(
+        noDoc: noDoc,
+        statusApprove: "APPROVED",
+        levelApproval: userLevelApproval.value,
+        catatan: "",
+        isSign: signatureFile != null,
       );
-      Get.back();
-    } catch (e) {
-      closeLoading();
-      DialogFlexible.showInfo(
-        title: "Gagal Submit",
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-        color: AppColors.alertSoftRed,
-        icon: Icons.error_outline_rounded,
-      );
-    } finally {
-      isSubmitting.value = false;
-      closeLoading();
     }
+
+    return noDoc;
   }
 }

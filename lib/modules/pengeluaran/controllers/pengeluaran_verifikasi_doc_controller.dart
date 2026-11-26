@@ -15,6 +15,7 @@ import '../../../datas/models/transactions/pengeluaran/transaction_pengeluaran_m
 import '../../../datas/models/widgets/capture_image_detail.dart';
 import '../../../routes/app_pages.dart';
 import '../../../widgets/component/custom_camera_view.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 import '../../../helpers/lotties_helper.dart';
 import '../../../helpers/network_error_helper.dart';
@@ -305,160 +306,131 @@ class PengeluaranVerifikasiDocController extends GetxController {
       return;
     }
 
-    final confirm = await DialogFlexible.showConfirm(
-      logo: LottiesHelper().getLottieQuestion(),
-      title: "Konfirmasi Submit",
-      message:
-          "Pastikan semua tanda tangan dan foto sudah sesuai. Lanjutkan proses?",
-      primaryColor: AppColors.primaryOrange,
-      cancelText: "Cek Lagi",
-      confirmText: "Ya, Submit",
-    );
+    isSubmitting.value = true;
+    try {
+      final result = await DialogFlexible.confirmAndRun<void>(
+        logo: LottiesHelper().getLottieQuestion(),
+        title: "Konfirmasi Submit",
+        message:
+            "Pastikan semua tanda tangan dan foto sudah sesuai. Lanjutkan proses?",
+        primaryColor: AppColors.primaryOrange,
+        cancelText: "Cek Lagi",
+        confirmText: "Ya, Submit",
+        loadingTitle: "Memproses Verifikasi...",
+        loadingSubtitle: "Mohon tunggu sebentar",
+        errorTitle: "Gagal Verifikasi",
+        onConfirm: _executeSubmitVerification,
+      );
 
-    if (confirm) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      submitVerification();
+      if (result.succeeded) {
+        Get.offAllNamed(Routes.HOME);
+        CustomSnackbar.showSuccess(
+          title: "Verifikasi Berhasil",
+          message: "Data pengeluaran berhasil disubmit!",
+        );
+      }
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
-  Future<void> submitVerification() async {
-    if (isSubmitting.value) return;
-    isSubmitting.value = true;
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Memproses Verifikasi...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primaryOrange,
+  Future<void> _executeSubmitVerification() async {
+    File? f1 = photoDispenser.value != null ? File(photoDispenser.value!.tempPath) : null;
+    File? f2 = hiddenPhotoTruk;
+    File? f3 = hiddenPhotoSupir;
+
+    if (f1 == null || f2 == null || f3 == null) {
+      throw "Data foto tidak lengkap. Harap lengkapi foto terlebih dahulu.";
+    }
+
+    final File? whSignFile = await _exportSignatureToFile(warehouseSignatureController, "sign_gudang");
+    final File? driverSignFile = await _exportSignatureToFile(driverSignatureController, "sign_supir");
+
+    if (whSignFile == null || driverSignFile == null) {
+      throw "Gagal memproses gambar tanda tangan.";
+    }
+
+    final auth = _loginService.getCurrentAuth();
+    if (auth == null) throw "Data user tidak valid.";
+    if (auth.user.otorisasi.isEmpty) {
+      throw "Akun Anda tidak memiliki otorisasi approval.";
+    }
+
+    String userLevel = auth.user.otorisasi.first;
+
+    List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
+      transactionType: 'FOT',
+      kodeUnit: auth.currentKodeUnit ?? "",
+      statusActive: true,
     );
 
-    try {
-      File? f1 = photoDispenser.value != null ? File(photoDispenser.value!.tempPath) : null;
-      File? f2 = hiddenPhotoTruk;
-      File? f3 = hiddenPhotoSupir;
+    KonfigurasiApprovalModel myConfig = configList.firstWhere(
+          (config) => config.levelApproval == userLevel,
+      orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval.",
+    );
 
-      if (f1 == null || f2 == null || f3 == null) {
-        throw "Data foto tidak lengkap. Harap lengkapi foto terlebih dahulu.";
-      }
+    String finalNoDoc = noDoc.value;
+    double finalSolar = double.tryParse(aktualSolarC.text.trim().replaceAll(',', '.')) ?? 0;
 
-      final File? whSignFile = await _exportSignatureToFile(warehouseSignatureController, "sign_gudang");
-      final File? driverSignFile = await _exportSignatureToFile(driverSignatureController, "sign_supir");
+    Map<String, dynamic> payload = {
+      "no_io": noIO.value,
+      "unit_io": unitIO.value,
+      "nopol_check": noPolisi.value,
+      "status_supir": statusSupir.value,
+      "supir_check": namaSupir.value,
+      "km_pengisian": double.tryParse(kmPengisian.value.trim().replaceAll(',', '.')) ?? 0,
+      "jumlah_pengisian_solar": finalSolar,
+    };
 
-      if (whSignFile == null || driverSignFile == null) {
-        throw "Gagal memproses gambar tanda tangan.";
-      }
+    await _apiService.createTransactionApproval(
+        noDoc: finalNoDoc,
+        kodeUnit: _currentUserUnitCode,
+        transactionType: docType.value
+    );
 
-      final auth = _loginService.getCurrentAuth();
-      if (auth == null) throw "Data user tidak valid.";
-      if (auth.user.otorisasi.isEmpty) {
-        throw "Akun Anda tidak memiliki otorisasi approval.";
-      }
+    await Future.delayed(const Duration(seconds: 1));
 
-      String userLevel = auth.user.otorisasi.first;
-
-      List<KonfigurasiApprovalModel> configList = await _apiService.getKonfigurasiApproval(
-        transactionType: 'FOT',
-        kodeUnit: auth.currentKodeUnit ?? "",
-        statusActive: true,
-      );
-
-      KonfigurasiApprovalModel myConfig = configList.firstWhere(
-            (config) => config.levelApproval == userLevel,
-        orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval.",
-      );
-
-      String finalNoDoc = noDoc.value;
-      double finalSolar = double.tryParse(aktualSolarC.text.trim().replaceAll(',', '.')) ?? 0;
-
-      Map<String, dynamic> payload = {
-        "no_io": noIO.value,
-        "unit_io": unitIO.value,
-        "nopol_check": noPolisi.value,
-        "status_supir": statusSupir.value,
-        "supir_check": namaSupir.value,
-        "km_pengisian": double.tryParse(kmPengisian.value.trim().replaceAll(',', '.')) ?? 0,
-        "jumlah_pengisian_solar": finalSolar,
-      };
-
-      await _apiService.createTransactionApproval(
-          noDoc: finalNoDoc,
-          kodeUnit: _currentUserUnitCode,
-          transactionType: docType.value
-      );
-
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (jenisPengeluaran.value == 'BPB') {
-        await _apiService.updateStatusTransactionApprovalBpb(
-          noDoc: finalNoDoc,
-          levelApproval: myConfig.levelApproval ?? "1",
-          statusApprove: 'APPROVED',
-          catatan: warehouseNoteController.text.isEmpty
-              ? "Verifikasi Dokumen Selesai"
-              : warehouseNoteController.text,
-          isSign: true,
-          isPartnerSign: true,
-        );
-      } else {
-        await _apiService.updateStatusTransactionApproval(
-          noDoc: finalNoDoc,
-          levelApproval: myConfig.levelApproval ?? "1",
-          statusApprove: 'APPROVED',
-          catatan: warehouseNoteController.text.isEmpty
-              ? "Verifikasi Dokumen Selesai"
-              : warehouseNoteController.text,
-          isSign: true,
-          isPartnerSign: true,
-        );
-      }
-
-      await _apiService.uploadSignatureTransactionApproval(
+    if (jenisPengeluaran.value == 'BPB') {
+      await _apiService.updateStatusTransactionApprovalBpb(
         noDoc: finalNoDoc,
         levelApproval: myConfig.levelApproval ?? "1",
-        imageSign1: whSignFile,
-        imageSign2: driverSignFile,
+        statusApprove: 'APPROVED',
+        catatan: warehouseNoteController.text.isEmpty
+            ? "Verifikasi Dokumen Selesai"
+            : warehouseNoteController.text,
+        isSign: true,
+        isPartnerSign: true,
       );
-
-      await Future.delayed(const Duration(seconds: 1));
-
-      await _apiService.uploadImagePengeluaran(
+    } else {
+      await _apiService.updateStatusTransactionApproval(
         noDoc: finalNoDoc,
-        foto1: f1,
-        foto2: f2,
-        foto3: f3,
+        levelApproval: myConfig.levelApproval ?? "1",
+        statusApprove: 'APPROVED',
+        catatan: warehouseNoteController.text.isEmpty
+            ? "Verifikasi Dokumen Selesai"
+            : warehouseNoteController.text,
+        isSign: true,
+        isPartnerSign: true,
       );
-
-      await _updateLocalStatus(finalNoDoc, payload, f1.path, f2.path, f3.path);
-
-      // Tutup loading dialog
-      closeLoading();
-
-      Get.dialog(
-        DialogFlexible(
-          logo: LottiesHelper().getLottieSuccess(),
-          title: "Verifikasi Berhasil",
-          message: "Data pengeluaran berhasil disubmit!",
-          primaryColor: AppColors.primaryOrange,
-          secondaryColor: AppColors.secondaryOrange,
-          primaryButtonText: "Kembali ke Beranda",
-          onPrimaryPressed: () {
-            Get.back();
-            Get.offAllNamed(Routes.HOME);
-          },
-        ),
-        barrierDismissible: false,
-      );
-    } catch (e) {
-      closeLoading();
-      print("Error: $e");
-      DialogFlexible.showInfo(
-        title: "Gagal Verifikasi",
-        message: NetworkErrorHelper.getFriendlyErrorMessage(e),
-        color: AppColors.alertSoftRed,
-        icon: Icons.error_outline_rounded,
-      );
-    } finally {
-      isSubmitting.value = false;
-      closeLoading();
     }
+
+    await _apiService.uploadSignatureTransactionApproval(
+      noDoc: finalNoDoc,
+      levelApproval: myConfig.levelApproval ?? "1",
+      imageSign1: whSignFile,
+      imageSign2: driverSignFile,
+    );
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    await _apiService.uploadImagePengeluaran(
+      noDoc: finalNoDoc,
+      foto1: f1,
+      foto2: f2,
+      foto3: f3,
+    );
+
+    await _updateLocalStatus(finalNoDoc, payload, f1.path, f2.path, f3.path);
   }
 
   Future<File?> _exportSignatureToFile(SignatureController controller, String fileName) async {

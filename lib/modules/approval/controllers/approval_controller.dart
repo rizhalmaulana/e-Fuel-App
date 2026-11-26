@@ -11,6 +11,7 @@ import '../../auth/services/login_service.dart';
 import '../services/approval_service.dart';
 import '../../../helpers/network_error_helper.dart';
 import '../../../routes/app_pages.dart';
+import '../../../widgets/component/custom_snackbar.dart';
 import '../../../widgets/dialog/dialog_flexible.dart';
 
 class ApprovalController extends GetxController {
@@ -99,111 +100,118 @@ class ApprovalController extends GetxController {
     if (_isSubmitting) return;
 
     if (status == 'APPROVED' && signatureController.isEmpty) {
-      Get.snackbar("Informasi", "Tanda tangan wajib diisi untuk Approve", backgroundColor: AppColors.info, colorText: Colors.white);
+      CustomSnackbar.showWarning(
+        title: "Informasi",
+        message: "Tanda tangan wajib diisi untuk Approve.",
+      );
       return;
     }
 
     if (status == 'REJECTED' && noteController.text.isEmpty) {
-      Get.snackbar("Informasi", "Mohon isi catatan alasan penolakan", backgroundColor: AppColors.info, colorText: Colors.white);
+      CustomSnackbar.showWarning(
+        title: "Informasi",
+        message: "Mohon isi catatan alasan penolakan.",
+      );
       return;
     }
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
-
     _isSubmitting = true;
-    final closeLoading = DialogFlexible.showLoading(
-      title: 'Memproses Approval...',
-      subtitle: 'Mohon tunggu sebentar',
-      color: AppColors.primary,
-    );
-
     try {
-      File? signFile;
-      if (status == 'APPROVED') {
-        final Uint8List? data = await signatureController.toPngBytes();
-        if (data == null || data.isEmpty) {
-          throw "Gagal memproses gambar tanda tangan. Silakan tanda tangan ulang.";
-        }
-        final tempDir = await getTemporaryDirectory();
-        signFile = await File('${tempDir.path}/sign_approval_${DateTime.now().millisecondsSinceEpoch}.png').create();
-        await signFile.writeAsBytes(data);
-      }
+      final result = await DialogFlexible.runWithLoading<Map<String, dynamic>>(
+        primaryColor: AppColors.primary,
+        loadingTitle: 'Memproses Approval...',
+        loadingSubtitle: 'Mohon tunggu sebentar',
+        errorTitle: 'Gagal Proses Dokumen',
+        task: () async {
+          File? signFile;
+          if (status == 'APPROVED') {
+            final Uint8List? data = await signatureController.toPngBytes();
+            if (data == null || data.isEmpty) {
+              throw "Gagal memproses gambar tanda tangan. Silakan tanda tangan ulang.";
+            }
+            final tempDir = await getTemporaryDirectory();
+            signFile = await File(
+                    '${tempDir.path}/sign_approval_${DateTime.now().millisecondsSinceEpoch}.png')
+                .create();
+            await signFile.writeAsBytes(data);
+          }
 
-      final auth = _loginService.getCurrentAuth();
-      final otorisasi = auth?.user.otorisasi ?? [];
-      final userLevel = otorisasi.isNotEmpty ? otorisasi.first : 'fuel_level_2';
-      final kodeUnit = auth?.currentKodeUnit ?? ''; // Ambil kode unit untuk parameter getApprovalList
+          final auth = _loginService.getCurrentAuth();
+          final otorisasi = auth?.user.otorisasi ?? [];
+          final userLevel =
+              otorisasi.isNotEmpty ? otorisasi.first : 'fuel_level_2';
+          final kodeUnit = auth?.currentKodeUnit ?? '';
 
-      final success = await _approvalService.submitPenerimaanApprovalDecision(
-        noDoc: noBast,
-        levelApproval: userLevel,
-        status: status,
-        note: noteController.text,
-        signature: signFile,
-      );
-
-      if (success) {
-        // PENGECEKAN FULL APPROVED
-        if (status == 'APPROVED') {
-          final approvalList = await _approvalService.getApprovalList(
-            kodeUnit: kodeUnit,
-            noBast: noBast,
-            transactionType: transactionType,
+          final success =
+              await _approvalService.submitPenerimaanApprovalDecision(
+            noDoc: noBast,
+            levelApproval: userLevel,
+            status: status,
+            note: noteController.text,
+            signature: signFile,
           );
 
-          // Jika data ada, dan SEMUA status_approve-nya adalah 'APPROVED' (tidak ada yang PENDING/REJECTED)
-          bool isFullApproved = approvalList.isNotEmpty &&
-              approvalList.every((appv) => appv.statusApprove?.toUpperCase() == 'APPROVED');
-
-          if (isFullApproved) {
-            String? downloadedFilePath = await _approvalService.downloadPdfDocument(noBast);
-
-            closeLoading();
-            Get.offAllNamed(Routes.HOME); // Arahkan ke Home
-
-            if (downloadedFilePath != null) {
-              Get.snackbar(
-                "Full Approved!",
-                "Dokumen berhasil diunduh.",
-                backgroundColor: Colors.green,
-                colorText: Colors.white,
-              );
-
-              await Future.delayed(const Duration(milliseconds: 500));
-              await OpenFilex.open(downloadedFilePath);
-
-            } else {
-              Get.snackbar(
-                "Full Approved!",
-                "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
-                backgroundColor: Colors.orange,
-                colorText: Colors.white,
-              );
-            }
-            return;
+          if (!success) {
+            throw "Terjadi kesalahan saat memproses keputusan approval. Silakan coba lagi.";
           }
-        }
 
-        // (Belum Full Approved atau REJECTED)
-        closeLoading();
-        Get.offAllNamed(Routes.HOME);
-        Get.snackbar("Sukses", "Dokumen berhasil diproses ($status)", backgroundColor: Colors.green, colorText: Colors.white);
-      } else {
-        closeLoading();
-        NetworkErrorHelper.showErrorSnackbar(
-          title: "Gagal Proses Dokumen",
-          error: "Terjadi kesalahan saat memproses keputusan approval. Silakan coba lagi.",
-        );
-      }
-    } catch (e) {
-      closeLoading();
-      NetworkErrorHelper.showErrorSnackbar(
-        title: "Gagal Proses Dokumen",
-        error: e,
+          bool isFullApproved = false;
+          String? downloadedFilePath;
+
+          if (status == 'APPROVED') {
+            final approvalList = await _approvalService.getApprovalList(
+              kodeUnit: kodeUnit,
+              noBast: noBast,
+              transactionType: transactionType,
+            );
+
+            isFullApproved = approvalList.isNotEmpty &&
+                approvalList.every(
+                    (appv) => appv.statusApprove?.toUpperCase() == 'APPROVED');
+
+            if (isFullApproved) {
+              downloadedFilePath =
+                  await _approvalService.downloadPdfDocument(noBast);
+            }
+          }
+
+          return {
+            'isFullApproved': isFullApproved,
+            'downloadedFilePath': downloadedFilePath,
+          };
+        },
       );
+
+      if (result.succeeded && result.data != null) {
+        final isFullApproved = result.data!['isFullApproved'] == true;
+        final downloadedFilePath =
+            result.data!['downloadedFilePath'] as String?;
+
+        Get.offAllNamed(Routes.HOME);
+
+        if (isFullApproved) {
+          if (downloadedFilePath != null) {
+            CustomSnackbar.showSuccess(
+              title: "Full Approved!",
+              message: "Dokumen berhasil diunduh.",
+            );
+            await Future.delayed(const Duration(milliseconds: 500));
+            await OpenFilex.open(downloadedFilePath);
+          } else {
+            CustomSnackbar.showWarning(
+              title: "Full Approved!",
+              message:
+                  "Transaksi selesai, namun gagal mengunduh PDF secara otomatis.",
+            );
+          }
+        } else {
+          CustomSnackbar.showSuccess(
+            title: "Sukses",
+            message: "Dokumen berhasil diproses ($status).",
+          );
+        }
+      }
     } finally {
-      closeLoading();
       _isSubmitting = false;
     }
   }

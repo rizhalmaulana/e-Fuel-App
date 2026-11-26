@@ -304,179 +304,137 @@ class PenerimaanVerifikasiBastController extends GetxController {
 
   Future<void> submitBast() async {
     if (_isSubmitting) return;
-    if (!await ConnectivityHelper.validateNetwork()) return;
-
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (Get.isSnackbarOpen) Get.closeAllSnackbars();
+    if (!await ConnectivityHelper.validateNetwork(
+      title: 'Tidak Ada Jaringan',
+      message:
+          'Gagal memproses verifikasi BAST karena tidak ada koneksi internet. Pastikan jaringan Anda aktif, lalu coba lagi.',
+    )) {
+      return;
+    }
 
     _isSubmitting = true;
     try {
-      final bool? confirm = await Get.dialog<bool>(
-        DialogFlexible(
-          logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),
-          title: "Konfirmasi Submit",
-          message: "Apakah Anda yakin data dan tanda tangan sudah benar?",
-          primaryColor: AppColors.primary,
-          secondaryButtonText: "Cek Lagi",
-          onSecondaryPressed: () => Get.back(result: false),
-          primaryButtonText: "Ya, Submit",
-          onPrimaryPressed: () => Get.back(result: true),
-        ),
-        barrierDismissible: false,
+      final result = await DialogFlexible.confirmAndRun<void>(
+        logo: Lottie.asset(AppLotties.confirmation, width: 150, height: 150),
+        title: "Konfirmasi Submit",
+        message: "Apakah Anda yakin data dan tanda tangan sudah benar?",
+        primaryColor: AppColors.primary,
+        cancelText: "Cek Lagi",
+        confirmText: "Ya, Submit",
+        loadingTitle: "Memproses Verifikasi...",
+        loadingSubtitle: "Mohon tunggu sebentar",
+        errorTitle: "Gagal Memproses",
+        onConfirm: _executeProcessSubmit,
       );
 
-      if (confirm == true) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        await _processSubmit();
+      if (result.succeeded) {
+        Get.offAllNamed(Routes.HOME);
+        CustomSnackbar.showSuccess(
+          title: "Verifikasi BAST Berhasil",
+          message: "Dokumen berhasil disetujui dan diteruskan.",
+        );
       }
     } finally {
       _isSubmitting = false;
     }
   }
 
-  Future<void> _processSubmit() async {
-    final closeLoading = DialogFlexible.showLoading(
-      title: "Memproses Verifikasi...",
-      subtitle: "Mohon tunggu sebentar",
-      color: AppColors.primary,
+  Future<void> _executeProcessSubmit() async {
+    final auth = _loginService.getCurrentAuth();
+    final currentTx = currentTransaction.value;
+    if (auth == null || currentTx == null) throw "Data tidak valid.";
+
+    // Validate Approval Config
+    File? fileGudang = await _repository.saveSignatureToFile(signatureGudangController, "ttd_gudang_${activeNoBast.value}.png");
+    File? filePartner = await _repository.saveSignatureToFile(signaturePartnerController, "ttd_partner_${activeNoBast.value}.png");
+    File? fileSecurity = await _repository.saveSignatureToFile(signatureSecurityController, "ttd_security_${activeNoBast.value}.png");
+
+    if (fileGudang == null || filePartner == null || fileSecurity == null) throw "Gagal menyimpan Tanda Tangan.";
+
+    if (auth.user.otorisasi.isEmpty) {
+      throw "Akun Anda tidak memiliki otorisasi approval.";
+    }
+
+    String userLevel = auth.user.otorisasi.first;
+    String kodeUnit = currentTransaction.value?.dataSebelum?.kodeUnit ?? "";
+    String docType = currentTransaction.value?.dataSebelum?.docTypeCode ?? "FIN";
+
+    // Validate Approval Config
+    List<KonfigurasiApprovalModel> configList = await _repository.getKonfigurasiApproval(
+      transactionType: docType, kodeUnit: kodeUnit, statusActive: true,
     );
 
+    KonfigurasiApprovalModel myConfig = configList.firstWhere(
+          (config) => config.levelApproval == userLevel,
+      orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval.",
+    );
+
+    // Prepare Payload
+    List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) {
+      return {
+        "kode_tank": item.tankCode.replaceAll(' ', '_'),
+        "volume_terkini_liter": item.volumeBeforeIoT ?? 0.0,
+        "tinggi_terkini_cm": item.heightBeforeIoT ?? 0.0,
+        "volume_akhir_liter": item.volumeAfterIoT ?? 0.0,
+        "tinggi_akhir_cm": item.heightAfterIoT ?? 0.0,
+        "tinggi_var_cm": item.heightVariantIoT ?? 0.0,
+        "volume_var_liter": item.volumeVariantIoT ?? 0.0,
+        "volume_manual_liter": item.volumeAfter,
+        "tinggi_manual_cm": item.heightAfter,
+        "volume_manual_var": item.volumeVariant,
+        "tinggi_manual_var": item.heightVariant,
+        "input_type": "M",
+      };
+    }).toList();
+
+    debugPrint("Payload Setelah Sounding: $tanksPayload");
+
+    // Submit Inbound Tank
+    await _repository.createInboundTank({
+      "no_doc": activeNoBast.value,
+      "no_po": activeNoPO.value,
+      "tanks": tanksPayload,
+    });
+
+    // Create Approval
     try {
-      final auth = _loginService.getCurrentAuth();
-      final currentTx = currentTransaction.value;
-      if (auth == null || currentTx == null) throw "Data tidak valid.";
-
-      // Validate Approval Config
-      File? fileGudang = await _repository.saveSignatureToFile(signatureGudangController, "ttd_gudang_${activeNoBast.value}.png");
-      File? filePartner = await _repository.saveSignatureToFile(signaturePartnerController, "ttd_partner_${activeNoBast.value}.png");
-      File? fileSecurity = await _repository.saveSignatureToFile(signatureSecurityController, "ttd_security_${activeNoBast.value}.png");
-
-      if (fileGudang == null || filePartner == null || fileSecurity == null) throw "Gagal menyimpan Tanda Tangan.";
-
-      if (auth.user.otorisasi.isEmpty) {
-        throw "Akun Anda tidak memiliki otorisasi approval.";
-      }
-
-      String userLevel = auth.user.otorisasi.first;
-      String kodeUnit = currentTransaction.value?.dataSebelum?.kodeUnit ?? "";
-      String docType = currentTransaction.value?.dataSebelum?.docTypeCode ?? "FIN";
-
-      // Validate Approval Config
-      List<KonfigurasiApprovalModel> configList = await _repository.getKonfigurasiApproval(
-        transactionType: docType, kodeUnit: kodeUnit, statusActive: true,
+      await _repository.createTransactionApproval(
+        noDoc: activeNoBast.value, kodeUnit: kodeUnit, transactionType: docType,
       );
+    } catch (e) { print("Warning create approval: $e"); }
 
-      KonfigurasiApprovalModel myConfig = configList.firstWhere(
-            (config) => config.levelApproval == userLevel,
-        orElse: () => throw "Akun ($userLevel) tidak memiliki akses approval.",
-      );
+    // Update Status & Upload Sign
+    await _repository.updateStatusTransactionApproval(
+      noDoc: activeNoBast.value,
+      levelApproval: myConfig.levelApproval ?? "1",
+      statusApprove: "APPROVED",
+      catatan: catatanGudangController.text.isEmpty ? "Verifikasi BAST Selesai" : catatanGudangController.text,
+      isSign: true, isPartnerSign: true,
+    );
 
-      // Prepare Payload
-      List<Map<String, dynamic>> tanksPayload = fillingDataList.map((item) {
-        return {
-          "kode_tank": item.tankCode.replaceAll(' ', '_'),
-          "volume_terkini_liter": item.volumeBeforeIoT ?? 0.0,
-          "tinggi_terkini_cm": item.heightBeforeIoT ?? 0.0,
-          "volume_akhir_liter": item.volumeAfterIoT ?? 0.0,
-          "tinggi_akhir_cm": item.heightAfterIoT ?? 0.0,
-          "tinggi_var_cm": item.heightVariantIoT ?? 0.0,
-          "volume_var_liter": item.volumeVariantIoT ?? 0.0,
-          "volume_manual_liter": item.volumeAfter,
-          "tinggi_manual_cm": item.heightAfter,
-          "volume_manual_var": item.volumeVariant,
-          "tinggi_manual_var": item.heightVariant,
-          "input_type": "M",
-        };
-      }).toList();
+    await _repository.uploadSignatureTransactionApproval(
+      noDoc: activeNoBast.value,
+      levelApproval: myConfig.levelApproval ?? "1",
+      imageSign1: fileGudang, imageSign2: filePartner,
+    );
 
-      debugPrint("Payload Setelah Sounding: $tanksPayload");
+    // Post Data for Security, and signature
+    await _repository.uploadSignatureSecurity(
+      noDoc: activeNoBast.value,
+      imageSign3: fileSecurity,
+      securityName: securityNameController.text.isEmpty ? "Security" : securityNameController.text,
+    );
 
-      // Submit Inbound Tank
-        await _repository.createInboundTank({
-        "no_doc": activeNoBast.value,
-        "no_po": activeNoPO.value,
-        "tanks": tanksPayload,
-      });
-
-      // Create Approval
-      try {
-        await _repository.createTransactionApproval(
-          noDoc: activeNoBast.value, kodeUnit: kodeUnit, transactionType: docType,
-        );
-      } catch (e) { print("Warning create approval: $e"); }
-
-      // Update Status & Upload Sign
-      await _repository.updateStatusTransactionApproval(
-        noDoc: activeNoBast.value,
-        levelApproval: myConfig.levelApproval ?? "1",
-        statusApprove: "APPROVED",
-        catatan: catatanGudangController.text.isEmpty ? "Verifikasi BAST Selesai" : catatanGudangController.text,
-        isSign: true, isPartnerSign: true,
-      );
-
-      await _repository.uploadSignatureTransactionApproval(
-        noDoc: activeNoBast.value,
-        levelApproval: myConfig.levelApproval ?? "1",
-        imageSign1: fileGudang, imageSign2: filePartner,
-      );
-
-      // Post Data for Security, and signature
-      await _repository.uploadSignatureSecurity(
-        noDoc: activeNoBast.value,
-        imageSign3: fileSecurity,
-        securityName: securityNameController.text.isEmpty ? "Security" : securityNameController.text,
-      );
-
-      // Save Local & Update Status Local
-      for (var item in fillingDataList) {
-        await _repository.saveManualTankInput(tankCode: item.tankCode, volume: item.volumeAfter, height: item.heightAfter);
-      }
-
-      await _repository.updateLocalTransactionStatus(
-        activeNoBast.value,
-        'approval_kasie',
-        levelApproval: myConfig.levelApproval,
-        stepApproval: myConfig.stepApproval,
-      );
-
-      closeLoading();
-      _showResultDialog(isSuccess: true, message: "Dokumen berhasil disetujui dan diteruskan.");
-
-    } catch (e) {
-      closeLoading();
-
-      String errorMessage = NetworkErrorHelper.getFriendlyErrorMessage(e);
-      print("ERROR SUBMIT BAST: $e");
-
-      _showResultDialog(isSuccess: false, message: errorMessage);
-    } finally {
-      closeLoading();
+    // Save Local & Update Status Local
+    for (var item in fillingDataList) {
+      await _repository.saveManualTankInput(tankCode: item.tankCode, volume: item.volumeAfter, height: item.heightAfter);
     }
-  }
 
-  void _showResultDialog({required bool isSuccess, required String message}) {
-    Get.dialog(
-      DialogFlexible(
-        logo: Lottie.asset(
-            isSuccess ? AppLotties.success : AppLotties.failed,
-            width: 150,
-            height: 150,
-            repeat: !isSuccess
-        ),
-        title: isSuccess ? "Berhasil" : "Gagal Memproses",
-        message: message,
-        primaryButtonText: isSuccess ? "Selesai" : "Tutup",
-        onPrimaryPressed: () {
-          Get.back();
-
-          if (isSuccess) {
-            Get.offAllNamed(Routes.HOME);
-          }
-          // isSuccess bernilai false (Gagal), maka tidak melakukan apa-apa lagi
-          // setelah Get.back(), sehingga user tetap berada di halaman form (stay).
-        },
-      ),
-      barrierDismissible: false, // User tidak bisa klik sembarang tempat untuk menutup dialog
+    await _repository.updateLocalTransactionStatus(
+      activeNoBast.value,
+      'approval_kasie',
+      levelApproval: myConfig.levelApproval,
+      stepApproval: myConfig.stepApproval,
     );
   }
 
