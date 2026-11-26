@@ -1120,11 +1120,6 @@ class PengeluaranEBpbView extends GetView<PengeluaranEBpbController> {
                   style: AppFonts.fUrbanistBold14
                       .copyWith(color: AppColors.primaryText),
                 ),
-                Text(
-                  "Aktual Liter sesuai API",
-                  style: AppFonts.fUrbanistMedium10
-                      .copyWith(color: AppColors.secondaryText),
-                ),
               ],
             ),
           ),
